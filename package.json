@@ -1,0 +1,23 @@
+{
+  "name": "gemaacademy-api",
+  "version": "1.0.0",
+  "description": "Gema Academy API",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "Gema Academy",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.0.0",
+    "prettier": "^3.8.0"
+  }
+}
