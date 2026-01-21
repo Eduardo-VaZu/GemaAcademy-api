@@ -4,7 +4,6 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
-// Configuración de variables de entorno
 dotenv.config();
 
 const app = express();
@@ -17,7 +16,6 @@ app.use(morgan('dev')); // Logging de peticiones en consola
 app.use(express.json()); // Parseo de cuerpo JSON
 app.use(express.urlencoded({ extended: true })); // Parseo de formularios
 
-// Ruta de prueba
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -26,7 +24,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Inicio del servidor
 app.listen(PORT, () => {
   console.log(`🚀 Server running in ${process.env.NODE_ENV} mode on port http://localhost:${PORT}/health`);
 });

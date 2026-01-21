@@ -5,3 +5,5 @@ dist
 build
 coverage
 .eslintcache
+
+/src/generated/prisma
