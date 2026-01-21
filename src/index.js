@@ -25,5 +25,7 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running in ${process.env.NODE_ENV} mode on port http://localhost:${PORT}/health`);
+  console.log(
+    `🚀 Server running in ${process.env.NODE_ENV} mode on port http://localhost:${PORT}/health`
+  );
 });
