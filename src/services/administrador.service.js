@@ -1,16 +1,16 @@
-const prisma = require("../../prisma/client")
+import { prisma } from "../config/database.js";
 
-exports.getAllAdmin = async () => {
+export const getAllAdmin = async () => {
     return prisma.administrador.findMany();
 };
 
-exports.getAdmin = async (id) => {
+export const getAdmin = async (id) => {
     return prisma.administrador.findUnique({
         where: { usuario_id: Number(id) }
     });
 };
 
-exports.createAdmin = async ({ userData, adminData }) => {
+export const createAdmin = async ({ userData, adminData }) => {
     const user = await prisma.usuarios.create({
         data: {
             ...userData
@@ -30,7 +30,7 @@ exports.createAdmin = async ({ userData, adminData }) => {
     return admin;
 };
 
-exports.updateAdmin = async (id, data) => {
+export const updateAdmin = async (id, data) => {
     return prisma.usuarios.update({
         where: { id: Number(id) },
         data: {
@@ -53,9 +53,9 @@ exports.updateAdmin = async (id, data) => {
     })
 }
 
-exports.deleteAdmin = async (id) => {
+export const deleteAdmin = async (id) => {
     return prisma.$transaction([
         prisma.administrador.deleteMany({ where: { usuario_id: Number(id) } }),
         prisma.usuarios.delete({ where: { id: Number(id) } })
     ]);
-}
+};

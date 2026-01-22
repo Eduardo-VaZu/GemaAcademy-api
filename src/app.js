@@ -5,6 +5,10 @@ import morgan from 'morgan';
 // Importamos la BD para usarla más adelante o hacer health-check real
 import { prisma } from './config/database.js'; 
 import horarioRoutes from './routes/horario.routes.js';
+import usuarioRoutes from './routes/usuario.routes.js';
+import alumnoRoutes from './routes/alumno.routes.js';
+import profesorRoutes from './routes/profesor.routes.js';
+import administradorRoutes from './routes/administrador.routes.js';
 
 const app = express();
 
@@ -14,7 +18,14 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Routes
 app.use('/api/horarios', horarioRoutes);
+app.use('/api/usuarios', usuarioRoutes);
+app.use('/api/alumnos', alumnoRoutes);
+app.use('/api/profesores', profesorRoutes);
+app.use('/api/administradores', administradorRoutes);
+
 
 // Health Check Route (Mejorado para verificar BD también)
 app.get('/health', async (req, res) => {
@@ -29,6 +40,7 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    console.error('❌ Database connection error:', error);
     res.status(500).json({
       status: 'error',
       database: 'disconnected',
@@ -36,6 +48,7 @@ app.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   }
+
 });
 
 export default app;
