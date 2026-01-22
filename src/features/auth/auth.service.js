@@ -1,65 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../config/database.js';
-import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from '../config.js';
-import { generateRefreshToken, getRefreshTokenExpiration, isTokenExpired } from '../utils/tokenUtils.js';
+import { prisma } from '../../config/database.js';
+import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from '../../config.js';
+import { generateRefreshToken, getRefreshTokenExpiration, isTokenExpired } from './utils/tokenUtils.js';
 
 export const authService = {
-  /**
-   * Registrar un nuevo usuario
-   * @param {Object} userData - Datos del usuario (email, password, nombres, apellidos, rol_id, etc.)
-   * @returns {Object} Usuario creado (sin contraseña)
-   */
-  register: async (userData) => {
-    const { email, password, ...otrosdatos } = userData;
-
-    // Verificar si el email ya existe
-    const existingUser = await prisma.usuarios.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
-      throw new Error('El email ya está registrado');
-    }
-
-    // Hashear la contraseña
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Crear usuario y credenciales en una transacción
-    const usuario = await prisma.$transaction(async (tx) => {
-      // Crear el usuario
-      const nuevoUsuario = await tx.usuarios.create({
-        data: {
-          email,
-          ...otrosdatos,
-          activo: true
-        },
-        include: {
-          roles: true
-        }
-      });
-
-      // Crear las credenciales
-      await tx.credenciales_usuario.create({
-        data: {
-          usuario_id: nuevoUsuario.id,
-          hash_contrasena: hashedPassword
-        }
-      });
-
-      return nuevoUsuario;
-    });
-
-    // Retornar usuario sin información sensible
-    return {
-      id: usuario.id,
-      email: usuario.email,
-      nombres: usuario.nombres,
-      apellidos: usuario.apellidos,
-      rol: usuario.roles.nombre
-    };
-  },
 
   /**
    * Iniciar sesión

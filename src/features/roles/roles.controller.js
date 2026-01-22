@@ -1,4 +1,4 @@
-import { rolesService } from '../services/roles.service.js';
+import { rolesService } from './roles.service.js';
 
 export const rolesController = {
   /**

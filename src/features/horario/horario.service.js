@@ -1,4 +1,4 @@
-import { prisma } from '../config/database.js';
+import { prisma } from '../../config/database.js';
 
 export const horarioService = {
   // 1. Listar todos los horarios (con datos "humanos" gracias a include)

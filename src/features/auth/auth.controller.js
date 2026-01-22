@@ -1,44 +1,6 @@
-import { authService } from '../services/auth.service.js';
+import { authService } from './auth.service.js';
 
 export const authController = {
-  /**
-   * POST /api/auth/register
-   * Registrar un nuevo usuario
-   */
-  register: async (req, res) => {
-    try {
-      const usuario = await authService.register(req.body);
-      
-      res.status(201).json({
-        status: 'success',
-        message: 'Usuario registrado exitosamente',
-        data: usuario
-      });
-    } catch (error) {
-      // Errores de validación o duplicados
-      if (error.message.includes('ya está registrado')) {
-        return res.status(400).json({
-          status: 'error',
-          message: error.message
-        });
-      }
-
-      // Error de Prisma por violación de constraint
-      if (error.code === 'P2002') {
-        return res.status(400).json({
-          status: 'error',
-          message: 'El email ya está registrado'
-        });
-      }
-
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al registrar usuario',
-        detail: error.message
-      });
-    }
-  },
-
   /**
    * POST /api/auth/login
    * Iniciar sesión
@@ -62,8 +24,8 @@ export const authController = {
         data: result
       });
     } catch (error) {
-      if (error.message.includes('Credenciales inválidas') || 
-          error.message.includes('Usuario inactivo')) {
+      if (error.message.includes('Credenciales inválidas') ||
+        error.message.includes('Usuario inactivo')) {
         return res.status(401).json({
           status: 'error',
           message: error.message
@@ -123,9 +85,9 @@ export const authController = {
         data: result
       });
     } catch (error) {
-      if (error.message.includes('inválido') || 
-          error.message.includes('revocado') ||
-          error.message.includes('expirado')) {
+      if (error.message.includes('inválido') ||
+        error.message.includes('revocado') ||
+        error.message.includes('expirado')) {
         return res.status(401).json({
           status: 'error',
           message: error.message

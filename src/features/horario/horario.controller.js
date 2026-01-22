@@ -1,4 +1,4 @@
-import { horarioService } from '../services/horario.service.js';
+import { horarioService } from './horario.service.js';
 
 export const horarioController = {
   getHorarios: async (req, res) => {

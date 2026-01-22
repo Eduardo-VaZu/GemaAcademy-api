@@ -4,13 +4,13 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 // Importamos la BD para usarla más adelante o hacer health-check real
 import { prisma } from './config/database.js'; 
-import horarioRoutes from './routes/horario.routes.js';
-import usuarioRoutes from './routes/usuario.routes.js';
-import alumnoRoutes from './routes/alumno.routes.js';
-import profesorRoutes from './routes/profesor.routes.js';
-import administradorRoutes from './routes/administrador.routes.js';
-import authRoutes from './routes/auth.routes.js';
-import rolesRoutes from './routes/roles.routes.js';
+import horarioRoutes from './features/horario/horario.routes.js';
+import usuarioRoutes from './features/usuario/usuario.routes.js';
+import alumnoRoutes from './features/alumno/alumno.routes.js';
+import profesorRoutes from './features/profesor/profesor.routes.js';
+import administradorRoutes from './features/administrador/administrador.routes.js';
+import authRoutes from './features/auth/auth.routes.js';
+import rolesRoutes from './features/roles/roles.routes.js';
 
 const app = express();
 
