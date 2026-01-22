@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 // Importamos la BD para usarla más adelante o hacer health-check real
 import { prisma } from './config/database.js'; 
+import horarioRoutes from './routes/horario.routes.js';
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/horarios', horarioRoutes);
 
 // Health Check Route (Mejorado para verificar BD también)
 app.get('/health', async (req, res) => {
