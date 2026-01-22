@@ -9,6 +9,8 @@ import usuarioRoutes from './routes/usuario.routes.js';
 import alumnoRoutes from './routes/alumno.routes.js';
 import profesorRoutes from './routes/profesor.routes.js';
 import administradorRoutes from './routes/administrador.routes.js';
+import authRoutes from './routes/auth.routes.js';
+import rolesRoutes from './routes/roles.routes.js';
 
 const app = express();
 
@@ -20,6 +22,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/roles', rolesRoutes);
 app.use('/api/horarios', horarioRoutes);
 app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/alumnos', alumnoRoutes);

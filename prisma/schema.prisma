@@ -273,8 +273,22 @@ model usuarios {
   alumnos              alumnos?
   credenciales_usuario credenciales_usuario?
   profesores           profesores?
+  refresh_tokens       refresh_tokens[]
   roles                roles                 @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tipos_documento      tipos_documento?      @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([tipo_documento_id, numero_documento], map: "uq_documento")
+}
+
+model refresh_tokens {
+  id         Int      @id @default(autoincrement())
+  usuario_id Int
+  token      String   @unique @db.VarChar(255)
+  expires_at DateTime @db.Timestamp(6)
+  created_at DateTime @default(now()) @db.Timestamp(6)
+  revoked    Boolean  @default(false)
+  usuarios   usuarios @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id])
+  @@index([token])
 }
