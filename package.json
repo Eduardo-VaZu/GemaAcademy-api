@@ -2,10 +2,10 @@
   "name": "gemaacademy-api",
   "version": "1.0.0",
   "description": "Gema Academy API",
-  "main": "src/index.js",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "start": "node src/app.js",
+    "dev": "node --watch src/app.js",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "node --test"

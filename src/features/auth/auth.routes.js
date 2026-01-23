@@ -5,7 +5,6 @@ import { authenticate } from './middlewares/auth.middleware.js';
 const router = Router();
 
 // Rutas públicas (no requieren autenticación)
-router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
