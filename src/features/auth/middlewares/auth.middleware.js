@@ -3,16 +3,14 @@ import { JWT_SECRET } from '../../../config.js';
 
 export const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.cookies.accessToken;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({
         status: 'error',
         message: 'No se proporcionó token de autenticación'
       });
     }
-
-    const token = authHeader.substring(7);
 
     const decoded = jwt.verify(token, JWT_SECRET);
 

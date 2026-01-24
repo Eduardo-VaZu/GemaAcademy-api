@@ -7,8 +7,8 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // JWT Configuration
 export const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key-change-in-production';
-export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m'; // Access token: 15 minutos
-export const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d'; // Refresh token: 7 días
+export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+export const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 // CORS Configuration
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';

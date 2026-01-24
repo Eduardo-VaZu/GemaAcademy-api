@@ -15,6 +15,14 @@ export const authController = {
 
       const result = await authService.login(email, password);
 
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000,
+        path: '/'
+      });
+
       res.cookie('refreshToken', result.refreshToken, {
         httpOnly: true,
         secure: true,
@@ -26,10 +34,7 @@ export const authController = {
       res.json({
         status: 'success',
         message: 'Login exitoso',
-        data: {
-          accessToken: result.accessToken,
-          user: result.user.id
-        }
+        data: result.user.id
       });
 
     } catch (error) {
@@ -53,12 +58,12 @@ export const authController = {
     try {
       const profile = await authService.getProfile(req.user.id);
 
-      const { nombre, apellido, email, rol, fecha_nacimiento } = profile;
+      const { nombres, apellido, email, rol, fecha_nacimiento } = profile;
 
       res.json({
         status: 'success',
         data: {
-          nombre,
+          nombres,
           apellido,
           email,
           rol,
@@ -76,7 +81,7 @@ export const authController = {
 
   refresh: async (req, res) => {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies.refreshToken;
 
       if (!refreshToken) {
         return res.status(400).json({
@@ -87,11 +92,20 @@ export const authController = {
 
       const result = await authService.refreshAccessToken(refreshToken);
 
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000,
+        path: '/'
+      });
+
       res.json({
         status: 'success',
         message: 'Access token renovado',
-        data: result
+        data: result.user.id
       });
+
     } catch (error) {
       if (error.message.includes('inválido') ||
         error.message.includes('revocado') ||
