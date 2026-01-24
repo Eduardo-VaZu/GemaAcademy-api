@@ -15,26 +15,27 @@ export const authController = {
 
       const result = await authService.login(email, password);
 
-      res.cookie('accessToken', result.accessToken, {
+      const cookiesOption = {
         httpOnly: true,
         secure: NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000,
+        sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
         path: '/',
+      };
+
+      res.cookie('accessToken', result.accessToken, {
+        ...cookiesOption,
+        maxAge: 15 * 60 * 1000,
       });
 
       res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
+        ...cookiesOption,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/',
       });
 
       res.json({
         status: 'success',
         message: 'Login exitoso',
-        data: result.user.id,
+        data: result.user,
       });
     } catch (error) {
       const errorMessage = ['Credenciales inválidas', 'Usuario inactivo', 'sin credenciales'];
@@ -57,17 +58,9 @@ export const authController = {
     try {
       const profile = await authService.getProfile(req.user.id);
 
-      const { nombres, apellido, email, rol, fecha_nacimiento } = profile;
-
       res.json({
         status: 'success',
-        data: {
-          nombres,
-          apellido,
-          email,
-          rol,
-          fecha_nacimiento,
-        },
+        data: profile,
       });
     } catch (error) {
       res.status(500).json({
@@ -83,36 +76,51 @@ export const authController = {
       const refreshToken = req.cookies.refreshToken;
 
       if (!refreshToken) {
-        return res.status(400).json({
+        return res.status(401).json({
           status: 'error',
           message: 'Refresh token es requerido',
+          code: 'REFRESH_TOKEN_REQUIRED',
         });
       }
 
       const result = await authService.refreshAccessToken(refreshToken);
 
-      res.cookie('accessToken', result.accessToken, {
+      const cookieOptions = {
         httpOnly: true,
-        secure: true,
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000,
+        secure: NODE_ENV === 'production',
+        sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
         path: '/',
+      };
+
+      res.cookie('accessToken', result.accessToken, {
+        ...cookieOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie('refreshToken', result.refreshToken, {
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.json({
         status: 'success',
         message: 'Access token renovado',
-        data: result.user.id,
+        data: result.user,
       });
     } catch (error) {
-      if (
-        error.message.includes('inválido') ||
-        error.message.includes('revocado') ||
-        error.message.includes('expirado')
-      ) {
+      const errorMessages = [
+        'inválido',
+        'revocado',
+        'expirado',
+        'comprometido',
+        'inactivo',
+        'bloqueada',
+      ];
+      if (errorMessages.some((message) => error.message.includes(message))) {
         return res.status(401).json({
           status: 'error',
           message: error.message,
+          code: 'REFRESH_TOKEN_INVALID',
         });
       }
 
@@ -126,12 +134,13 @@ export const authController = {
 
   logout: async (req, res) => {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies.refreshToken;
 
       if (!refreshToken) {
-        return res.status(400).json({
+        return res.status(401).json({
           status: 'error',
           message: 'Refresh token es requerido',
+          code: 'REFRESH_TOKEN_REQUIRED',
         });
       }
 
@@ -159,6 +168,30 @@ export const authController = {
       res.status(500).json({
         status: 'error',
         message: 'Error al cerrar sesión',
+        detail: error.message,
+      });
+    }
+  },
+
+  revokeAllSessions: async (req, res) => {
+    try {
+      await authService.revokeAllSessions(req.user.id);
+
+      res.clearCookie('accessToken', {
+        path: '/',
+      });
+      res.clearCookie('refreshToken', {
+        path: '/',
+      });
+
+      res.json({
+        status: 'success',
+        message: 'Todas las sesiones cerradas exitosamente',
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'Error al cerrar todas las sesiones',
         detail: error.message,
       });
     }

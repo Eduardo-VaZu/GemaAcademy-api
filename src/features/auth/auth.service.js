@@ -1,18 +1,21 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../config/database.js';
-import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN } from '../../config.js';
-import { generateRefreshToken, getRefreshTokenExpiration, isTokenExpired } from './utils/tokenUtils.js';
+import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRATION_DAYS } from '../../config.js';
+import {
+  generateRefreshToken,
+  getRefreshTokenExpiration,
+  isTokenExpired,
+} from './utils/tokenUtils.js';
 
 export const authService = {
-
   login: async (email, password) => {
     const usuario = await prisma.usuarios.findUnique({
       where: { email },
       include: {
         credenciales_usuario: true,
-        roles: true
-      }
+        roles: true,
+      },
     });
 
     if (!usuario) {
@@ -27,6 +30,10 @@ export const authService = {
       throw new Error('Usuario sin credenciales configuradas');
     }
 
+    if (usuario.credenciales_usuario.bloqueado) {
+      throw new Error('Usuario bloqueado. Contacte al administrador');
+    }
+
     const passwordValida = await bcrypt.compare(
       password,
       usuario.credenciales_usuario.hash_contrasena
@@ -38,7 +45,7 @@ export const authService = {
 
     await prisma.credenciales_usuario.update({
       where: { usuario_id: usuario.id },
-      data: { ultimo_login: new Date() }
+      data: { ultimo_login: new Date() },
     });
 
     const accessToken = jwt.sign(
@@ -46,7 +53,7 @@ export const authService = {
         id: usuario.id,
         email: usuario.email,
         rol_id: usuario.rol_id,
-        rol_nombre: usuario.roles.nombre
+        rol_nombre: usuario.roles.nombre,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -59,8 +66,8 @@ export const authService = {
       data: {
         usuario_id: usuario.id,
         token: refreshToken,
-        expires_at: expiresAt
-      }
+        expires_at: expiresAt,
+      },
     });
 
     return {
@@ -71,8 +78,8 @@ export const authService = {
         email: usuario.email,
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,
-        rol: usuario.roles.nombre
-      }
+        rol: usuario.roles.nombre,
+      },
     };
   },
 
@@ -85,10 +92,10 @@ export const authService = {
         profesores: true,
         administrador: {
           include: {
-            sedes: true
-          }
-        }
-      }
+            sedes: true,
+          },
+        },
+      },
     });
 
     if (!usuario) {
@@ -103,21 +110,21 @@ export const authService = {
       telefono_personal: usuario.telefono_personal,
       fecha_nacimiento: usuario.fecha_nacimiento,
       genero: usuario.genero,
-      rol: usuario.roles.nombre
+      rol: usuario.roles.nombre,
     };
 
     if (usuario.alumnos) {
       baseData.alumno = {
         condiciones_medicas: usuario.alumnos.condiciones_medicas,
         seguro_medico: usuario.alumnos.seguro_medico,
-        grupo_sanguineo: usuario.alumnos.grupo_sanguineo
+        grupo_sanguineo: usuario.alumnos.grupo_sanguineo,
       };
     }
 
     if (usuario.profesores) {
       baseData.profesor = {
         especializacion: usuario.profesores.especializacion,
-        tarifa_hora: usuario.profesores.tarifa_hora
+        tarifa_hora: usuario.profesores.tarifa_hora,
       };
     }
 
@@ -125,7 +132,7 @@ export const authService = {
       baseData.administrador = {
         cargo: usuario.administrador.cargo,
         area: usuario.administrador.area,
-        sede: usuario.administrador.sedes?.nombre
+        sede: usuario.administrador.sedes?.nombre,
       };
     }
 
@@ -138,10 +145,11 @@ export const authService = {
       include: {
         usuarios: {
           include: {
-            roles: true
-          }
-        }
-      }
+            roles: true,
+            credenciales_usuario: true,
+          },
+        },
+      },
     });
 
     if (!tokenRecord) {
@@ -149,6 +157,10 @@ export const authService = {
     }
 
     if (tokenRecord.revoked) {
+      await prisma.refresh_tokens.updateMany({
+        where: { usuario_id: tokenRecord.usuario_id },
+        data: { revoked: true },
+      });
       throw new Error('Refresh token revocado');
     }
     if (isTokenExpired(tokenRecord.expires_at)) {
@@ -158,23 +170,54 @@ export const authService = {
     if (!tokenRecord.usuarios.activo) {
       throw new Error('Usuario inactivo');
     }
+
+    if (tokenRecord.usuarios.credenciales_usuario?.bloqueado) {
+      throw new Error('Cuenta bloqueada. Contacte al administrador');
+    }
+
+    await prisma.refresh_tokens.update({
+      where: { token: refreshToken },
+      data: { revoked: true },
+    });
+
+    const newRefreshToken = generateRefreshToken();
+    const expiresAt = getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
+
+    await prisma.refresh_tokens.create({
+      data: {
+        usuario_id: tokenRecord.usuarios.id,
+        token: newRefreshToken,
+        expires_at: expiresAt,
+      },
+    });
+
     const accessToken = jwt.sign(
       {
         id: tokenRecord.usuarios.id,
         email: tokenRecord.usuarios.email,
         rol_id: tokenRecord.usuarios.rol_id,
-        rol_nombre: tokenRecord.usuarios.roles.nombre
+        rol_nombre: tokenRecord.usuarios.roles.nombre,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    return { accessToken };
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+      user: {
+        id: tokenRecord.usuarios.id,
+        email: tokenRecord.usuarios.email,
+        nombres: tokenRecord.usuarios.nombres,
+        apellidos: tokenRecord.usuarios.apellidos,
+        rol: tokenRecord.usuarios.roles.nombre,
+      },
+    };
   },
 
   logout: async (refreshToken) => {
     const tokenRecord = await prisma.refresh_tokens.findUnique({
-      where: { token: refreshToken }
+      where: { token: refreshToken },
     });
 
     if (!tokenRecord) {
@@ -183,7 +226,7 @@ export const authService = {
 
     await prisma.refresh_tokens.update({
       where: { token: refreshToken },
-      data: { revoked: true }
+      data: { revoked: true },
     });
 
     return { message: 'Sesión cerrada exitosamente' };
@@ -193,11 +236,11 @@ export const authService = {
     await prisma.refresh_tokens.updateMany({
       where: {
         usuario_id: userId,
-        revoked: false
+        revoked: false,
       },
-      data: { revoked: true }
+      data: { revoked: true },
     });
 
     return { message: 'Todas las sesiones han sido cerradas' };
-  }
+  },
 };
