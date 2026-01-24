@@ -6,14 +6,7 @@ import { generateRefreshToken, getRefreshTokenExpiration, isTokenExpired } from 
 
 export const authService = {
 
-  /**
-   * Iniciar sesión
-   * @param {string} email - Email del usuario
-   * @param {string} password - Contraseña del usuario
-   * @returns {Object} Access token, refresh token y datos del usuario
-   */
   login: async (email, password) => {
-    // Buscar usuario con sus credenciales y rol
     const usuario = await prisma.usuarios.findUnique({
       where: { email },
       include: {
@@ -34,7 +27,6 @@ export const authService = {
       throw new Error('Usuario sin credenciales configuradas');
     }
 
-    // Verificar la contraseña
     const passwordValida = await bcrypt.compare(
       password,
       usuario.credenciales_usuario.hash_contrasena
@@ -44,13 +36,11 @@ export const authService = {
       throw new Error('Credenciales inválidas');
     }
 
-    // Actualizar último login
     await prisma.credenciales_usuario.update({
       where: { usuario_id: usuario.id },
       data: { ultimo_login: new Date() }
     });
 
-    // Generar access token JWT (15 minutos)
     const accessToken = jwt.sign(
       {
         id: usuario.id,
@@ -62,11 +52,9 @@ export const authService = {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    // Generar refresh token (7 días)
     const refreshToken = generateRefreshToken();
     const expiresAt = getRefreshTokenExpiration(7);
 
-    // Guardar refresh token en la base de datos
     await prisma.refresh_tokens.create({
       data: {
         usuario_id: usuario.id,
@@ -88,11 +76,6 @@ export const authService = {
     };
   },
 
-  /**
-   * Obtener perfil del usuario autenticado
-   * @param {number} userId - ID del usuario
-   * @returns {Object} Datos del usuario
-   */
   getProfile: async (userId) => {
     const usuario = await prisma.usuarios.findUnique({
       where: { id: userId },
@@ -112,7 +95,6 @@ export const authService = {
       throw new Error('Usuario no encontrado');
     }
 
-    // Retornar datos según el rol
     const baseData = {
       id: usuario.id,
       email: usuario.email,
@@ -124,7 +106,6 @@ export const authService = {
       rol: usuario.roles.nombre
     };
 
-    // Agregar datos específicos según el rol
     if (usuario.alumnos) {
       baseData.alumno = {
         condiciones_medicas: usuario.alumnos.condiciones_medicas,
@@ -151,13 +132,7 @@ export const authService = {
     return baseData;
   },
 
-  /**
-   * Renovar access token usando refresh token
-   * @param {string} refreshToken - Refresh token
-   * @returns {Object} Nuevo access token
-   */
   refreshAccessToken: async (refreshToken) => {
-    // Buscar el refresh token en la base de datos
     const tokenRecord = await prisma.refresh_tokens.findUnique({
       where: { token: refreshToken },
       include: {
@@ -173,22 +148,16 @@ export const authService = {
       throw new Error('Refresh token inválido');
     }
 
-    // Verificar si el token ha sido revocado
     if (tokenRecord.revoked) {
       throw new Error('Refresh token revocado');
     }
-
-    // Verificar si el token ha expirado
     if (isTokenExpired(tokenRecord.expires_at)) {
       throw new Error('Refresh token expirado');
     }
 
-    // Verificar que el usuario esté activo
     if (!tokenRecord.usuarios.activo) {
       throw new Error('Usuario inactivo');
     }
-
-    // Generar nuevo access token
     const accessToken = jwt.sign(
       {
         id: tokenRecord.usuarios.id,
@@ -203,13 +172,7 @@ export const authService = {
     return { accessToken };
   },
 
-  /**
-   * Cerrar sesión (logout real)
-   * @param {string} refreshToken - Refresh token a revocar
-   * @returns {Object} Confirmación
-   */
   logout: async (refreshToken) => {
-    // Buscar y revocar el refresh token
     const tokenRecord = await prisma.refresh_tokens.findUnique({
       where: { token: refreshToken }
     });
@@ -218,7 +181,6 @@ export const authService = {
       throw new Error('Refresh token no encontrado');
     }
 
-    // Marcar como revocado
     await prisma.refresh_tokens.update({
       where: { token: refreshToken },
       data: { revoked: true }
@@ -227,11 +189,6 @@ export const authService = {
     return { message: 'Sesión cerrada exitosamente' };
   },
 
-  /**
-   * Revocar todos los refresh tokens de un usuario
-   * @param {number} userId - ID del usuario
-   * @returns {Object} Confirmación
-   */
   revokeAllTokens: async (userId) => {
     await prisma.refresh_tokens.updateMany({
       where: {
