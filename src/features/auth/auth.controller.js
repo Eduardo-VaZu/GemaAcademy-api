@@ -1,10 +1,7 @@
 import { authService } from './auth.service.js';
 
 export const authController = {
-  /**
-   * POST /api/auth/login
-   * Iniciar sesión
-   */
+
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -18,11 +15,28 @@ export const authController = {
 
       const result = await authService.login(email, password);
 
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000,
+        path: '/'
+      });
+
+      res.cookie('refreshToken', result.refreshToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/'
+      });
+
       res.json({
         status: 'success',
         message: 'Login exitoso',
-        data: result
+        data: result.user.id
       });
+
     } catch (error) {
       if (error.message.includes('Credenciales inválidas') ||
         error.message.includes('Usuario inactivo')) {
@@ -40,18 +54,21 @@ export const authController = {
     }
   },
 
-  /**
-   * GET /api/auth/profile
-   * Obtener perfil del usuario autenticado
-   * Requiere autenticación (middleware authenticate)
-   */
   getProfile: async (req, res) => {
     try {
       const profile = await authService.getProfile(req.user.id);
 
+      const { nombres, apellido, email, rol, fecha_nacimiento } = profile;
+
       res.json({
         status: 'success',
-        data: profile
+        data: {
+          nombres,
+          apellido,
+          email,
+          rol,
+          fecha_nacimiento
+        }
       });
     } catch (error) {
       res.status(500).json({
@@ -62,13 +79,9 @@ export const authController = {
     }
   },
 
-  /**
-   * POST /api/auth/refresh
-   * Renovar access token usando refresh token
-   */
   refresh: async (req, res) => {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies.refreshToken;
 
       if (!refreshToken) {
         return res.status(400).json({
@@ -79,11 +92,20 @@ export const authController = {
 
       const result = await authService.refreshAccessToken(refreshToken);
 
+      res.cookie('accessToken', result.accessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000,
+        path: '/'
+      });
+
       res.json({
         status: 'success',
         message: 'Access token renovado',
-        data: result
+        data: result.user.id
       });
+
     } catch (error) {
       if (error.message.includes('inválido') ||
         error.message.includes('revocado') ||
@@ -102,10 +124,6 @@ export const authController = {
     }
   },
 
-  /**
-   * POST /api/auth/logout
-   * Cerrar sesión (logout real con revocación de refresh token)
-   */
   logout: async (req, res) => {
     try {
       const { refreshToken } = req.body;
@@ -117,11 +135,18 @@ export const authController = {
         });
       }
 
-      const result = await authService.logout(refreshToken);
+      await authService.logout(refreshToken);
+
+      res.clearCookie('accessToken', {
+        path: '/'
+      });
+      res.clearCookie('refreshToken', {
+        path: '/'
+      });
 
       res.json({
         status: 'success',
-        message: result.message
+        message: 'Sesión cerrada exitosamente'
       });
     } catch (error) {
       if (error.message.includes('no encontrado')) {

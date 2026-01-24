@@ -1,7 +1,10 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+
+import { CORS_CREDENTIALS, CORS_ORIGIN } from './config.js';
 
 import healthRoutes from './features/health/health.service.js';
 import horarioRoutes from './features/horario/horario.routes.js';
@@ -15,11 +18,18 @@ import rolesRoutes from './features/roles/roles.routes.js';
 const app = express();
 
 // Middlewares
+app.use(cors({
+    origin: CORS_ORIGIN,
+    credentials: CORS_CREDENTIALS,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}))
 app.use(helmet());
-app.use(cors());
+app.use(cookieParser());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 // Routes
 app.use('/health', healthRoutes);
