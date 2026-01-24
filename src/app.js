@@ -18,18 +18,19 @@ import rolesRoutes from './features/roles/roles.routes.js';
 const app = express();
 
 // Middlewares
-app.use(cors({
+app.use(
+  cors({
     origin: CORS_ORIGIN,
     credentials: CORS_CREDENTIALS,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}))
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(helmet());
 app.use(cookieParser());
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
 
 // Routes
 app.use('/health', healthRoutes);

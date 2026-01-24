@@ -1,7 +1,7 @@
+import { NODE_ENV } from '../../config.js';
 import { authService } from './auth.service.js';
 
 export const authController = {
-
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -9,7 +9,7 @@ export const authController = {
       if (!email || !password) {
         return res.status(400).json({
           status: 'error',
-          message: 'Email y contraseña son requeridos'
+          message: 'Email y contraseña son requeridos',
         });
       }
 
@@ -17,10 +17,10 @@ export const authController = {
 
       res.cookie('accessToken', result.accessToken, {
         httpOnly: true,
-        secure: true,
+        secure: NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: 15 * 60 * 1000,
-        path: '/'
+        path: '/',
       });
 
       res.cookie('refreshToken', result.refreshToken, {
@@ -28,28 +28,27 @@ export const authController = {
         secure: true,
         sameSite: 'strict',
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        path: '/'
+        path: '/',
       });
 
       res.json({
         status: 'success',
         message: 'Login exitoso',
-        data: result.user.id
+        data: result.user.id,
       });
-
     } catch (error) {
-      if (error.message.includes('Credenciales inválidas') ||
-        error.message.includes('Usuario inactivo')) {
+      const errorMessage = ['Credenciales inválidas', 'Usuario inactivo', 'sin credenciales'];
+      if (errorMessage.some((message) => error.message.includes(message))) {
         return res.status(401).json({
           status: 'error',
-          message: error.message
+          message: 'Credenciales inválidas',
         });
       }
 
       res.status(500).json({
         status: 'error',
         message: 'Error al iniciar sesión',
-        detail: error.message
+        detail: error.message,
       });
     }
   },
@@ -67,14 +66,14 @@ export const authController = {
           apellido,
           email,
           rol,
-          fecha_nacimiento
-        }
+          fecha_nacimiento,
+        },
       });
     } catch (error) {
       res.status(500).json({
         status: 'error',
         message: 'Error al obtener perfil',
-        detail: error.message
+        detail: error.message,
       });
     }
   },
@@ -86,7 +85,7 @@ export const authController = {
       if (!refreshToken) {
         return res.status(400).json({
           status: 'error',
-          message: 'Refresh token es requerido'
+          message: 'Refresh token es requerido',
         });
       }
 
@@ -97,29 +96,30 @@ export const authController = {
         secure: true,
         sameSite: 'strict',
         maxAge: 15 * 60 * 1000,
-        path: '/'
+        path: '/',
       });
 
       res.json({
         status: 'success',
         message: 'Access token renovado',
-        data: result.user.id
+        data: result.user.id,
       });
-
     } catch (error) {
-      if (error.message.includes('inválido') ||
+      if (
+        error.message.includes('inválido') ||
         error.message.includes('revocado') ||
-        error.message.includes('expirado')) {
+        error.message.includes('expirado')
+      ) {
         return res.status(401).json({
           status: 'error',
-          message: error.message
+          message: error.message,
         });
       }
 
       res.status(500).json({
         status: 'error',
         message: 'Error al renovar token',
-        detail: error.message
+        detail: error.message,
       });
     }
   },
@@ -131,36 +131,36 @@ export const authController = {
       if (!refreshToken) {
         return res.status(400).json({
           status: 'error',
-          message: 'Refresh token es requerido'
+          message: 'Refresh token es requerido',
         });
       }
 
       await authService.logout(refreshToken);
 
       res.clearCookie('accessToken', {
-        path: '/'
+        path: '/',
       });
       res.clearCookie('refreshToken', {
-        path: '/'
+        path: '/',
       });
 
       res.json({
         status: 'success',
-        message: 'Sesión cerrada exitosamente'
+        message: 'Sesión cerrada exitosamente',
       });
     } catch (error) {
       if (error.message.includes('no encontrado')) {
         return res.status(404).json({
           status: 'error',
-          message: error.message
+          message: error.message,
         });
       }
 
       res.status(500).json({
         status: 'error',
         message: 'Error al cerrar sesión',
-        detail: error.message
+        detail: error.message,
       });
     }
-  }
+  },
 };
