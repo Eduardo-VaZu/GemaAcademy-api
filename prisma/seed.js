@@ -13,27 +13,26 @@ async function main() {
       update: {},
       create: {
         nombre: 'Alumno',
-        descripcion: 'Estudiante de la academia'
-      }
+        descripcion: 'Estudiante de la academia',
+      },
     }),
     prisma.roles.upsert({
       where: { nombre: 'Profesor' },
       update: {},
       create: {
         nombre: 'Profesor',
-        descripcion: 'Instructor de clases'
-      }
+        descripcion: 'Instructor de clases',
+      },
     }),
     prisma.roles.upsert({
       where: { nombre: 'Administrador' },
       update: {},
       create: {
         nombre: 'Administrador',
-        descripcion: 'Administrador del sistema'
-      }
-    })
+        descripcion: 'Administrador del sistema',
+      },
+    }),
   ]);
-
   console.log(`✅ ${roles.length} roles creados`);
 
   // Crear tipos de documento
@@ -44,25 +43,25 @@ async function main() {
       update: {},
       create: {
         id: 'DNI',
-        descripcion: 'Documento Nacional de Identidad'
-      }
+        descripcion: 'Documento Nacional de Identidad',
+      },
     }),
     prisma.tipos_documento.upsert({
       where: { id: 'CE' },
       update: {},
       create: {
         id: 'CE',
-        descripcion: 'Carnet de Extranjería'
-      }
+        descripcion: 'Carnet de Extranjería',
+      },
     }),
     prisma.tipos_documento.upsert({
       where: { id: 'PASAPORTE' },
       update: {},
       create: {
         id: 'PASAPORTE',
-        descripcion: 'Pasaporte'
-      }
-    })
+        descripcion: 'Pasaporte',
+      },
+    }),
   ]);
 
   console.log(`✅ ${tiposDoc.length} tipos de documento creados`);

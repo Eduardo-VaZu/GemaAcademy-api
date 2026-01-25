@@ -1,12 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../config/database.js';
-import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRATION_DAYS } from '../../config.js';
-import {
-  generateRefreshToken,
-  getRefreshTokenExpiration,
-  isTokenExpired,
-} from './utils/tokenUtils.js';
+import { secret } from '../../config.js';
+import { tokenUtils } from './utils/tokenUtils.js';
 
 export const authService = {
   login: async (email, password) => {
@@ -55,12 +51,12 @@ export const authService = {
         rol_id: usuario.rol_id,
         rol_nombre: usuario.roles.nombre,
       },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      secret.jwt,
+      { expiresIn: secret.jwt_expires_in }
     );
 
-    const refreshToken = generateRefreshToken();
-    const expiresAt = getRefreshTokenExpiration(7);
+    const refreshToken = tokenUtils.generateRefreshToken();
+    const expiresAt = tokenUtils.getRefreshTokenExpiration(secret.refresh_token_expiration_days);
 
     await prisma.refresh_tokens.create({
       data: {
@@ -163,7 +159,7 @@ export const authService = {
       });
       throw new Error('Refresh token revocado');
     }
-    if (isTokenExpired(tokenRecord.expires_at)) {
+    if (tokenUtils.isTokenExpired(tokenRecord.expires_at)) {
       throw new Error('Refresh token expirado');
     }
 
@@ -180,8 +176,8 @@ export const authService = {
       data: { revoked: true },
     });
 
-    const newRefreshToken = generateRefreshToken();
-    const expiresAt = getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
+    const newRefreshToken = tokenUtils.generateRefreshToken();
+    const expiresAt = tokenUtils.getRefreshTokenExpiration(secret.refresh_token_expiration_days);
 
     await prisma.refresh_tokens.create({
       data: {
@@ -198,8 +194,8 @@ export const authService = {
         rol_id: tokenRecord.usuarios.rol_id,
         rol_nombre: tokenRecord.usuarios.roles.nombre,
       },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
+      secret.jwt,
+      { expiresIn: secret.jwt_expires_in }
     );
 
     return {
