@@ -146,7 +146,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"alumno.nuevo@gema.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Carlos\",\n    \"apellidos\": \"Rodríguez\",\n    \"rol_id\": \"Alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"72345678\",\n    \"telefono_personal\": \"+51987654321\",\n    \"fecha_nacimiento\": \"2005-03-15\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Asma leve\",\n        \"seguro_medico\": \"Pacífico Seguros\",\n        \"grupo_sanguineo\": \"O+\"\n    }\n}"
+              "raw": "{\n    \"email\": \"alumno.nuevo@gema.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Carlos\",\n    \"apellidos\": \"Rodríguez\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"72345678\",\n    \"telefono_personal\": \"+51987654321\",\n    \"fecha_nacimiento\": \"2005-03-15\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Asma leve\",\n        \"seguro_medico\": \"Pacífico Seguros\",\n        \"grupo_sanguineo\": \"O+\"\n    }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/usuarios/register",

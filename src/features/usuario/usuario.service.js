@@ -31,12 +31,12 @@ export const usuarioService = {
 
       const rol = await prisma.roles.findUnique({
         where: {
-          nombre: rol_id,
+          nombre: rolNombreBusqueda,
         },
       });
       if (!rol) {
-        console.error('Rol no encontrado:', rol_id);
-        throw new Error(`El rol '${rol_id}' no existe en la base de datos`);
+        console.error('Rol no encontrado:', rolNombreBusqueda);
+        throw new Error(`El rol '${rolNombreBusqueda}' no existe en la base de datos`);
       }
       console.log('Rol encontrado:', rol.nombre, 'ID:', rol.id);
 

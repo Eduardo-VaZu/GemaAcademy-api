@@ -30,7 +30,7 @@ const user = {
 
   administradorSpecificSchema: z.object({
     cargo: z.string().min(1, 'El cargo es obligatorio para administradores'),
-    sede_id: z.number().int().optional(),
+    sede_id: z.number().int().nullable().optional(),
     area: z.string().optional(),
   }),
 };
