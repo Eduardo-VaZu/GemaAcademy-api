@@ -1,4 +1,4 @@
-import { NODE_ENV } from '../../config.js';
+import { NODE_ENV } from '../../config/secret.config.js';
 import { authService } from './auth.service.js';
 
 export const authController = {

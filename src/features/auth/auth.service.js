@@ -1,8 +1,12 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../config/database.js';
-import { secret } from '../../config.js';
 import { tokenUtils } from './utils/tokenUtils.js';
+import { prisma } from '../../config/database.config.js';
+import {
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  REFRESH_TOKEN_EXPIRATION_DAYS,
+} from '../../config/secret.config.js';
 
 export const authService = {
   login: async (email, password) => {
@@ -51,12 +55,12 @@ export const authService = {
         rol_id: usuario.rol_id,
         rol_nombre: usuario.roles.nombre,
       },
-      secret.jwt,
-      { expiresIn: secret.jwt_expires_in }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     const refreshToken = tokenUtils.generateRefreshToken();
-    const expiresAt = tokenUtils.getRefreshTokenExpiration(secret.refresh_token_expiration_days);
+    const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
 
     await prisma.refresh_tokens.create({
       data: {
@@ -177,7 +181,7 @@ export const authService = {
     });
 
     const newRefreshToken = tokenUtils.generateRefreshToken();
-    const expiresAt = tokenUtils.getRefreshTokenExpiration(secret.refresh_token_expiration_days);
+    const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
 
     await prisma.refresh_tokens.create({
       data: {
@@ -194,8 +198,8 @@ export const authService = {
         rol_id: tokenRecord.usuarios.rol_id,
         rol_nombre: tokenRecord.usuarios.roles.nombre,
       },
-      secret.jwt,
-      { expiresIn: secret.jwt_expires_in }
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
     );
 
     return {

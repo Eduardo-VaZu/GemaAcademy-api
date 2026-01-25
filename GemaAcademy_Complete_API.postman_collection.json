@@ -1,0 +1,424 @@
+{
+  "info": {
+    "_postman_id": "a8b3c4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d",
+    "name": "GemaAcademy API - Complete Collection",
+    "description": "Colección completa de todos los endpoints disponibles en GemaAcademy API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Check Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Verifica el estado del servidor y la conexión a la base de datos"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Guardar tokens automáticamente",
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if(jsonData.status === 'success') {",
+                  "        // Los tokens se guardan en cookies automáticamente",
+                  "        console.log('Login exitoso');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@gema.com\",\n    \"password\": \"Admin123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Inicia sesión y obtiene tokens de acceso (guardados en cookies)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "profile"]
+            },
+            "description": "Obtiene el perfil del usuario autenticado (requiere cookie de autenticación)"
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Renueva el access token usando el refresh token (desde cookies)"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Cierra sesión y revoca el refresh token"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Usuarios - Registro",
+      "item": [
+        {
+          "name": "Register Alumno",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"alumno.nuevo@gema.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Carlos\",\n    \"apellidos\": \"Rodríguez\",\n    \"rol_id\": \"Alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"72345678\",\n    \"telefono_personal\": \"+51987654321\",\n    \"fecha_nacimiento\": \"2005-03-15\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Asma leve\",\n        \"seguro_medico\": \"Pacífico Seguros\",\n        \"grupo_sanguineo\": \"O+\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/usuarios/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "usuarios", "register"]
+            },
+            "description": "Registra un nuevo alumno con sus datos específicos:\n- condiciones_medicas (opcional)\n- seguro_medico (opcional)\n- grupo_sanguineo (opcional)"
+          },
+          "response": []
+        },
+        {
+          "name": "Register Profesor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"profesor.nuevo@gema.com\",\n    \"password\": \"Profesor123!\",\n    \"nombres\": \"María\",\n    \"apellidos\": \"González\",\n    \"rol_id\": \"profesor\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"45678901\",\n    \"telefono_personal\": \"+51912345678\",\n    \"fecha_nacimiento\": \"1985-07-20\",\n    \"genero\": \"F\",\n    \"datosRolEspecifico\": {\n        \"especializacion\": \"Entrenamiento de alto rendimiento\",\n        \"tarifa_hora\": 50.00\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/usuarios/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "usuarios", "register"]
+            },
+            "description": "Registra un nuevo profesor con sus datos específicos:\n- especializacion (opcional)\n- tarifa_hora (opcional, número decimal)"
+          },
+          "response": []
+        },
+        {
+          "name": "Register Administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin.nuevo@gema.com\",\n    \"password\": \"Admin123!\",\n    \"nombres\": \"Jorge\",\n    \"apellidos\": \"Martínez\",\n    \"rol_id\": \"administrador\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"23456789\",\n    \"telefono_personal\": \"+51998765432\",\n    \"fecha_nacimiento\": \"1980-11-10\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"cargo\": \"Director de Sede\",\n        \"sede_id\": 1,\n        \"area\": \"Administración General\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/usuarios/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "usuarios", "register"]
+            },
+            "description": "Registra un nuevo administrador con sus datos específicos:\n- cargo (OBLIGATORIO)\n- sede_id (opcional, ID de la sede)\n- area (opcional)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Roles",
+      "item": [
+        {
+          "name": "Get All Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/roles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "roles"]
+            },
+            "description": "Obtiene la lista de todos los roles disponibles (público)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Role By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/roles/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "roles", "1"]
+            },
+            "description": "Obtiene un rol específico por su ID (público)"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Role (Admin Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nombre\": \"Coordinador\",\n    \"descripcion\": \"Encargado de coordinar actividades de la sede\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/roles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "roles"]
+            },
+            "description": "Crea un nuevo rol (requiere autenticación y rol de Administrador)"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Role (Admin Only)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nombre\": \"Coordinador Actualizado\",\n    \"descripcion\": \"Descripción actualizada del rol\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/roles/4",
+              "host": ["{{base_url}}"],
+              "path": ["api", "roles", "4"]
+            },
+            "description": "Actualiza un rol existente (requiere autenticación y rol de Administrador)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Role (Admin Only)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/roles/4",
+              "host": ["{{base_url}}"],
+              "path": ["api", "roles", "4"]
+            },
+            "description": "Elimina un rol (requiere autenticación y rol de Administrador)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Horarios",
+      "item": [
+        {
+          "name": "Get All Horarios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/horarios",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios"]
+            },
+            "description": "Obtiene la lista de todos los horarios de clases"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Horario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"cancha_id\": 1,\n    \"profesor_id\": 2,\n    \"nivel_id\": 1,\n    \"dia_semana\": 1,\n    \"hora_inicio\": \"08:00:00\",\n    \"hora_fin\": \"10:00:00\",\n    \"capacidad_max\": 20\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/horarios",
+              "host": ["{{base_url}}"],
+              "path": ["api", "horarios"]
+            },
+            "description": "Crea un nuevo horario de clase"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alumnos",
+      "item": [
+        {
+          "name": "Placeholder - Endpoints por implementar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/alumnos",
+              "host": ["{{base_url}}"],
+              "path": ["api", "alumnos"]
+            },
+            "description": "Los endpoints de alumnos están pendientes de implementación"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profesores",
+      "item": [
+        {
+          "name": "Placeholder - Endpoints por implementar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/profesores",
+              "host": ["{{base_url}}"],
+              "path": ["api", "profesores"]
+            },
+            "description": "Los endpoints de profesores están pendientes de implementación"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Administradores",
+      "item": [
+        {
+          "name": "Placeholder - Endpoints por implementar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/administradores",
+              "host": ["{{base_url}}"],
+              "path": ["api", "administradores"]
+            },
+            "description": "Los endpoints de administradores están pendientes de implementación"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ]
+}

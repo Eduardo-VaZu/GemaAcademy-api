@@ -25,6 +25,7 @@ export const usuarioController = {
         });
       }
 
+      console.error('Error detallado al crear usuario:', error); // LOG DE ERROR COMPLETO
       res.status(500).json({
         status: 'error',
         message: 'Error al crear usuario',

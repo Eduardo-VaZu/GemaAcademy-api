@@ -1,10 +1,9 @@
 export const authorize = (...rolesPermitidos) => {
   return (req, res, next) => {
-
     if (!req.user) {
       return res.status(401).json({
         status: 'error',
-        message: 'Usuario no autenticado'
+        message: 'Usuario no autenticado',
       });
     }
 
@@ -13,7 +12,7 @@ export const authorize = (...rolesPermitidos) => {
         status: 'error',
         message: 'No tienes permisos para acceder a este recurso',
         requiredRoles: rolesPermitidos,
-        yourRole: req.user.rol_nombre
+        yourRole: req.user.rol_nombre,
       });
     }
 

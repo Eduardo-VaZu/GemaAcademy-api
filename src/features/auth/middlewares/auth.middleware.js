@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
-import { secret } from '../../../config.js';
-import { prisma } from '../../../config/database.js';
+import { JWT_SECRET } from '../../../config/secret.config.js';
+import { prisma } from '../../../config/database.config.js';
 
 export const authenticate = async (req, res, next) => {
   try {
@@ -13,7 +13,7 @@ export const authenticate = async (req, res, next) => {
       });
     }
 
-    const decoded = jwt.verify(token, secret.jwt);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     const usuario = await prisma.usuarios.findUnique({
       where: { id: decoded.id },
@@ -25,7 +25,7 @@ export const authenticate = async (req, res, next) => {
           select: { bloqueado: true },
         },
         roles: {
-          select: { nombre: true },
+          select: { id: true, nombre: true },
         },
       },
     });
@@ -94,7 +94,7 @@ export const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const decoded = jwt.verify(token, secret.jwt);
+    const decoded = jwt.verify(token, JWT_SECRET);
 
     const usuario = await prisma.usuarios.findUnique({
       where: { id: decoded.id },
@@ -106,7 +106,7 @@ export const optionalAuth = async (req, res, next) => {
           select: { bloqueado: true },
         },
         roles: {
-          select: { nombre: true },
+          select: { id: true, nombre: true },
         },
       },
     });

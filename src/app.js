@@ -4,7 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 
-import { CORS_CREDENTIALS, CORS_ORIGIN } from './config.js';
+import { CORS_CREDENTIALS, CORS_ORIGIN } from './config/secret.config.js';
 
 import healthRoutes from './features/health/health.service.js';
 import horarioRoutes from './features/horario/horario.routes.js';
