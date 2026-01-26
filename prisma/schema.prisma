@@ -119,6 +119,7 @@ model horarios_clases {
   hora_fin              DateTime              @db.Time(6)
   capacidad_max         Int?                  @default(20)
   activo                Boolean?              @default(true)
+  minutos_reserva_especifico Int?
   canchas               canchas               @relation(fields: [cancha_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   niveles_entrenamiento niveles_entrenamiento @relation(fields: [nivel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   profesores            profesores            @relation(fields: [profesor_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
@@ -316,4 +317,11 @@ model refresh_tokens {
 
   @@index([usuario_id])
   @@index([token])
+}
+
+model configuracion_sistema {
+  id                      Int      @id @default(autoincrement())
+  tiempo_reserva_global   Int      @default(20) // El valor por defecto para todos
+  creado_en               DateTime @default(now())
+  actualizado_en          DateTime @updatedAt
 }
