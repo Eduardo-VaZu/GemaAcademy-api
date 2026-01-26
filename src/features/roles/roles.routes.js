@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { rolesController } from './roles.controller.js';
-import { authenticate } from '../auth/middlewares/auth.middleware.js';
-import { authorize } from '../auth/middlewares/authorize.middleware.js';
+import { authenticate } from '../../shared/middlewares/auth.middleware.js';
+import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import { validate } from '../../validation/middlewares/validate.middleware.js';
+import { schemas } from '../../validation/index.js';
 
 const router = Router();
 

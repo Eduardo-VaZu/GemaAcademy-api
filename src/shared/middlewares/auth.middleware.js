@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
-import { JWT_SECRET } from '../../../config/secret.config.js';
-import { prisma } from '../../../config/database.config.js';
+import { JWT_SECRET } from '../../config/secret.config.js';
+import { prisma } from '../../config/database.config.js';
 
 export const authenticate = async (req, res, next) => {
   try {

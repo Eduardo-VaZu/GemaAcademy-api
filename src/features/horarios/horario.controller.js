@@ -6,13 +6,13 @@ export const horarioController = {
       const horarios = await horarioService.getAllHorarios();
       res.json({
         status: 'success',
-        data: horarios
+        data: horarios,
       });
     } catch (error) {
       res.status(500).json({
         status: 'error',
         message: 'Error al obtener horarios',
-        detail: error.message
+        detail: error.message,
       });
     }
   },
@@ -23,22 +23,22 @@ export const horarioController = {
       res.status(201).json({
         status: 'success',
         message: 'Horario creado exitosamente',
-        data: nuevoHorario
+        data: nuevoHorario,
       });
     } catch (error) {
       // Manejo de error específico de Prisma (clave única violada)
       if (error.code === 'P2002') {
         return res.status(400).json({
           status: 'error',
-          message: 'Ya existe un horario en esa Cancha, Día y Hora.'
+          message: 'Ya existe un horario en esa Cancha, Día y Hora.',
         });
       }
-      
+
       res.status(400).json({
         status: 'error',
         message: 'No se pudo crear el horario',
-        detail: error.message
+        detail: error.message,
       });
     }
-  }
+  },
 };

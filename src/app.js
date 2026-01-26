@@ -5,13 +5,14 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 
 import { CORS_CREDENTIALS, CORS_ORIGIN } from './config/secret.config.js';
+import { errorHandler } from './shared/middlewares/error.middleware.js';
 
-import healthRoutes from './features/health/health.service.js';
-import horarioRoutes from './features/horario/horario.routes.js';
-import usuarioRoutes from './features/usuario/usuario.routes.js';
-import alumnoRoutes from './features/alumno/alumno.routes.js';
-import profesorRoutes from './features/profesor/profesor.routes.js';
-import administradorRoutes from './features/administrador/administrador.routes.js';
+import healthRoutes from './features/health/health.router.js';
+import horarioRoutes from './features/horarios/horario.routes.js';
+import usuarioRoutes from './features/usuarios/usuario.routes.js';
+import alumnoRoutes from './features/alumnos/alumno.routes.js';
+import profesorRoutes from './features/profesores/profesor.routes.js';
+import administradorRoutes from './features/administradores/administrador.routes.js';
 import authRoutes from './features/auth/auth.routes.js';
 import rolesRoutes from './features/roles/roles.routes.js';
 
@@ -41,5 +42,7 @@ app.use('/api/usuarios', usuarioRoutes);
 app.use('/api/alumnos', alumnoRoutes);
 app.use('/api/profesores', profesorRoutes);
 app.use('/api/administradores', administradorRoutes);
+
+app.use(errorHandler);
 
 export default app;

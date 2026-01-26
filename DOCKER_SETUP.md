@@ -46,7 +46,7 @@ npx prisma migrate dev --name init
 # O si ya tienes migraciones, aplicarlas
 npx prisma migrate deploy
 
-# Ejecuta la seed 
+# Ejecuta la seed
 npx prisma db seed
 ```
 
