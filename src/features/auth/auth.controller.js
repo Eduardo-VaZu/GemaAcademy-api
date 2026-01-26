@@ -83,6 +83,14 @@ export const authController = {
         });
       }
 
+      if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Refresh token inválido',
+          code: 'REFRESH_TOKEN_INVALID',
+        });
+      }
+
       const result = await authService.refreshAccessToken(refreshToken);
 
       const cookieOptions = {
@@ -141,6 +149,14 @@ export const authController = {
           status: 'error',
           message: 'Refresh token es requerido',
           code: 'REFRESH_TOKEN_REQUIRED',
+        });
+      }
+
+      if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Refresh token inválido',
+          code: 'REFRESH_TOKEN_INVALID',
         });
       }
 

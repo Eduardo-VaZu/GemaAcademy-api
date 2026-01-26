@@ -7,11 +7,7 @@ export const authSchema = {
     password: userCommonValidation.passwordSchema,
   }),
 
-  logoutSchema: z.object({
-    refreshToken: z.string().min(1, 'Refresh token es requerido'),
-  }),
+  logoutSchema: z.object({}).passthrough(),
 
-  refreshSchema: z.object({
-    refreshToken: z.string().min(1, 'Refresh token es requerido'),
-  }),
+  refreshSchema: z.object({}).passthrough(),
 };

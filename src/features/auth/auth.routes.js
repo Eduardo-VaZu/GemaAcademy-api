@@ -8,10 +8,12 @@ const router = Router();
 
 // Rutas públicas (no requieren autenticación)
 router.post('/login', validate(schemas.authSchema.loginSchema), authController.login);
-router.post('/refresh', validate(schemas.authSchema.refreshSchema), authController.refresh);
-router.post('/logout', validate(schemas.authSchema.logoutSchema), authController.logout);
+router.post('/refresh', authController.refresh);
+router.post('/logout', authController.logout);
 
-// Rutas protegidas (requieren autenticación)
+// Rutas protegidas (requieren autenticación) -> obtener el perfil del usuario
 router.get('/profile', authenticate, authController.getProfile);
+// Rutas protegidas (requieren autenticación) -> cerrar todas las sesiones del usuario activas
+router.post('/logout-all', authenticate, authController.revokeAllSessions);
 
 export default router;

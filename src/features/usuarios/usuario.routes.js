@@ -13,4 +13,8 @@ router.post(
   usuarioController.register
 );
 
+router.post('/validate-role', usuarioController.validateRole);
+
+router.get('/:id', authenticate, usuarioController.getUserProfile);
+
 export default router;
