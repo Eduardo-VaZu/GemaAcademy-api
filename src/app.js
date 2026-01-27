@@ -15,8 +15,9 @@ import profesorRoutes from './features/profesores/profesor.routes.js';
 import administradorRoutes from './features/administradores/administrador.routes.js';
 import authRoutes from './features/auth/auth.routes.js';
 import rolesRoutes from './features/roles/roles.routes.js';
-import inscripcionRoutes from './features/inscripciones/inscripcion.routes.js'
-import pagosRoutes from './features/pagos/pagos.routes.js'
+import inscripcionRoutes from './features/inscripciones/inscripcion.routes.js';
+import pagosRoutes from './features/pagos/pagos.routes.js';
+import sedeRoutes from './features/sedes/sede.routers.js';
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/profesores', profesorRoutes);
 app.use('/api/administradores', administradorRoutes);
 app.use('/api/inscripciones', inscripcionRoutes);
 app.use('/api/pagos', pagosRoutes);
+app.use('/api/sedes', sedeRoutes);
 
 app.use(errorHandler);
 
