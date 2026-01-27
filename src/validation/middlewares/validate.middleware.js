@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+// ============================================
+// MIDDLEWARE DE VALIDACIÓN EXISTENTE (Body)
+// ============================================
 export const validate = (schema) => (req, res, next) => {
   try {
     req.body = schema.parse(req.body);
@@ -12,5 +15,53 @@ export const validate = (schema) => (req, res, next) => {
         errors: error.errors,
       });
     }
+  }
+};
+
+// ============================================
+// MIDDLEWARE PARA VALIDAR PARAMS
+// ============================================
+export const validateParams = (schema) => (req, res, next) => {
+  try {
+    req.params = schema.parse(req.params);
+    next();
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Parámetros de ruta inválidos',
+        errors: error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+          received: err.received,
+        })),
+        code: 'INVALID_PARAMS',
+      });
+    }
+    next(error);
+  }
+};
+
+// ============================================
+// MIDDLEWARE PARA VALIDAR QUERY
+// ============================================
+export const validateQuery = (schema) => (req, res, next) => {
+  try {
+    req.query = schema.parse(req.query);
+    next();
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Parámetros de consulta inválidos',
+        errors: error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+          received: err.received,
+        })),
+        code: 'INVALID_QUERY',
+      });
+    }
+    next(error);
   }
 };

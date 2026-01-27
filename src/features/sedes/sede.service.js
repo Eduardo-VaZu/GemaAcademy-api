@@ -1,4 +1,3 @@
-import { email } from 'zod/v4';
 import { prisma } from '../../config/database.config.js';
 
 export const sedeService = {
@@ -57,59 +56,125 @@ export const sedeService = {
     }
   },
 
-  getAllSeded: async () => {
-    return await prisma.sedes.findMany({
-      include: {
-        direcciones: true,
-        canchas: true,
-        administradores: {
-          include: {
-            usuario: {
-              select: {
-                nombres: true,
-                apellidos: true,
-                email: true,
+  getAllSedes: async (filters = {}) => {
+    const { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
+
+    // Construir el objeto where dinámicamente
+    const where = {};
+
+    if (activo !== undefined) {
+      where.activo = activo;
+    }
+
+    if (distrito) {
+      where.direcciones = {
+        distrito: {
+          contains: distrito,
+          mode: 'insensitive', // Case insensitive
+        },
+      };
+    }
+
+    if (tipo_instalacion) {
+      where.tipo_instalacion = {
+        contains: tipo_instalacion,
+        mode: 'insensitive',
+      };
+    }
+
+    // Calcular skip para paginación
+    const skip = (page - 1) * limit;
+
+    // Ejecutar queries en paralelo
+    const [sedes, total] = await Promise.all([
+      prisma.sedes.findMany({
+        where,
+        include: {
+          direcciones: true,
+          canchas: {
+            include: {
+              horarios_clases: {
+                where: { activo: true },
+                include: {
+                  profesores: {
+                    include: {
+                      usuarios: {
+                        select: {
+                          nombres: true,
+                          apellidos: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          administrador: {
+            include: {
+              usuarios: {
+                select: {
+                  nombres: true,
+                  apellidos: true,
+                  email: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        nombre: 'asc',
-      },
-    });
-  },
+        orderBy: {
+          nombre: 'asc',
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.sedes.count({ where }),
+    ]);
 
+    return {
+      sedes,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  },
   getSedeById: async (id) => {
     return await prisma.sedes.findUnique({
       where: {
-        id,
+        id: parseInt(id),
       },
       include: {
         direcciones: true,
         canchas: {
           include: {
-            profesores: {
+            horarios_clases: {
               include: {
-                usuario: {
-                  select: {
-                    nombres: true,
-                    apellidos: true,
+                niveles_entrenamiento: true,
+                profesores: {
+                  include: {
+                    usuarios: {
+                      select: {
+                        nombres: true,
+                        apellidos: true,
+                        email: true,
+                      },
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-      administradores: {
-        include: {
-          usuario: {
-            select: {
-              nombres: true,
-              apellidos: true,
-              email: true,
-              telefono_contacto: true,
+        administrador: {
+          include: {
+            usuarios: {
+              select: {
+                nombres: true,
+                apellidos: true,
+                email: true,
+                telefono_personal: true,
+              },
             },
           },
         },
@@ -137,6 +202,15 @@ export const sedeService = {
       where: { id },
       data: {
         activo: false,
+      },
+    });
+  },
+
+  updateActiveSede: async (id) => {
+    return await prisma.sedes.update({
+      where: { id },
+      data: {
+        activo: true,
       },
     });
   },

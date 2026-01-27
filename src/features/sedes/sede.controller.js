@@ -41,10 +41,24 @@ export const sedeController = {
 
   getAllSedes: async (req, res) => {
     try {
-      const sedes = await sedeService.getAllSedes();
+      const filter = {
+        activo: req.query.activo,
+        distrito: req.query.distrito,
+        tipo_instalacion: req.query.tipo_instalacion,
+        page: req.query.page,
+        limit: req.query.limit,
+      };
+
+      const result = await sedeService.getAllSedes(filter);
       res.json({
         status: 'success',
-        data: sedes,
+        data: result.data,
+        meta: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
       });
     } catch (error) {
       console.error('Error al obtener sedes:', error);
@@ -160,6 +174,42 @@ export const sedeController = {
       res.status(500).json({
         status: 'error',
         message: 'Error al desactivar sede',
+        detail: error.message,
+      });
+    }
+  },
+
+  updateActiveSede: async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      if (isNaN(id)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'ID de sede inválido',
+          code: 'INVALID_ID',
+        });
+      }
+
+      const sede = await sedeService.updateActiveSede(id);
+
+      if (!sede) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Sede no encontrada',
+          code: 'SEDE_NOT_FOUND',
+        });
+      }
+
+      res.json({
+        status: 'success',
+        data: sede,
+      });
+    } catch (error) {
+      console.error('Error al activar sede:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Error al activar sede',
         detail: error.message,
       });
     }
