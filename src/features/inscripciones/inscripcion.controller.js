@@ -2,37 +2,40 @@ import { inscripcionService } from './inscripcion.service.js';
 
 export const inscripcionController = {
 
-  crearInscripcion: async (req, res) => {
+  // 🚀 NUEVO: Inscribir Paquete (1 o más horarios)
+  inscribir: async (req, res) => {
     try {
-      const nuevaInscripcion = await inscripcionService.inscribirAlumno(req.body);
+      // Esperamos: { "alumno_id": 6, "horario_ids": [1, 2] }
+      const nuevaInscripcion = await inscripcionService.inscribirPaquete(req.body);
       
       res.status(201).json({
         status: 'success',
-        message: '¡Inscripción exitosa!',
+        message: '¡Inscripción de paquete exitosa!',
         data: nuevaInscripcion,
       });
 
     } catch (error) {
       // Manejo de errores específicos
       
-      // 1. Error de duplicado (Prisma P2002): El alumno ya está en esa clase
+      // 1. Error de duplicado (Prisma P2002)
       if (error.code === 'P2002') {
         return res.status(400).json({
           status: 'error',
-          message: 'Este alumno YA está inscrito en este horario.',
+          message: 'El alumno ya está inscrito en uno de los horarios seleccionados.',
         });
       }
 
-      // 2. Error de cupos llenos (El que lanzamos nosotros en el servicio)
-      if (error.message === 'SOLD_OUT') {
+      // 2. Errores de Negocio (Sold Out, No hay precio, etc.)
+      // Estos son los que lanzamos con "throw new Error" en el servicio
+      if (error.message.includes('AGOTADO') || error.message.includes('No existe un plan')) {
         return res.status(409).json({ // 409 Conflict
           status: 'error',
-          message: 'Lo sentimos, este horario ya no tiene vacantes disponibles.',
+          message: error.message,
         });
       }
 
-      // 3. Error si el horario no existe
-      if (error.message === 'El horario indicado no existe.') {
+      // 3. Error si un horario no existe
+      if (error.message.includes('no existe')) {
         return res.status(404).json({
           status: 'error',
           message: error.message,
@@ -49,6 +52,7 @@ export const inscripcionController = {
     }
   },
 
+  // Listar (Igual que antes)
   listarInscripciones: async (req, res) => {
     try {
       const lista = await inscripcionService.getAllInscripciones();

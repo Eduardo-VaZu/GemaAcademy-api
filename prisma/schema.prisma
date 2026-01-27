@@ -57,6 +57,8 @@ model catalogo_conceptos {
   nombre             String               @db.VarChar(150)
   precio_base        Decimal              @db.Decimal(10, 2)
   activo             Boolean?             @default(true)
+  es_vigente              Boolean              @default(true)
+  cantidad_clases_semanal Int?
   cuentas_por_cobrar cuentas_por_cobrar[]
 }
 
@@ -166,6 +168,7 @@ model pagos {
   metodo_pago_id     Int
   monto_pagado       Decimal            @db.Decimal(10, 2)
   url_comprobante    String?            @db.VarChar(255)
+  codigo_operacion  String?  @db.VarChar(50)
   fecha_pago         DateTime?          @default(now()) @db.Timestamp(6)
   estado_validacion  String?            @default("PENDIENTE") @db.VarChar(20)
   revisado_por       Int?
