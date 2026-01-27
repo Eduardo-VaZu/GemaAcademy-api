@@ -184,12 +184,16 @@ export const sedeService = {
 
   updateSede: async (id, sedeData) => {
     return await prisma.sedes.update({
-      where: { id },
+      where: { id: parseInt(id) },
       data: {
-        nombre: sedeData.nombre,
-        telefono_contacto: sedeData.telefono_contacto,
-        tipo_instalacion: sedeData.tipo_instalacion,
-        activo: sedeData.activo,
+        ...(sedeData.nombre && { nombre: sedeData.nombre }),
+        ...(sedeData.telefono_contacto !== undefined && {
+          telefono_contacto: sedeData.telefono_contacto,
+        }),
+        ...(sedeData.tipo_instalacion !== undefined && {
+          tipo_instalacion: sedeData.tipo_instalacion,
+        }),
+        ...(sedeData.activo !== undefined && { activo: sedeData.activo }),
       },
       include: {
         direcciones: true,
@@ -199,18 +203,50 @@ export const sedeService = {
 
   updateDefuseSede: async (id) => {
     return await prisma.sedes.update({
-      where: { id },
+      where: { id: parseInt(id) },
       data: {
         activo: false,
+      },
+      include: {
+        direcciones: true,
       },
     });
   },
 
   updateActiveSede: async (id) => {
     return await prisma.sedes.update({
-      where: { id },
+      where: { id: parseInt(id) },
       data: {
         activo: true,
+      },
+      include: {
+        direcciones: true,
+      },
+    });
+  },
+
+  getSedeActive: async () => {
+    return await prisma.sedes.findMany({
+      where: {
+        activo: true,
+      },
+      select: {
+        id: true,
+        nombre: true,
+        telefono_contacto: true,
+        tipo_instalacion: true,
+        activo: true,
+        direcciones: {
+          select: {
+            direccion_completa: true,
+            distrito: true,
+            ciudad: true,
+            referencia: true,
+          },
+        },
+        orderBy: {
+          nombre: 'asc',
+        },
       },
     });
   },
