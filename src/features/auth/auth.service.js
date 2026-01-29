@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { tokenUtils } from './utils/tokenUtils.js';
 import { prisma } from '../../config/database.config.js';
+import { usuarioService } from '../usuarios/usuario.service.js';
 import {
   JWT_SECRET,
   JWT_EXPIRES_IN,
@@ -84,20 +85,7 @@ export const authService = {
   },
 
   getProfile: async (userId) => {
-    const usuario = await prisma.usuarios.findUnique({
-      where: { id: userId },
-      include: {
-        roles: true,
-        alumnos: true,
-        profesores: true,
-        administrador: {
-          include: {
-            sedes: true,
-          },
-        },
-      },
-    });
-
+    const usuario = await usuarioService.getProfile(userId);
     if (!usuario) {
       throw new Error('Usuario no encontrado');
     }
