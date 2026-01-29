@@ -5,13 +5,23 @@ export const tokenUtils = {
     return crypto.randomBytes(32).toString('hex');
   },
 
-  getRefreshTokenExpiration: (days = 7) => {
+  getRefreshTokenExpiration: (days) => {
+    const daysNum = parseInt(days, 10) || 7;
+    
     const expirationDate = new Date();
-    expirationDate.setDate(expirationDate.getDate() + days);
+    
+    if (isNaN(expirationDate.getTime())) {
+      return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
+
+    expirationDate.setDate(expirationDate.getDate() + daysNum);
     return expirationDate;
   },
 
   isTokenExpired: (expiresAt) => {
-    return new Date() > new Date(expiresAt);
+    const expiry = new Date(expiresAt);
+    if (isNaN(expiry.getTime())) return true; 
+    
+    return new Date() > expiry;
   },
 };
