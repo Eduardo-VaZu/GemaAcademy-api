@@ -143,7 +143,7 @@ export const sedeController = {
     }
   },
 
-  desactivarSede: async (req, res) => {
+  updateDefuseSede: async (req, res) => {
     try {
       const id = parseInt(req.params.id);
 
@@ -155,7 +155,7 @@ export const sedeController = {
         });
       }
 
-      const sede = await sedeService.desactivarSede(id);
+      const sede = await sedeService.updateDefuseSede(id);
 
       if (!sede) {
         return res.status(404).json({
