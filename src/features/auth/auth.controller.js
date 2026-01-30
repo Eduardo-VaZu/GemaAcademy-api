@@ -1,4 +1,7 @@
-import { NODE_ENV } from '../../config/secret.config.js';
+import {
+  getAccessTokenCookieOptions,
+  getRefreshTokenCookieOptions,
+} from '../../config/cookie.config.js';
 import { authService } from './auth.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
@@ -14,22 +17,8 @@ export const authController = {
 
     const result = await authService.login(email, password);
 
-    const cookiesOption = {
-      httpOnly: true,
-      secure: NODE_ENV === 'production',
-      sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
-      path: '/',
-    };
-
-    res.cookie('accessToken', result.accessToken, {
-      ...cookiesOption,
-      maxAge: 15 * 60 * 1000,
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      ...cookiesOption,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie('accessToken', result.accessToken, getAccessTokenCookieOptions());
+    res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
 
     return apiResponse.success(res, {
       message: 'Login exitoso',
@@ -59,22 +48,8 @@ export const authController = {
 
     const result = await authService.refreshAccessToken(refreshToken);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: NODE_ENV === 'production',
-      sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
-      path: '/',
-    };
-
-    res.cookie('accessToken', result.accessToken, {
-      ...cookieOptions,
-      maxAge: 15 * 60 * 1000,
-    });
-
-    res.cookie('refreshToken', result.refreshToken, {
-      ...cookieOptions,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie('accessToken', result.accessToken, getAccessTokenCookieOptions());
+    res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
 
     return apiResponse.success(res, {
       message: 'Access token renovado',
@@ -95,12 +70,8 @@ export const authController = {
 
     await authService.logout(refreshToken);
 
-    res.clearCookie('accessToken', {
-      path: '/',
-    });
-    res.clearCookie('refreshToken', {
-      path: '/',
-    });
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
 
     return apiResponse.success(res, {
       message: 'Sesión cerrada exitosamente',
@@ -108,14 +79,10 @@ export const authController = {
   }),
 
   revokeAllSessions: catchAsync(async (req, res) => {
-    await authService.revokeAllSessions(req.user.id);
+    await authService.revokeAllTokens(req.user.id);
 
-    res.clearCookie('accessToken', {
-      path: '/',
-    });
-    res.clearCookie('refreshToken', {
-      path: '/',
-    });
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/' });
 
     return apiResponse.success(res, {
       message: 'Todas las sesiones cerradas exitosamente',

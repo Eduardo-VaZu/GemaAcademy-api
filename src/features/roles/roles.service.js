@@ -51,6 +51,14 @@ export const rolesService = {
   },
 
   deleteRole: async (id) => {
+    const usersWithRole = await prisma.usuarios.count({
+      where: { rol_id: id },
+    });
+
+    if (usersWithRole > 0) {
+      throw new ApiError('No se puede eliminar el rol porque hay usuarios asignados a él', 400);
+    }
+
     return await prisma.roles.delete({
       where: {
         id,

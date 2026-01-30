@@ -31,7 +31,7 @@ export const sedeController = {
     const result = await sedeService.getAllSedes(filter);
     return apiResponse.success(res, {
       message: 'Sedes obtenidas exitosamente',
-      data: result.data,
+      data: result.sedes,
       meta: {
         total: result.total,
         page: result.page,

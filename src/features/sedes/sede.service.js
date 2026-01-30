@@ -193,6 +193,24 @@ export const sedeService = {
           tipo_instalacion: sedeData.tipo_instalacion,
         }),
         ...(sedeData.activo !== undefined && { activo: sedeData.activo }),
+        ...(sedeData.direccion && {
+          direcciones: {
+            update: {
+              ...(sedeData.direccion.direccion_completa && {
+                direccion_completa: sedeData.direccion.direccion_completa,
+              }),
+              ...(sedeData.direccion.distrito && {
+                distrito: sedeData.direccion.distrito,
+              }),
+              ...(sedeData.direccion.ciudad && {
+                ciudad: sedeData.direccion.ciudad,
+              }),
+              ...(sedeData.direccion.referencia && {
+                referencia: sedeData.direccion.referencia,
+              }),
+            },
+          },
+        }),
       },
       include: {
         direcciones: true,

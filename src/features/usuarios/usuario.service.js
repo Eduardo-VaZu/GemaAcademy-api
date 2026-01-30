@@ -74,39 +74,7 @@ export const usuarioService = {
         });
 
         const rolNombre = rol.nombre.toLowerCase();
-
-        if (rolNombre === VALID_ROLES.ALUMNO) {
-          await tx.alumnos.create({
-            data: {
-              usuario_id: nuevoUsuario.id,
-              condiciones_medicas: datosRolEspecifico.condiciones_medicas || null,
-              seguro_medico: datosRolEspecifico.seguro_medico || null,
-              grupo_sanguineo: datosRolEspecifico.grupo_sanguineo || null,
-            },
-          });
-        } else if (rolNombre === VALID_ROLES.PROFESOR) {
-          await tx.profesores.create({
-            data: {
-              usuario_id: nuevoUsuario.id,
-              especializacion: datosRolEspecifico.especializacion || null,
-              tarifa_hora: datosRolEspecifico.tarifa_hora
-                ? parseFloat(datosRolEspecifico.tarifa_hora)
-                : null,
-            },
-          });
-        } else if (rolNombre === VALID_ROLES.ADMINISTRADOR) {
-          if (!datosRolEspecifico.cargo) {
-            throw new ApiError('El campo "cargo" es obligatorio para administradores', 400);
-          }
-          await tx.administrador.create({
-            data: {
-              usuario_id: nuevoUsuario.id,
-              cargo: datosRolEspecifico.cargo,
-              sede_id: datosRolEspecifico.sede_id || null,
-              area: datosRolEspecifico.area || null,
-            },
-          });
-        }
+        await createRoleSpecificData(tx, rolNombre, nuevoUsuario.id, datosRolEspecifico);
 
         return nuevoUsuario;
       },
@@ -164,4 +132,46 @@ export const usuarioService = {
     };
     return descriptions[rol.toLowerCase()] || 'Rol desconocido';
   },
+};
+
+const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
+  const roleHandlers = {
+    [VALID_ROLES.ALUMNO]: async () => {
+      await tx.alumnos.create({
+        data: {
+          usuario_id: usuarioId,
+          condiciones_medicas: datos.condiciones_medicas || null,
+          seguro_medico: datos.seguro_medico || null,
+          grupo_sanguineo: datos.grupo_sanguineo || null,
+        },
+      });
+    },
+    [VALID_ROLES.PROFESOR]: async () => {
+      await tx.profesores.create({
+        data: {
+          usuario_id: usuarioId,
+          especializacion: datos.especializacion || null,
+          tarifa_hora: datos.tarifa_hora ? parseFloat(datos.tarifa_hora) : null,
+        },
+      });
+    },
+    [VALID_ROLES.ADMINISTRADOR]: async () => {
+      if (!datos.cargo) {
+        throw new ApiError('El campo "cargo" es obligatorio para administradores', 400);
+      }
+      await tx.administrador.create({
+        data: {
+          usuario_id: usuarioId,
+          cargo: datos.cargo,
+          sede_id: datos.sede_id || null,
+          area: datos.area || null,
+        },
+      });
+    },
+  };
+
+  const handler = roleHandlers[rolNombre];
+  if (handler) {
+    await handler();
+  }
 };

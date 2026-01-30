@@ -3,12 +3,12 @@ import jwt from 'jsonwebtoken';
 import { tokenUtils } from './utils/tokenUtils.js';
 import { prisma } from '../../config/database.config.js';
 import { usuarioService } from '../usuarios/usuario.service.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 import {
   JWT_SECRET,
   JWT_EXPIRES_IN,
   REFRESH_TOKEN_EXPIRATION_DAYS,
 } from '../../config/secret.config.js';
-import { ApiError } from '../../shared/utils/error.util.js';
 
 export const authService = {
   login: async (email, password) => {
@@ -86,7 +86,7 @@ export const authService = {
   },
 
   getProfile: async (userId) => {
-    const usuario = await usuarioService.getProfile(userId);
+    const usuario = await usuarioService.getUserById(userId);
     if (!usuario) {
       throw new ApiError('Usuario no encontrado', 404);
     }
