@@ -3,7 +3,7 @@ export class ApiError extends Error {
     super(message);
     this.statusCode = statusCode;
     this.details = details;
-    this.name = 'AppError';
+    this.name = 'ApiError';
     Error.captureStackTrace(this, this.constructor);
   }
 }

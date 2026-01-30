@@ -1,65 +1,60 @@
 import { prisma } from '../../config/database.config.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 export const sedeService = {
   createSede: async (sedeData) => {
     const { direccion } = sedeData;
-    try {
-      const sede = await prisma.$transaction(
-        async (tx) => {
-          const nuevaDireccion = await prisma.direcciones.create({
-            data: {
-              direccion_completa: direccion.direccion_completa,
-              distrito: direccion.distrito,
-              ciudad: direccion.ciudad || 'Lima',
-              referencia: direccion.referencia || null,
-            },
-          });
 
-          const nuevaSede = await tx.sedes.create({
-            data: {
-              nombre: sedeData.nombre,
-              telefono_contacto: sedeData.telefono_contacto || null,
-              tipo_instalacion: sedeData.tipo_instalacion || null,
-              activo: true,
-              direccion_id: nuevaDireccion.id,
-            },
-            include: {
-              direccion: true,
-            },
-          });
+    const sede = await prisma.$transaction(
+      async (tx) => {
+        const nuevaDireccion = await prisma.direcciones.create({
+          data: {
+            direccion_completa: direccion.direccion_completa,
+            distrito: direccion.distrito,
+            ciudad: direccion.ciudad || 'Lima',
+            referencia: direccion.referencia || null,
+          },
+        });
 
-          return nuevaSede;
-        },
-        {
-          maxWait: 2000,
-          timeout: 5000,
-        }
-      );
+        const nuevaSede = await tx.sedes.create({
+          data: {
+            nombre: sedeData.nombre,
+            telefono_contacto: sedeData.telefono_contacto || null,
+            tipo_instalacion: sedeData.tipo_instalacion || null,
+            activo: true,
+            direccion_id: nuevaDireccion.id,
+          },
+          include: {
+            direccion: true,
+          },
+        });
 
-      return {
-        id: sede.id,
-        nombre: sede.nombre,
-        telefono_contacto: sede.telefono_contacto,
-        tipo_instalacion: sede.tipo_instalacion,
-        activo: sede.activo,
-        direccion: {
-          id: sede.direcciones.id,
-          direccion_completa: sede.direcciones.direccion_completa,
-          distrito: sede.direcciones.distrito,
-          ciudad: sede.direcciones.ciudad,
-          referencia: sede.direcciones.referencia,
-        },
-      };
-    } catch (error) {
-      console.error('Error al crear la sede:', error);
-      throw error;
-    }
+        return nuevaSede;
+      },
+      {
+        maxWait: 2000,
+        timeout: 5000,
+      }
+    );
+
+    return {
+      id: sede.id,
+      nombre: sede.nombre,
+      telefono_contacto: sede.telefono_contacto,
+      tipo_instalacion: sede.tipo_instalacion,
+      activo: sede.activo,
+      direccion: {
+        id: sede.direcciones.id,
+        direccion_completa: sede.direcciones.direccion_completa,
+        distrito: sede.direcciones.distrito,
+        ciudad: sede.direcciones.ciudad,
+        referencia: sede.direcciones.referencia,
+      },
+    };
   },
 
   getAllSedes: async (filters = {}) => {
     const { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
-
-    // Construir el objeto where dinámicamente
     const where = {};
 
     if (activo !== undefined) {
@@ -70,7 +65,7 @@ export const sedeService = {
       where.direcciones = {
         distrito: {
           contains: distrito,
-          mode: 'insensitive', // Case insensitive
+          mode: 'insensitive',
         },
       };
     }
@@ -82,10 +77,8 @@ export const sedeService = {
       };
     }
 
-    // Calcular skip para paginación
     const skip = (page - 1) * limit;
 
-    // Ejecutar queries en paralelo
     const [sedes, total] = await Promise.all([
       prisma.sedes.findMany({
         where,
@@ -140,7 +133,7 @@ export const sedeService = {
     };
   },
   getSedeById: async (id) => {
-    return await prisma.sedes.findUnique({
+    const sede = await prisma.sedes.findUnique({
       where: {
         id: parseInt(id),
       },
@@ -180,6 +173,12 @@ export const sedeService = {
         },
       },
     });
+
+    if (!sede) {
+      throw new ApiError('Sede no encontrada', 404);
+    }
+
+    return sede;
   },
 
   updateSede: async (id, sedeData) => {
@@ -244,9 +243,9 @@ export const sedeService = {
             referencia: true,
           },
         },
-        orderBy: {
-          nombre: 'asc',
-        },
+      },
+      orderBy: {
+        nombre: 'asc',
       },
     });
   },

@@ -8,6 +8,7 @@ import {
   JWT_EXPIRES_IN,
   REFRESH_TOKEN_EXPIRATION_DAYS,
 } from '../../config/secret.config.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 export const authService = {
   login: async (email, password) => {
@@ -20,19 +21,19 @@ export const authService = {
     });
 
     if (!usuario) {
-      throw new Error('Credenciales inválidas');
+      throw new ApiError('Credenciales inválidas', 401);
     }
 
     if (!usuario.activo) {
-      throw new Error('Usuario inactivo');
+      throw new ApiError('Usuario inactivo', 403);
     }
 
     if (!usuario.credenciales_usuario) {
-      throw new Error('Usuario sin credenciales configuradas');
+      throw new ApiError('Usuario sin credenciales configuradas', 403);
     }
 
     if (usuario.credenciales_usuario.bloqueado) {
-      throw new Error('Usuario bloqueado. Contacte al administrador');
+      throw new ApiError('Usuario bloqueado. Contacte al administrador', 403);
     }
 
     const passwordValida = await bcrypt.compare(
@@ -41,7 +42,7 @@ export const authService = {
     );
 
     if (!passwordValida) {
-      throw new Error('Credenciales inválidas');
+      throw new ApiError('Credenciales inválidas', 401);
     }
 
     await prisma.credenciales_usuario.update({
@@ -87,7 +88,7 @@ export const authService = {
   getProfile: async (userId) => {
     const usuario = await usuarioService.getProfile(userId);
     if (!usuario) {
-      throw new Error('Usuario no encontrado');
+      throw new ApiError('Usuario no encontrado', 404);
     }
 
     const baseData = {
@@ -141,7 +142,7 @@ export const authService = {
     });
 
     if (!tokenRecord) {
-      throw new Error('Refresh token inválido');
+      throw new ApiError('Refresh token inválido', 401);
     }
 
     if (tokenRecord.revoked) {
@@ -149,18 +150,18 @@ export const authService = {
         where: { usuario_id: tokenRecord.usuario_id },
         data: { revoked: true },
       });
-      throw new Error('Refresh token revocado');
+      throw new ApiError('Refresh token revocado detected - Reuse Attempt', 403);
     }
     if (tokenUtils.isTokenExpired(tokenRecord.expires_at)) {
-      throw new Error('Refresh token expirado');
+      throw new ApiError('Refresh token expirado', 401);
     }
 
     if (!tokenRecord.usuarios.activo) {
-      throw new Error('Usuario inactivo');
+      throw new ApiError('Usuario inactivo', 403);
     }
 
     if (tokenRecord.usuarios.credenciales_usuario?.bloqueado) {
-      throw new Error('Cuenta bloqueada. Contacte al administrador');
+      throw new ApiError('Cuenta bloqueada. Contacte al administrador', 403);
     }
 
     await prisma.refresh_tokens.update({
@@ -209,7 +210,7 @@ export const authService = {
     });
 
     if (!tokenRecord) {
-      throw new Error('Refresh token no encontrado');
+      throw new ApiError('Refresh token no encontrado', 404);
     }
 
     await prisma.refresh_tokens.update({

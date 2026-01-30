@@ -1,217 +1,114 @@
 import { sedeService } from './sede.service.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 export const sedeController = {
-  createSede: async (req, res) => {
-    try {
-      const { sedeData } = req.body;
-      if (!sedeData) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'No se proporcionó datos de la sede',
-        });
-      }
-      if (!sedeData.direccion) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Los campos nombre y dirección son obligatorios',
-        });
-      }
-      const sede = await sedeService.createSede(sedeData);
-      res.status(201).json({
-        status: 'success',
-        message: 'Sede creada exitosamente',
-        data: sede,
-      });
-    } catch (error) {
-      console.error('Error al crear la sede:', error);
-      if (error.message.includes('ya existe')) {
-        return res.status(409).json({
-          status: 'error',
-          message: error.message,
-        });
-      }
-
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al crear la sede',
-        detail: error.message,
-      });
+  createSede: catchAsync(async (req, res) => {
+    const { sedeData } = req.body;
+    if (!sedeData) {
+      throw new ApiError('No se proporcionó datos de la sede', 400);
     }
-  },
-
-  getAllSedes: async (req, res) => {
-    try {
-      const filter = {
-        activo: req.query.activo,
-        distrito: req.query.distrito,
-        tipo_instalacion: req.query.tipo_instalacion,
-        page: req.query.page,
-        limit: req.query.limit,
-      };
-
-      const result = await sedeService.getAllSedes(filter);
-      res.json({
-        status: 'success',
-        data: result.data,
-        meta: {
-          total: result.total,
-          page: result.page,
-          limit: result.limit,
-          totalPages: result.totalPages,
-        },
-      });
-    } catch (error) {
-      console.error('Error al obtener sedes:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al obtener sedes',
-        detail: error.message,
-      });
+    if (!sedeData.direccion) {
+      throw new ApiError('Los campos nombre y dirección son obligatorios', 400);
     }
-  },
+    const sede = await sedeService.createSede(sedeData);
+    return apiResponse.created(res, {
+      message: 'Sede creada exitosamente',
+      data: sede,
+    });
+  }),
 
-  getSedeById: async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
+  getAllSedes: catchAsync(async (req, res) => {
+    const filter = {
+      activo: req.query.activo,
+      distrito: req.query.distrito,
+      tipo_instalacion: req.query.tipo_instalacion,
+      page: req.query.page,
+      limit: req.query.limit,
+    };
 
-      if (isNaN(id)) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'ID de sede inválido',
-          code: 'INVALID_ID',
-        });
-      }
+    const result = await sedeService.getAllSedes(filter);
+    return apiResponse.success(res, {
+      message: 'Sedes obtenidas exitosamente',
+      data: result.data,
+      meta: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  }),
 
-      const sede = await sedeService.getSedeById(id);
+  getSedeById: catchAsync(async (req, res) => {
+    const id = parseInt(req.params.id);
 
-      if (!sede) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Sede no encontrada',
-          code: 'SEDE_NOT_FOUND',
-        });
-      }
-
-      res.json({
-        status: 'success',
-        data: sede,
-      });
-    } catch (error) {
-      console.error('Error al obtener sede:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al obtener sede',
-        detail: error.message,
-      });
+    if (isNaN(id)) {
+      throw new ApiError('ID de sede inválido', 400);
     }
-  },
 
-  updateSede: async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { sedeData } = req.body;
+    const sede = await sedeService.getSedeById(id);
 
-      if (isNaN(id)) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'ID de sede inválido',
-          code: 'INVALID_ID',
-        });
-      }
-
-      const sede = await sedeService.updateSede(id, sedeData);
-
-      if (!sede) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Sede no encontrada',
-          code: 'SEDE_NOT_FOUND',
-        });
-      }
-
-      res.json({
-        status: 'success',
-        data: sede,
-      });
-    } catch (error) {
-      console.error('Error al actualizar sede:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al actualizar sede',
-        detail: error.message,
-      });
+    if (!sede) {
+      throw new ApiError('Sede no encontrada', 404);
     }
-  },
 
-  updateDefuseSede: async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
+    return apiResponse.success(res, {
+      message: 'Sede obtenida exitosamente',
+      data: sede,
+    });
+  }),
 
-      if (isNaN(id)) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'ID de sede inválido',
-          code: 'INVALID_ID',
-        });
-      }
+  updateSede: catchAsync(async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { sedeData } = req.body;
 
-      const sede = await sedeService.updateDefuseSede(id);
-
-      if (!sede) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Sede no encontrada',
-          code: 'SEDE_NOT_FOUND',
-        });
-      }
-
-      res.json({
-        status: 'success',
-        data: sede,
-      });
-    } catch (error) {
-      console.error('Error al desactivar sede:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al desactivar sede',
-        detail: error.message,
-      });
+    if (isNaN(id)) {
+      throw new ApiError('ID de sede inválido', 400);
     }
-  },
 
-  updateActiveSede: async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
+    const sede = await sedeService.updateSede(id, sedeData);
 
-      if (isNaN(id)) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'ID de sede inválido',
-          code: 'INVALID_ID',
-        });
-      }
-
-      const sede = await sedeService.updateActiveSede(id);
-
-      if (!sede) {
-        return res.status(404).json({
-          status: 'error',
-          message: 'Sede no encontrada',
-          code: 'SEDE_NOT_FOUND',
-        });
-      }
-
-      res.json({
-        status: 'success',
-        data: sede,
-      });
-    } catch (error) {
-      console.error('Error al activar sede:', error);
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al activar sede',
-        detail: error.message,
-      });
+    if (!sede) {
+      throw new ApiError('Sede no encontrada', 404);
     }
-  },
+
+    return apiResponse.success(res, {
+      message: 'Sede actualizada exitosamente',
+      data: sede,
+    });
+  }),
+
+  updateDefuseSede: catchAsync(async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      throw new ApiError('ID de sede inválido', 400);
+    }
+
+    const sede = await sedeService.updateDefuseSede(id);
+
+    if (!sede) {
+      throw new ApiError('Sede no encontrada', 404);
+    }
+
+    return apiResponse.noContent(res);
+  }),
+
+  updateActiveSede: catchAsync(async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      throw new ApiError('ID de sede inválido', 400);
+    }
+
+    const sede = await sedeService.updateActiveSede(id);
+
+    if (!sede) {
+      throw new ApiError('Sede no encontrada', 404);
+    }
+
+    return apiResponse.noContent(res);
+  }),
 };

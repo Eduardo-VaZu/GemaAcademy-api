@@ -1,18 +1,20 @@
 import { prisma } from '../../config/database.config.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 export const rolesService = {
   createRole: async (rolesData) => {
     const { nombre, descripcion } = rolesData;
+    const nombreNormalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
+
     const existingRole = await prisma.roles.findUnique({
-      where: { nombre },
+      where: { nombre: nombreNormalizado },
     });
     if (existingRole) {
-      throw new Error('El rol ya existe');
+      throw new ApiError('El rol ya existe', 400);
     }
-    const nuevoRol = nombre.charAt(0).toUpperCase() + nombre.slice(1).toLowerCase();
 
     const data = {
-      nombre: nuevoRol,
+      nombre: nombreNormalizado,
       descripcion,
     };
     const role = await prisma.roles.create({
@@ -20,24 +22,34 @@ export const rolesService = {
     });
     return role;
   },
+
   getAllRoles: async () => {
     return await prisma.roles.findMany();
   },
+
   getRoleById: async (id) => {
-    return await prisma.roles.findUnique({
+    const rol = await prisma.roles.findUnique({
       where: {
         id,
       },
     });
+    if (!rol) {
+      throw new ApiError('El rol no existe', 404);
+    }
+    return rol;
   },
+
   updateRole: async (id, data) => {
     return await prisma.roles.update({
       where: {
         id,
       },
-      data,
+      data: {
+        descripcion: data.descripcion,
+      },
     });
   },
+
   deleteRole: async (id) => {
     return await prisma.roles.delete({
       where: {

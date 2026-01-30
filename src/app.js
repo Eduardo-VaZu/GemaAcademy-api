@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { logger } from './shared/utils/logger.util.js';
 
 import { CORS_CREDENTIALS, CORS_ORIGIN } from './config/secret.config.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
@@ -20,6 +21,7 @@ import pagosRoutes from './features/pagos/pagos.routes.js';
 import sedeRoutes from './features/sedes/sede.routers.js';
 
 const app = express();
+const morganFormat = ':method :url :status :response-time ms';
 
 // Middlewares
 app.use(
@@ -30,9 +32,23 @@ app.use(
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
+app.use(
+  morgan(morganFormat, {
+    stream: {
+      write: (message) => {
+        const logObject = {
+          method: message.split(' ')[0],
+          url: message.split(' ')[1],
+          status: message.split(' ')[2],
+          responseTime: message.split(' ')[3],
+        };
+        logger.http(JSON.stringify(logObject));
+      },
+    },
+  })
+);
 app.use(helmet());
 app.use(cookieParser());
-app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

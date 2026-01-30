@@ -1,4 +1,4 @@
-export class ApiResponse {
+export class apiResponse {
   static success(res, { data, message = 'Operacion Exitosa', meta } = {}) {
     return res.status(200).json({
       success: true,

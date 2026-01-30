@@ -1,8 +1,8 @@
 import { ApiResponse } from '../utils/response.util.js';
+import { logger } from '../utils/logger.util.js';
 
 export const errorHandler = (err, req, res, next) => {
-  console.error('Error:', err);
-
+  logger.error(err);
   // Error personalizado
   if (err.statusCode) {
     return ApiResponse.error(res, {

@@ -1,215 +1,124 @@
 import { NODE_ENV } from '../../config/secret.config.js';
 import { authService } from './auth.service.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 export const authController = {
-  login: async (req, res) => {
-    try {
-      const { email, password } = req.body;
+  login: catchAsync(async (req, res) => {
+    const { email, password } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Email y contraseña son requeridos',
-        });
-      }
-
-      const result = await authService.login(email, password);
-
-      const cookiesOption = {
-        httpOnly: true,
-        secure: NODE_ENV === 'production',
-        sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
-        path: '/',
-      };
-
-      res.cookie('accessToken', result.accessToken, {
-        ...cookiesOption,
-        maxAge: 15 * 60 * 1000,
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        ...cookiesOption,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      res.json({
-        status: 'success',
-        message: 'Login exitoso',
-        data: result.user,
-      });
-    } catch (error) {
-      const errorMessage = ['Credenciales inválidas', 'Usuario inactivo', 'sin credenciales'];
-      if (errorMessage.some((message) => error.message.includes(message))) {
-        return res.status(401).json({
-          status: 'error',
-          message: 'Credenciales inválidas',
-        });
-      }
-
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al iniciar sesión',
-        detail: error.message,
-      });
+    if (!email || !password) {
+      throw new ApiError('Email y contraseña son requeridos', 400);
     }
-  },
 
-  getProfile: async (req, res) => {
-    try {
-      const profile = await authService.getProfile(req.user.id);
+    const result = await authService.login(email, password);
 
-      res.json({
-        status: 'success',
-        data: profile,
-      });
-    } catch (error) {
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al obtener perfil',
-        detail: error.message,
-      });
+    const cookiesOption = {
+      httpOnly: true,
+      secure: NODE_ENV === 'production',
+      sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
+      path: '/',
+    };
+
+    res.cookie('accessToken', result.accessToken, {
+      ...cookiesOption,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie('refreshToken', result.refreshToken, {
+      ...cookiesOption,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return apiResponse.success(res, {
+      message: 'Login exitoso',
+      data: result.user,
+    });
+  }),
+
+  getProfile: catchAsync(async (req, res) => {
+    const profile = await authService.getProfile(req.user.id);
+
+    return apiResponse.success(res, {
+      message: 'Perfil obtenido exitosamente',
+      data: profile,
+    });
+  }),
+
+  refresh: catchAsync(async (req, res) => {
+    const refreshToken = req.cookies.refreshToken;
+
+    if (!refreshToken) {
+      throw new ApiError('Refresh token es requerido', 401);
     }
-  },
 
-  refresh: async (req, res) => {
-    try {
-      const refreshToken = req.cookies.refreshToken;
-
-      if (!refreshToken) {
-        return res.status(401).json({
-          status: 'error',
-          message: 'Refresh token es requerido',
-          code: 'REFRESH_TOKEN_REQUIRED',
-        });
-      }
-
-      if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
-        return res.status(401).json({
-          status: 'error',
-          message: 'Refresh token inválido',
-          code: 'REFRESH_TOKEN_INVALID',
-        });
-      }
-
-      const result = await authService.refreshAccessToken(refreshToken);
-
-      const cookieOptions = {
-        httpOnly: true,
-        secure: NODE_ENV === 'production',
-        sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
-        path: '/',
-      };
-
-      res.cookie('accessToken', result.accessToken, {
-        ...cookieOptions,
-        maxAge: 15 * 60 * 1000,
-      });
-
-      res.cookie('refreshToken', result.refreshToken, {
-        ...cookieOptions,
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-
-      res.json({
-        status: 'success',
-        message: 'Access token renovado',
-        data: result.user,
-      });
-    } catch (error) {
-      const errorMessages = [
-        'inválido',
-        'revocado',
-        'expirado',
-        'comprometido',
-        'inactivo',
-        'bloqueada',
-      ];
-      if (errorMessages.some((message) => error.message.includes(message))) {
-        return res.status(401).json({
-          status: 'error',
-          message: error.message,
-          code: 'REFRESH_TOKEN_INVALID',
-        });
-      }
-
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al renovar token',
-        detail: error.message,
-      });
+    if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
+      throw new ApiError('Refresh token inválido', 401);
     }
-  },
 
-  logout: async (req, res) => {
-    try {
-      const refreshToken = req.cookies.refreshToken;
+    const result = await authService.refreshAccessToken(refreshToken);
 
-      if (!refreshToken) {
-        return res.status(401).json({
-          status: 'error',
-          message: 'Refresh token es requerido',
-          code: 'REFRESH_TOKEN_REQUIRED',
-        });
-      }
+    const cookieOptions = {
+      httpOnly: true,
+      secure: NODE_ENV === 'production',
+      sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
+      path: '/',
+    };
 
-      if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
-        return res.status(401).json({
-          status: 'error',
-          message: 'Refresh token inválido',
-          code: 'REFRESH_TOKEN_INVALID',
-        });
-      }
+    res.cookie('accessToken', result.accessToken, {
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
 
-      await authService.logout(refreshToken);
+    res.cookie('refreshToken', result.refreshToken, {
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
-      res.clearCookie('accessToken', {
-        path: '/',
-      });
-      res.clearCookie('refreshToken', {
-        path: '/',
-      });
+    return apiResponse.success(res, {
+      message: 'Access token renovado',
+      data: result.user,
+    });
+  }),
 
-      res.json({
-        status: 'success',
-        message: 'Sesión cerrada exitosamente',
-      });
-    } catch (error) {
-      if (error.message.includes('no encontrado')) {
-        return res.status(404).json({
-          status: 'error',
-          message: error.message,
-        });
-      }
+  logout: catchAsync(async (req, res) => {
+    const refreshToken = req.cookies.refreshToken;
 
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al cerrar sesión',
-        detail: error.message,
-      });
+    if (!refreshToken) {
+      throw new ApiError('Refresh token es requerido', 401);
     }
-  },
 
-  revokeAllSessions: async (req, res) => {
-    try {
-      await authService.revokeAllSessions(req.user.id);
-
-      res.clearCookie('accessToken', {
-        path: '/',
-      });
-      res.clearCookie('refreshToken', {
-        path: '/',
-      });
-
-      res.json({
-        status: 'success',
-        message: 'Todas las sesiones cerradas exitosamente',
-      });
-    } catch (error) {
-      res.status(500).json({
-        status: 'error',
-        message: 'Error al cerrar todas las sesiones',
-        detail: error.message,
-      });
+    if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
+      throw new ApiError('Refresh token inválido', 401);
     }
-  },
+
+    await authService.logout(refreshToken);
+
+    res.clearCookie('accessToken', {
+      path: '/',
+    });
+    res.clearCookie('refreshToken', {
+      path: '/',
+    });
+
+    return apiResponse.success(res, {
+      message: 'Sesión cerrada exitosamente',
+    });
+  }),
+
+  revokeAllSessions: catchAsync(async (req, res) => {
+    await authService.revokeAllSessions(req.user.id);
+
+    res.clearCookie('accessToken', {
+      path: '/',
+    });
+    res.clearCookie('refreshToken', {
+      path: '/',
+    });
+
+    return apiResponse.success(res, {
+      message: 'Todas las sesiones cerradas exitosamente',
+    });
+  }),
 };
