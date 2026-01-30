@@ -1,7 +1,4 @@
-import {
-  getAccessTokenCookieOptions,
-  getRefreshTokenCookieOptions,
-} from '../../config/cookie.config.js';
+import { setAuthCookies } from '../../config/cookie.config.js';
 import { authService } from './auth.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
@@ -17,8 +14,7 @@ export const authController = {
 
     const result = await authService.login(email, password);
 
-    res.cookie('accessToken', result.accessToken, getAccessTokenCookieOptions());
-    res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
+    setAuthCookies(res, result);
 
     return apiResponse.success(res, {
       message: 'Login exitoso',
@@ -48,8 +44,7 @@ export const authController = {
 
     const result = await authService.refreshAccessToken(refreshToken);
 
-    res.cookie('accessToken', result.accessToken, getAccessTokenCookieOptions());
-    res.cookie('refreshToken', result.refreshToken, getRefreshTokenCookieOptions());
+    setAuthCookies(res, result);
 
     return apiResponse.success(res, {
       message: 'Access token renovado',

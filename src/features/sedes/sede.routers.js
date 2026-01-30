@@ -40,7 +40,7 @@ router.patch(
   authenticate,
   authorize('Administrador'),
   validateParams(schemas.sedeSchema.sedeIdParamSchema),
-  sedeController.desactivarSede
+  sedeController.updateDefuseSede
 );
 
 router.patch(

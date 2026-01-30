@@ -4,10 +4,12 @@ import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { validate } from '../../validation/middlewares/validate.middleware.js';
 import { schemas } from '../../validation/index.js';
 
+import { loginLimiter } from '../../shared/middlewares/rateLimit.middleware.js';
+
 const router = Router();
 
 // Rutas públicas (no requieren autenticación)
-router.post('/login', validate(schemas.authSchema.loginSchema), authController.login);
+router.post('/login', loginLimiter, validate(schemas.authSchema.loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 

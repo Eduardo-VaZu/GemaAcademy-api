@@ -37,20 +37,7 @@ export const sedeService = {
       }
     );
 
-    return {
-      id: sede.id,
-      nombre: sede.nombre,
-      telefono_contacto: sede.telefono_contacto,
-      tipo_instalacion: sede.tipo_instalacion,
-      activo: sede.activo,
-      direccion: {
-        id: sede.direcciones.id,
-        direccion_completa: sede.direcciones.direccion_completa,
-        distrito: sede.direcciones.distrito,
-        ciudad: sede.direcciones.ciudad,
-        referencia: sede.direcciones.referencia,
-      },
-    };
+    return sede;
   },
 
   getAllSedes: async (filters = {}) => {
@@ -208,6 +195,7 @@ export const sedeService = {
               ...(sedeData.direccion.referencia && {
                 referencia: sedeData.direccion.referencia,
               }),
+              // Ensure we don't accidentally wipe unmatched fields if partial update is intended
             },
           },
         }),

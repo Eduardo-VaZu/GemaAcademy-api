@@ -10,7 +10,7 @@ export const usuarioService = {
       password,
       tipo_documento_id,
       numero_documento,
-      rol_id = VALID_ROLES.ALUMNO,
+      rolNombre = VALID_ROLES.ALUMNO,
       datosRolEspecifico = {},
       ...otrosdatos
     } = userData;
@@ -20,11 +20,21 @@ export const usuarioService = {
         email,
       },
     });
+
     if (emailExistente) {
       throw new ApiError('El email ya esta registrado');
     }
 
-    const rolNombreNormalizado = rol_id.charAt(0).toUpperCase() + rol_id.slice(1).toLowerCase();
+    if (!Object.values(VALID_ROLES).includes(rolNombre)) {
+      throw new ApiError(
+        `El rol '${rolNombre}' no es válido`,
+        400,
+        `Los roles permitidos son: ${Object.values(VALID_ROLES).join(', ')}`
+      );
+    }
+
+    const rolNombreNormalizado =
+      rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
 
     const rol = await prisma.roles.findUnique({
       where: {
@@ -32,20 +42,17 @@ export const usuarioService = {
         mode: 'insensitive',
       },
     });
+
     if (!rol) {
-      throw new ApiError(
-        `El rol '${rolNombreNormalizado}' no existe en la base de datos`,
-        400,
-        `Los roles permitidos son: ${VALID_ROLES.join(', ')}`
-      );
+      throw new ApiError(`El rol '${rolNombreNormalizado}' no existe en la base de datos`, 400);
     }
 
-    const requiredFields = ROLE_REQUIRED_FIELDS[rol_id] || [];
+    const requiredFields = ROLE_REQUIRED_FIELDS[rolNombre] || [];
     const missingFields = requiredFields.filter((field) => !datosRolEspecifico[field]);
 
     if (missingFields.length > 0) {
       throw new ApiError(
-        `Campos obligatorios faltantes para el rol ${rolNombreNormalizado}: ${missingFields.join(', ')}`,
+        `Campos obligatorios faltantes para el rol ${rolNombre}: ${missingFields.join(', ')}`,
         400
       );
     }

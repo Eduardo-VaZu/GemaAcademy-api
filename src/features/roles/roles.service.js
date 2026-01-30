@@ -51,12 +51,23 @@ export const rolesService = {
   },
 
   deleteRole: async (id) => {
+    const roleExists = await prisma.roles.findUnique({
+      where: { id },
+    });
+
+    if (!roleExists) {
+      throw new ApiError('El rol que intenta eliminar no existe', 404);
+    }
+
     const usersWithRole = await prisma.usuarios.count({
       where: { rol_id: id },
     });
 
     if (usersWithRole > 0) {
-      throw new ApiError('No se puede eliminar el rol porque hay usuarios asignados a él', 400);
+      throw new ApiError(
+        'No se puede eliminar el rol porque existen usuarios asignados a él actualmente.',
+        400
+      );
     }
 
     return await prisma.roles.delete({
