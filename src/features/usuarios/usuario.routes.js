@@ -15,6 +15,11 @@ router.post(
 
 router.post('/validate-role', usuarioController.validateRole);
 
-router.get('/:id', authenticate, usuarioController.getUserProfile);
+router.get(
+  '/:id',
+  authenticate,
+  authorize(['admin', 'profesor']),
+  usuarioController.getUserProfile
+);
 
 export default router;

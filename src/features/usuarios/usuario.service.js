@@ -10,10 +10,13 @@ export const usuarioService = {
       password,
       tipo_documento_id,
       numero_documento,
-      rolNombre = VALID_ROLES.ALUMNO,
+      rol_id, // Extract rol_id to prevent it from leaking into otrosdatos
+      rolNombre: providedRolNombre,
       datosRolEspecifico = {},
       ...otrosdatos
     } = userData;
+
+    const rolNombre = providedRolNombre || rol_id || VALID_ROLES.ALUMNO;
 
     const emailExistente = await prisma.usuarios.findUnique({
       where: {
@@ -25,7 +28,7 @@ export const usuarioService = {
       throw new ApiError('El email ya esta registrado');
     }
 
-    if (!Object.values(VALID_ROLES).includes(rolNombre)) {
+    if (typeof rolNombre === 'string' && !Object.values(VALID_ROLES).includes(rolNombre)) {
       throw new ApiError(
         `El rol '${rolNombre}' no es válido`,
         400,
@@ -33,26 +36,38 @@ export const usuarioService = {
       );
     }
 
-    const rolNombreNormalizado =
-      rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
+    let rol;
+    if (typeof rolNombre === 'string') {
+      const rolNombreNormalizado =
+        rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
 
-    const rol = await prisma.roles.findUnique({
-      where: {
-        nombre: rolNombreNormalizado,
-        mode: 'insensitive',
-      },
-    });
-
-    if (!rol) {
-      throw new ApiError(`El rol '${rolNombreNormalizado}' no existe en la base de datos`, 400);
+      rol = await prisma.roles.findUnique({
+        where: {
+          nombre: rolNombreNormalizado,
+        },
+      });
+    } else {
+      // rolNombre holds the ID if it's a number
+      rol = await prisma.roles.findUnique({
+        where: {
+          id: rolNombre,
+        },
+      });
     }
 
-    const requiredFields = ROLE_REQUIRED_FIELDS[rolNombre] || [];
+    if (!rol) {
+      throw new ApiError(`El rol '${rolNombre}' no existe en la base de datos`, 400);
+    }
+
+    const resolvedRoleName = rol.nombre.toLowerCase();
+
+    // Move validation AFTER finding the role, because if rol_id was numeric we didn't validate specifically yet
+    const requiredFields = ROLE_REQUIRED_FIELDS[resolvedRoleName] || [];
     const missingFields = requiredFields.filter((field) => !datosRolEspecifico[field]);
 
     if (missingFields.length > 0) {
       throw new ApiError(
-        `Campos obligatorios faltantes para el rol ${rolNombre}: ${missingFields.join(', ')}`,
+        `Campos obligatorios faltantes para el rol ${resolvedRoleName}: ${missingFields.join(', ')}`,
         400
       );
     }

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a8b3c4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d",
     "name": "GemaAcademy API - Complete Collection",
-    "description": "Colección completa de todos los endpoints disponibles en GemaAcademy API",
+    "description": "Colecci\u00f3n completa de todos los endpoints disponibles en GemaAcademy API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -19,7 +19,7 @@
               "host": ["{{base_url}}"],
               "path": ["health"]
             },
-            "description": "Verifica el estado del servidor y la conexión a la base de datos"
+            "description": "Verifica el estado del servidor y la conexi\u00f3n a la base de datos"
           },
           "response": []
         }
@@ -35,11 +35,11 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "// Guardar tokens automáticamente",
+                  "// Guardar tokens autom\u00e1ticamente",
                   "if (pm.response.code === 200) {",
                   "    var jsonData = pm.response.json();",
                   "    if(jsonData.status === 'success') {",
-                  "        // Los tokens se guardan en cookies automáticamente",
+                  "        // Los tokens se guardan en cookies autom\u00e1ticamente",
                   "        console.log('Login exitoso');",
                   "    }",
                   "}"
@@ -65,7 +65,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "login"]
             },
-            "description": "Inicia sesión y obtiene tokens de acceso (guardados en cookies)"
+            "description": "Inicia sesi\u00f3n y obtiene tokens de acceso (guardados en cookies)"
           },
           "response": []
         },
@@ -79,7 +79,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "profile"]
             },
-            "description": "Obtiene el perfil del usuario autenticado (requiere cookie de autenticación)"
+            "description": "Obtiene el perfil del usuario autenticado (requiere cookie de autenticaci\u00f3n)"
           },
           "response": []
         },
@@ -125,7 +125,21 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "logout"]
             },
-            "description": "Cierra sesión y revoca el refresh token"
+            "description": "Cierra sesi\u00f3n y revoca el refresh token"
+          },
+          "response": []
+        },
+        {
+          "name": "Logout All",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/logout-all",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "logout-all"]
+            },
+            "description": "Cierra todas las sesiones del usuario"
           },
           "response": []
         }
@@ -146,14 +160,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"alumno.nuevo@gema.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Carlos\",\n    \"apellidos\": \"Rodríguez\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"72345678\",\n    \"telefono_personal\": \"+51987654321\",\n    \"fecha_nacimiento\": \"2005-03-15\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Asma leve\",\n        \"seguro_medico\": \"Pacífico Seguros\",\n        \"grupo_sanguineo\": \"O+\"\n    }\n}"
+              "raw": "{\n    \"email\": \"alumno.nuevo@gema.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Carlos\",\n    \"apellidos\": \"Rodr\u00edguez\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"72345678\",\n    \"telefono_personal\": \"+51987654321\",\n    \"fecha_nacimiento\": \"2005-03-15\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Asma leve\",\n        \"seguro_medico\": \"Pac\u00edfico Seguros\",\n        \"grupo_sanguineo\": \"O+\"\n    }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/usuarios/register",
               "host": ["{{base_url}}"],
               "path": ["api", "usuarios", "register"]
             },
-            "description": "Registra un nuevo alumno con sus datos específicos:\n- condiciones_medicas (opcional)\n- seguro_medico (opcional)\n- grupo_sanguineo (opcional)"
+            "description": "Registra un nuevo alumno con sus datos espec\u00edficos:\n- condiciones_medicas (opcional)\n- seguro_medico (opcional)\n- grupo_sanguineo (opcional)"
           },
           "response": []
         },
@@ -169,14 +183,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"profesor.nuevo@gema.com\",\n    \"password\": \"Profesor123!\",\n    \"nombres\": \"María\",\n    \"apellidos\": \"González\",\n    \"rol_id\": \"profesor\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"45678901\",\n    \"telefono_personal\": \"+51912345678\",\n    \"fecha_nacimiento\": \"1985-07-20\",\n    \"genero\": \"F\",\n    \"datosRolEspecifico\": {\n        \"especializacion\": \"Entrenamiento de alto rendimiento\",\n        \"tarifa_hora\": 50.00\n    }\n}"
+              "raw": "{\n    \"email\": \"profesor.nuevo@gema.com\",\n    \"password\": \"Profesor123!\",\n    \"nombres\": \"Mar\u00eda\",\n    \"apellidos\": \"Gonz\u00e1lez\",\n    \"rol_id\": \"profesor\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"45678901\",\n    \"telefono_personal\": \"+51912345678\",\n    \"fecha_nacimiento\": \"1985-07-20\",\n    \"genero\": \"F\",\n    \"datosRolEspecifico\": {\n        \"especializacion\": \"Entrenamiento de alto rendimiento\",\n        \"tarifa_hora\": 50.00\n    }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/usuarios/register",
               "host": ["{{base_url}}"],
               "path": ["api", "usuarios", "register"]
             },
-            "description": "Registra un nuevo profesor con sus datos específicos:\n- especializacion (opcional)\n- tarifa_hora (opcional, número decimal)"
+            "description": "Registra un nuevo profesor con sus datos espec\u00edficos:\n- especializacion (opcional)\n- tarifa_hora (opcional, n\u00famero decimal)"
           },
           "response": []
         },
@@ -192,14 +206,51 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"admin.nuevo@gema.com\",\n    \"password\": \"Admin123!\",\n    \"nombres\": \"Jorge\",\n    \"apellidos\": \"Martínez\",\n    \"rol_id\": \"administrador\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"23456789\",\n    \"telefono_personal\": \"+51998765432\",\n    \"fecha_nacimiento\": \"1980-11-10\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"cargo\": \"Director de Sede\",\n        \"sede_id\": 1,\n        \"area\": \"Administración General\"\n    }\n}"
+              "raw": "{\n    \"email\": \"admin.nuevo@gema.com\",\n    \"password\": \"Admin123!\",\n    \"nombres\": \"Jorge\",\n    \"apellidos\": \"Mart\u00ednez\",\n    \"rol_id\": \"administrador\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"23456789\",\n    \"telefono_personal\": \"+51998765432\",\n    \"fecha_nacimiento\": \"1980-11-10\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"cargo\": \"Director de Sede\",\n        \"sede_id\": 1,\n        \"area\": \"Administraci\u00f3n General\"\n    }\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/usuarios/register",
               "host": ["{{base_url}}"],
               "path": ["api", "usuarios", "register"]
             },
-            "description": "Registra un nuevo administrador con sus datos específicos:\n- cargo (OBLIGATORIO)\n- sede_id (opcional, ID de la sede)\n- area (opcional)"
+            "description": "Registra un nuevo administrador con sus datos espec\u00edficos:\n- cargo (OBLIGATORIO)\n- sede_id (opcional, ID de la sede)\n- area (opcional)"
+          },
+          "response": []
+        },
+        {
+          "name": "Validate Role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"rol_id\": \"alumno\",\n    \"datosRolEspecifico\": {}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/usuarios/validate-role",
+              "host": ["{{base_url}}"],
+              "path": ["api", "usuarios", "validate-role"]
+            },
+            "description": "Valida los datos espec\u00edficos de un rol sin crear el usuario"
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/usuarios/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "usuarios", "1"]
+            },
+            "description": "Obtiene el perfil de un usuario por ID"
           },
           "response": []
         }
@@ -218,7 +269,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "roles"]
             },
-            "description": "Obtiene la lista de todos los roles disponibles (público)"
+            "description": "Obtiene la lista de todos los roles disponibles (p\u00fablico)"
           },
           "response": []
         },
@@ -232,7 +283,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "roles", "1"]
             },
-            "description": "Obtiene un rol específico por su ID (público)"
+            "description": "Obtiene un rol espec\u00edfico por su ID (p\u00fablico)"
           },
           "response": []
         },
@@ -255,7 +306,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "roles"]
             },
-            "description": "Crea un nuevo rol (requiere autenticación y rol de Administrador)"
+            "description": "Crea un nuevo rol (requiere autenticaci\u00f3n y rol de Administrador)"
           },
           "response": []
         },
@@ -271,14 +322,14 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"nombre\": \"Coordinador Actualizado\",\n    \"descripcion\": \"Descripción actualizada del rol\"\n}"
+              "raw": "{\n    \"nombre\": \"Coordinador Actualizado\",\n    \"descripcion\": \"Descripci\u00f3n actualizada del rol\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/roles/4",
               "host": ["{{base_url}}"],
               "path": ["api", "roles", "4"]
             },
-            "description": "Actualiza un rol existente (requiere autenticación y rol de Administrador)"
+            "description": "Actualiza un rol existente (requiere autenticaci\u00f3n y rol de Administrador)"
           },
           "response": []
         },
@@ -292,7 +343,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "roles", "4"]
             },
-            "description": "Elimina un rol (requiere autenticación y rol de Administrador)"
+            "description": "Elimina un rol (requiere autenticaci\u00f3n y rol de Administrador)"
           },
           "response": []
         }
@@ -353,7 +404,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "alumnos"]
             },
-            "description": "Los endpoints de alumnos están pendientes de implementación"
+            "description": "Los endpoints de alumnos est\u00e1n pendientes de implementaci\u00f3n"
           },
           "response": []
         }
@@ -372,7 +423,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "profesores"]
             },
-            "description": "Los endpoints de profesores están pendientes de implementación"
+            "description": "Los endpoints de profesores est\u00e1n pendientes de implementaci\u00f3n"
           },
           "response": []
         }
@@ -391,9 +442,218 @@
               "host": ["{{base_url}}"],
               "path": ["api", "administradores"]
             },
-            "description": "Los endpoints de administradores están pendientes de implementación"
+            "description": "Los endpoints de administradores est\u00e1n pendientes de implementaci\u00f3n"
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sedes",
+      "item": [
+        {
+          "name": "Get All Sedes",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sedes?activo=true&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes"],
+              "query": [
+                {
+                  "key": "activo",
+                  "value": "true",
+                  "description": "Filtrar por estado activo"
+                },
+                {
+                  "key": "distrito",
+                  "value": "",
+                  "description": "Filtrar por distrito",
+                  "disabled": true
+                },
+                {
+                  "key": "tipo_instalacion",
+                  "value": "",
+                  "description": "Filtrar por tipo de instalacion",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Obtiene todas las sedes con paginaci\u00f3n y filtros"
+          }
+        },
+        {
+          "name": "Get Sede By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sedes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes", "1"]
+            },
+            "description": "Obtiene una sede por ID"
+          }
+        },
+        {
+          "name": "Create Sede",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nombre\": \"Sede Central\",\n    \"telefono_contacto\": \"+51999888777\",\n    \"tipo_instalacion\": \"Complejo Deportivo\",\n    \"activo\": true,\n    \"direccion\": {\n        \"direccion_completa\": \"Av. Principal 123\",\n        \"distrito\": \"Miraflores\",\n        \"ciudad\": \"Lima\",\n        \"referencia\": \"Frente al parque\"\n    }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sedes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes"]
+            },
+            "description": "Crea una nueva sede (Admin)"
+          }
+        },
+        {
+          "name": "Update Sede",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nombre\": \"Sede Central Actualizada\",\n    \"telefono_contacto\": \"+51999888666\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sedes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes", "1"]
+            },
+            "description": "Actualiza una sede existente"
+          }
+        },
+        {
+          "name": "Desactivar Sede",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/sedes/1/desactivar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes", "1", "desactivar"]
+            },
+            "description": "Desactiva una sede"
+          }
+        },
+        {
+          "name": "Activar Sede",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/sedes/1/activar",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes", "1", "activar"]
+            },
+            "description": "Activa una sede"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Canchas",
+      "item": [
+        {
+          "name": "Get All Canchas",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/canchas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "canchas"]
+            },
+            "description": "Obtiene todas las canchas"
+          }
+        },
+        {
+          "name": "Get Cancha By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/canchas/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "canchas", "1"]
+            },
+            "description": "Obtiene una cancha por ID"
+          }
+        },
+        {
+          "name": "Create Cancha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nombre\": \"Cancha Sint\\u00e9tica 1\",\n    \"tipo\": \"F\\u00fatbol 7\",\n    \"sede_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/canchas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "canchas"]
+            },
+            "description": "Crea una nueva cancha. Nota: se usa campo 'tipo' en body por esquema, aunque mapea a descripcion del sistema."
+          }
+        },
+        {
+          "name": "Update Cancha",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"nombre\": \"Cancha Sint\\u00e9tica 1 (Renovada)\",\n    \"descripcion\": \"Nueva descripci\\u00f3n\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/canchas/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "canchas", "1"]
+            },
+            "description": "Actualiza una cancha"
+          }
+        },
+        {
+          "name": "Delete Cancha",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/canchas/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "canchas", "1"]
+            },
+            "description": "Elimina una cancha"
+          }
         }
       ]
     }

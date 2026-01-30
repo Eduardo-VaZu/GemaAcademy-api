@@ -1,24 +1,14 @@
-import { prisma } from '../../config/database.config.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 
 export const healthController = {
-  healthCheck: async (req, res) => {
-    try {
-      await prisma.$queryRaw`SELECT 1`;
-
-      res.json({
-        status: 'ok',
-        database: 'connected',
-        message: 'Gema Academy API is running',
+  healthCheck: catchAsync(async (req, res) => {
+    return apiResponse.success(res, {
+      statusCode: 200,
+      message: 'Gema Academy API is running',
+      data: {
         timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('❌ Database connection error:', error);
-      res.status(500).json({
-        status: 'error',
-        database: 'disconnected',
-        message: error.message,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  },
+      },
+    });
+  }),
 };

@@ -1,6 +1,55 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
+const SEDE_SELECT_FIELDS = {
+  id: true,
+  nombre: true,
+  telefono_contacto: true,
+  tipo_instalacion: true,
+  activo: true,
+  direcciones: true,
+  canchas: {
+    select: {
+      id: true,
+      nombre: true,
+      descripcion: true,
+      horarios_clases: {
+        where: { activo: true },
+        select: {
+          id: true,
+          dia_semana: true,
+          hora_inicio: true,
+          hora_fin: true,
+          niveles_entrenamiento: true,
+          profesores: {
+            select: {
+              usuarios: {
+                select: {
+                  nombres: true,
+                  apellidos: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  administrador: {
+    select: {
+      usuarios: {
+        select: {
+          nombres: true,
+          apellidos: true,
+          email: true,
+          telefono_personal: true,
+        },
+      },
+    },
+  },
+};
+
 export const sedeService = {
   createSede: async (sedeData) => {
     const { direccion } = sedeData;
@@ -25,7 +74,7 @@ export const sedeService = {
             direccion_id: nuevaDireccion.id,
           },
           include: {
-            direccion: true,
+            direcciones: true, // Returning full object on create is fine with include
           },
         });
 
@@ -41,11 +90,15 @@ export const sedeService = {
   },
 
   getAllSedes: async (filters = {}) => {
-    const { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
+    let { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
+
+    page = parseInt(page, 10);
+    limit = parseInt(limit, 10);
+
     const where = {};
 
     if (activo !== undefined) {
-      where.activo = activo;
+      where.activo = String(activo) === 'true';
     }
 
     if (distrito) {
@@ -69,39 +122,7 @@ export const sedeService = {
     const [sedes, total] = await Promise.all([
       prisma.sedes.findMany({
         where,
-        include: {
-          direcciones: true,
-          canchas: {
-            include: {
-              horarios_clases: {
-                where: { activo: true },
-                include: {
-                  profesores: {
-                    include: {
-                      usuarios: {
-                        select: {
-                          nombres: true,
-                          apellidos: true,
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          administrador: {
-            include: {
-              usuarios: {
-                select: {
-                  nombres: true,
-                  apellidos: true,
-                  email: true,
-                },
-              },
-            },
-          },
-        },
+        select: SEDE_SELECT_FIELDS,
         orderBy: {
           nombre: 'asc',
         },
@@ -119,46 +140,13 @@ export const sedeService = {
       totalPages: Math.ceil(total / limit),
     };
   },
+
   getSedeById: async (id) => {
     const sede = await prisma.sedes.findUnique({
       where: {
         id: parseInt(id),
       },
-      include: {
-        direcciones: true,
-        canchas: {
-          include: {
-            horarios_clases: {
-              include: {
-                niveles_entrenamiento: true,
-                profesores: {
-                  include: {
-                    usuarios: {
-                      select: {
-                        nombres: true,
-                        apellidos: true,
-                        email: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        administrador: {
-          include: {
-            usuarios: {
-              select: {
-                nombres: true,
-                apellidos: true,
-                email: true,
-                telefono_personal: true,
-              },
-            },
-          },
-        },
-      },
+      select: SEDE_SELECT_FIELDS,
     });
 
     if (!sede) {
@@ -226,32 +214,6 @@ export const sedeService = {
       },
       include: {
         direcciones: true,
-      },
-    });
-  },
-
-  getSedeActive: async () => {
-    return await prisma.sedes.findMany({
-      where: {
-        activo: true,
-      },
-      select: {
-        id: true,
-        nombre: true,
-        telefono_contacto: true,
-        tipo_instalacion: true,
-        activo: true,
-        direcciones: {
-          select: {
-            direccion_completa: true,
-            distrito: true,
-            ciudad: true,
-            referencia: true,
-          },
-        },
-      },
-      orderBy: {
-        nombre: 'asc',
       },
     });
   },

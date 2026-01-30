@@ -15,13 +15,15 @@ const user = {
       .max(20, 'El número de documento debe tener menos de 15 caracteres')
       .optional(),
     rol_id: z
-      .enum(VALID_ROLES_ARRAY, {
-        errorMap: (issue, ctx) => ({
-          message: `Rol inválido. Valores permitidos: ${VALID_ROLES_ARRAY.join(', ')}`,
+      .union([
+        z.enum(VALID_ROLES_ARRAY, {
+          errorMap: (issue, ctx) => ({
+            message: `Rol inválido. Valores permitidos: ${VALID_ROLES_ARRAY.join(', ')}`,
+          }),
         }),
-      })
-      .default('alumno')
-      .transform((val) => val.toLowerCase()),
+        z.number().int().positive('El ID del rol debe ser un número positivo'),
+      ])
+      .default('alumno'),
     telefono_personal: userCommonValidation.phoneSchema,
     fecha_nacimiento: userCommonValidation.dateSchema,
     genero: z
@@ -90,8 +92,17 @@ export const usuarioSchema = {
       datosRolEspecifico: z.record(z.any()).optional(),
     })
     .superRefine((data, ctx) => {
-      const rol = data.rol_id?.toLowerCase() || 'alumno';
+      let rol = data.rol_id;
+      if (typeof rol === 'string') {
+        rol = rol.toLowerCase();
+      } else if (!rol) {
+        rol = 'alumno';
+      }
       const datos = data.datosRolEspecifico || {};
+
+      if (typeof rol === 'number') {
+        return; // Validation deferred to service
+      }
 
       if (!VALID_ROLES_ARRAY.includes(rol)) {
         ctx.addIssue({

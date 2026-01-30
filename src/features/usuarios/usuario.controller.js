@@ -8,7 +8,7 @@ export const usuarioController = {
   register: catchAsync(async (req, res) => {
     const { rol_id, datosRolEspecifico } = req.body;
 
-    if (datosRolEspecifico) {
+    if (datosRolEspecifico && typeof rol_id === 'string') {
       const validationResult = validateRoleSpecificData(rol_id, datosRolEspecifico);
 
       if (!validationResult.valid) {
