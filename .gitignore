@@ -8,3 +8,5 @@ coverage
 logs
 
 /src/generated/prisma
+
+.agent

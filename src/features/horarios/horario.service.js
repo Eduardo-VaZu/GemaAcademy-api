@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.config.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 export const horarioService = {
   // 1. Listar todos los horarios
@@ -18,8 +19,34 @@ export const horarioService = {
 
   // 2. Crear un nuevo horario
   createHorario: async (data) => {
+    const { cancha_id, profesor_id, nivel_id } = data;
+
+    const canchaExistente = await prisma.canchas.findUnique({
+      where: { id: cancha_id },
+    });
+
+    if (!canchaExistente) {
+      throw new ApiError('La cancha que intenta crear no existe', 404);
+    }
+
+    const profesorExistente = await prisma.profesores.findUnique({
+      where: { id: profesor_id },
+    });
+
+    if (!profesorExistente) {
+      throw new ApiError('El profesor que intenta crear no existe', 404);
+    }
+
+    const nivelExistente = await prisma.niveles_entrenamiento.findUnique({
+      where: { id: nivel_id },
+    });
+
+    if (!nivelExistente) {
+      throw new ApiError('El nivel que intenta crear no existe', 404);
+    }
+
     // TRUCO: Prisma guarda TIME como fecha completa.
-    const fechaBase = '1970-01-01T'; 
+    const fechaBase = '1970-01-01T';
 
     // Aseguramos formato HH:MM
     const horaInicioDate = new Date(`${fechaBase}${data.hora_inicio}:00Z`);
@@ -34,14 +61,14 @@ export const horarioService = {
         hora_inicio: horaInicioDate,
         hora_fin: horaFinDate,
         capacidad_max: parseInt(data.capacidad_max || 20),
-        
+
         // 👇 AQUÍ AGREGAMOS LA LÓGICA DEL NUEVO CAMPO
-        // Si viene un dato, lo guardamos como número. 
+        // Si viene un dato, lo guardamos como número.
         // Si no viene nada, guardamos NULL (para que use la config global).
-        minutos_reserva_especifico: data.minutos_reserva_especifico 
-          ? parseInt(data.minutos_reserva_especifico) 
+        minutos_reserva_especifico: data.minutos_reserva_especifico
+          ? parseInt(data.minutos_reserva_especifico)
           : null,
-          
+
         activo: true,
       },
     });
