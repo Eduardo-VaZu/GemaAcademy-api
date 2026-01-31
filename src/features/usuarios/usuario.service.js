@@ -10,7 +10,7 @@ export const usuarioService = {
       password,
       tipo_documento_id,
       numero_documento,
-      rol_id, // Extract rol_id to prevent it from leaking into otrosdatos
+      rol_id,
       rolNombre: providedRolNombre,
       datosRolEspecifico = {},
       ...otrosdatos
@@ -47,7 +47,6 @@ export const usuarioService = {
         },
       });
     } else {
-      // rolNombre holds the ID if it's a number
       rol = await prisma.roles.findUnique({
         where: {
           id: rolNombre,
@@ -61,7 +60,6 @@ export const usuarioService = {
 
     const resolvedRoleName = rol.nombre.toLowerCase();
 
-    // Move validation AFTER finding the role, because if rol_id was numeric we didn't validate specifically yet
     const requiredFields = ROLE_REQUIRED_FIELDS[resolvedRoleName] || [];
     const missingFields = requiredFields.filter((field) => !datosRolEspecifico[field]);
 
