@@ -136,8 +136,8 @@ model inscripciones {
   id                   Int                    @id @default(autoincrement())
   alumno_id            Int
   horario_id           Int
-  fecha_inscripcion    DateTime?              @default(dbgenerated("CURRENT_DATE")) @db.Date
-  estado               String?                @default("ACTIVO") @db.VarChar(20)
+  fecha_inscripcion  DateTime @default(now()) @db.Timestamp(6)
+  estado             String?  @default("PENDIENTE_PAGO") @db.VarChar(20)
   actualizado_en       DateTime?              @default(now()) @db.Timestamp(6)
   congelamientos       congelamientos[]
   alumnos              alumnos                @relation(fields: [alumno_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
