@@ -74,7 +74,7 @@ export const sedeService = {
             direccion_id: nuevaDireccion.id,
           },
           include: {
-            direcciones: true, // Returning full object on create is fine with include
+            direcciones: true,
           },
         });
 
