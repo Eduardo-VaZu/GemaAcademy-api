@@ -17,9 +17,7 @@ export const usuarioController = {
     }
 
     const usuario = await usuarioService.createUser(req.body);
-
-    await sendCredentialsEmail(nuevoUsuario.email, nuevoUsuario.nombres, req.body.numero_documento);
-
+    
     return apiResponse.created(res, {
       message: 'Usuario creado exitosamente',
       data: {
