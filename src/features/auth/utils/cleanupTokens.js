@@ -2,17 +2,17 @@ import { prisma } from '../../../config/database.config.js';
 
 export const cleanupExpiredTokens = async () => {
   try {
-    const expiredTokens = await prisma.refreshToken.deleteMany({
+    const expiredTokens = await prisma.refresh_tokens.deleteMany({
       where: {
-        or: [
+        OR: [
           {
-            expiresAt: {
+            expires_at: {
               lt: new Date(),
             },
           },
           {
             revoked: true,
-            createdAt: {
+            created_at: {
               lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 días en milisegundos
             },
           },
