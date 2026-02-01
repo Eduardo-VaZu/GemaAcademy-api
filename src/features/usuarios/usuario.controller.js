@@ -17,7 +17,7 @@ export const usuarioController = {
     }
 
     const usuario = await usuarioService.createUser(req.body);
-    
+
     return apiResponse.created(res, {
       message: 'Usuario creado exitosamente',
       data: {
@@ -64,6 +64,14 @@ export const usuarioController = {
         mensajes:
           validationResult.errors.length > 0 ? validationResult.errors : ['Rol y datos válidos'],
       },
+    });
+  }),
+
+  getContadorAlumnos: catchAsync(async (req, res) => {
+    const total = await usuarioService.countAlumnos();
+
+   return apiResponse.success(res, {
+      data: total,
     });
   }),
 };

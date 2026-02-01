@@ -168,6 +168,15 @@ export const usuarioService = {
     };
     return descriptions[rol.toLowerCase()] || 'Rol desconocido';
   },
+
+  async countAlumnos() {
+    return await prisma.usuarios.count({
+      where: {
+        rol_id: 1, 
+        activo: true
+      }
+    });
+  }
 };
 
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
