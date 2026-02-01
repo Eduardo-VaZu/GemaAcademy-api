@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.config.js';
+import { asistenciaService } from '../asistencia/asistencia.service.js';
 
 export const pagosService = {
 
@@ -103,68 +104,84 @@ export const pagosService = {
     });
   },
   validarPago: async (data) => {
-    const { pago_id, accion, usuario_admin_id, notas } = data; // accion: 'APROBAR' o 'RECHAZAR'
+    const { pago_id, accion, usuario_admin_id, notas } = data; 
 
     if (!['APROBAR', 'RECHAZAR'].includes(accion)) {
       throw new Error("La acción debe ser APROBAR o RECHAZAR.");
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 1. Buscar el pago y ver si existe
+      // 1. Buscar el pago y la deuda asociada
       const pago = await tx.pagos.findUnique({
         where: { id: parseInt(pago_id) },
-        include: { cuentas_por_cobrar: true } // Traemos la deuda para saber quién es el alumno
+        include: { cuentas_por_cobrar: true } 
       });
 
       if (!pago) throw new Error("El pago ID indicado no existe.");
-      if (pago.estado_validacion !== 'PENDIENTE') throw new Error("Este pago ya fue validado (no se puede editar).");
+      if (pago.estado_validacion !== 'PENDIENTE') throw new Error("Este pago ya fue validado.");
 
-      // 2. Preparar los nuevos estados
+      // 2. Definir lógica de estados
       const esAprobado = accion === 'APROBAR';
-      
       const nuevoEstadoPago = esAprobado ? 'APROBADO' : 'RECHAZADO';
-      
-      // Si se aprueba, la deuda muere (PAGADA). Si se rechaza, revive (PENDIENTE) para que pague de nuevo.
       const nuevoEstadoDeuda = esAprobado ? 'PAGADA' : 'PENDIENTE'; 
-      
-      // Si se aprueba, entra a la cancha (ACTIVO). Si se rechaza, vuelve a ser Zombie (PENDIENTE_PAGO) y podría perder el cupo.
       const nuevoEstadoInscripcion = esAprobado ? 'ACTIVO' : 'PENDIENTE_PAGO'; 
 
-      // 3. Actualizar el PAGO 🧾
+      // 3. Actualizar el PAGO 
       const pagoActualizado = await tx.pagos.update({
         where: { id: parseInt(pago_id) },
         data: {
           estado_validacion: nuevoEstadoPago,
           revisado_por: parseInt(usuario_admin_id),
           notas_validacion: notas || '',
-          // Si aprobamos, actualizamos la fecha al momento real de la confirmación financiera
           fecha_pago: esAprobado ? new Date() : pago.fecha_pago 
         }
       });
 
-      // 4. Actualizar la DEUDA 💰
+      // 4. Actualizar la DEUDA 
       await tx.cuentas_por_cobrar.update({
         where: { id: pago.cuenta_id },
         data: { estado: nuevoEstadoDeuda }
       });
 
-      // 5. Actualizar las INSCRIPCIONES (La Gran Activación) 🏐
-      // Buscamos las inscripciones de ESTE alumno que estaban esperando validación
-      await tx.inscripciones.updateMany({
+      // 5. Actualizar INSCRIPCIONES y GENERAR CLASES 🚀
+      // Buscamos las inscripciones de este alumno que estaban esperando
+      // ¡IMPORTANTE! Incluimos 'horarios_clases' para sacar el ID del Profesor
+      const inscripciones = await tx.inscripciones.findMany({
         where: {
-          alumno_id: pago.cuentas_por_cobrar.alumno_id, // Usamos el alumno de la deuda original
+          alumno_id: pago.cuentas_por_cobrar.alumno_id, 
           estado: 'POR_VALIDAR' 
         },
-        data: {
-          estado: nuevoEstadoInscripcion,
-          actualizado_en: new Date()
-        }
+        include: { horarios_clases: true } 
       });
+
+      for (const inscripcion of inscripciones) {
+        // A. Cambiar estado de inscripción
+        await tx.inscripciones.update({
+          where: { id: inscripcion.id },
+          data: {
+            estado: nuevoEstadoInscripcion,
+            actualizado_en: new Date()
+          }
+        });
+
+        // B. SI SE APRUEBA -> Generamos la Asistencia
+        if (esAprobado) {
+           // Obtenemos el ID del profesor desde el horario
+           const profesorId = inscripcion.horarios_clases.profesor_id;
+
+           await asistenciaService.generarClasesFuturas(tx, {
+             inscripcion_id: inscripcion.id,
+             dia_semana: inscripcion.horarios_clases.dia_semana,
+             usuario_admin_id: parseInt(usuario_admin_id),
+             profesor_id: profesorId // <--- Enviamos el ID del profesor correcto
+           });
+        }
+      }
 
       return {
         resultado: `Operación exitosa: Pago ${nuevoEstadoPago}`,
         pago: pagoActualizado
-      };  
+      };
     });
   }
   

@@ -322,9 +322,11 @@ model refresh_tokens {
   @@index([token])
 }
 
-model configuracion_sistema {
-  id                      Int      @id @default(autoincrement())
-  tiempo_reserva_global   Int      @default(20) // El valor por defecto para todos
-  creado_en               DateTime @default(now())
-  actualizado_en          DateTime @updatedAt
+model parametros_sistema {
+  id          Int      @id @default(autoincrement())
+  clave       String   @unique  
+  valor       String            
+  descripcion String?           
+  creado_en   DateTime @default(now())
+  actualizado_en DateTime @updatedAt
 }

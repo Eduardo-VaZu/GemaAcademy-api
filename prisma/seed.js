@@ -17,15 +17,32 @@ async function main() {
     prisma.roles.upsert({ where: { nombre: 'Administrador' }, update: {}, create: { nombre: 'Administrador', descripcion: 'Admin total' } }),
   ]);
   
-  // Obtenemos el objeto Rol para usar su ID luego
+  // Obtenemos los objetos Rol para usarlos
   const rolProfe = roles.find(r => r.nombre === 'Profesor');
   const rolAlumno = roles.find(r => r.nombre === 'Alumno');
+  const rolAdmin = roles.find(r => r.nombre === 'Administrador'); // <--- Nuevo
 
   // Documentos
   await Promise.all([
     prisma.tipos_documento.upsert({ where: { id: 'DNI' }, update: {}, create: { id: 'DNI', descripcion: 'DNI' } }),
     prisma.tipos_documento.upsert({ where: { id: 'CE' }, update: {}, create: { id: 'CE', descripcion: 'Carnet Extranjería' } }),
   ]);
+
+  // ---> NUEVO: CREACIÓN DE USUARIO ADMINISTRADOR <---
+  console.log('👮 Creando Usuario Administrador...');
+  await prisma.usuarios.upsert({
+    where: { email: 'admin@gema.com' },
+    update: {},
+    create: {
+      nombres: 'Super', 
+      apellidos: 'Administrador', 
+      email: 'admin@gema.com',
+      rol_id: rolAdmin.id, // Asignado al rol Admin
+      tipo_documento_id: 'DNI', 
+      numero_documento: '00000001',
+      telefono_personal: '900000000'
+    },
+  });
 
   // -------------------------------------------------------
   // 2. INFRAESTRUCTURA (SEDE Y CANCHA) 🏢
@@ -91,7 +108,7 @@ async function main() {
       codigo_interno: 'MENSUAL_1_DIA_2026',
       precio_base: 150.00,
       activo: true,
-      es_vigente: true,          
+      es_vigente: true,           
       cantidad_clases_semanal: 1 
     },
   });
@@ -104,7 +121,7 @@ async function main() {
       codigo_interno: 'MENSUAL_2_DIA_2026',
       precio_base: 280.00,
       activo: true,
-      es_vigente: true,          
+      es_vigente: true,           
       cantidad_clases_semanal: 2 
     },
   });
@@ -124,15 +141,31 @@ async function main() {
   });
 
   // -------------------------------------------------------
-  // 5. CONFIGURACIÓN DEL SISTEMA (TIEMPOS) ⏱️
+  // 5. CONFIGURACIÓN DEL SISTEMA (ACTUALIZADO - FLEXIBLE) ⚙️
   // -------------------------------------------------------
-  console.log('⚙️ Configurando reglas del sistema...');
+  console.log('⚙️ Configurando reglas del sistema (Tabla Parametros)...');
   
-  await prisma.configuracion_sistema.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { tiempo_reserva_global: 20 },
-  });
+  // ---> AQUÍ ESTÁ EL CAMBIO IMPORTANTE PARA ARREGLAR EL ERROR <---
+  const parametros = [
+    { 
+      clave: 'TIEMPO_LIMITE_RESERVA_MIN', 
+      valor: '20', 
+      descripcion: 'Minutos que tiene un alumno nuevo para pagar antes de borrar su reserva' 
+    },
+    { 
+      clave: 'DIAS_TOLERANCIA_PAGO', 
+      valor: '3', 
+      descripcion: 'Días extra que tiene un alumno antiguo para pagar su mensualidad' 
+    }
+  ];
+
+  for (const param of parametros) {
+    await prisma.parametros_sistema.upsert({
+      where: { clave: param.clave },
+      update: {}, // Si existe, no lo tocamos
+      create: param
+    });
+  }
 
   // -------------------------------------------------------
   // 6. HORARIOS DE CLASE 📅
@@ -140,10 +173,6 @@ async function main() {
   console.log('📅 Creando Horarios...');
 
   const fechaBase = '1970-01-01T';
-  
-  // Creamos (o ignoramos si ya existe) para evitar duplicados al correr seed varias veces
-  // Usamos createMany no soportado en SQLite/algunos drivers simple, así que mejor uno por uno o lógica simple.
-  // Para simplificar tu vida, si haces migrate reset, create está bien.
   
   // Lunes 4pm
   const lunes = await prisma.horarios_clases.findFirst({ where: { dia_semana: 1, hora_inicio: new Date(`${fechaBase}16:00:00Z`) } });
