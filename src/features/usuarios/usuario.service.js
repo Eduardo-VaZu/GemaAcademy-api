@@ -2,6 +2,7 @@ import { prisma } from '../../config/database.config.js';
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../shared/utils/error.util.js';
 import { VALID_ROLES, ROLE_REQUIRED_FIELDS } from '../../constants/roles.constants.js';
+import { sendCredentialsEmail } from '../../shared/utils/mailer.js';
 
 export const usuarioService = {
   createUser: async (userData) => {
@@ -70,8 +71,14 @@ export const usuarioService = {
       );
     }
 
+    const passwordToUse = password || numero_documento;
+
+    if (!passwordToUse) {
+      throw new ApiError('Es necesario un número de documento para generar la contraseña');
+    }
+
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(passwordToUse, saltRounds);
 
     const user = await prisma.$transaction(
       async (tx) => {
@@ -103,6 +110,15 @@ export const usuarioService = {
         timeout: 10000,
       }
     );
+
+    try {
+      // Solo enviamos el correo si es un Alumno, según el diseño de tu mailer
+      if (resolvedRoleName === VALID_ROLES.ALUMNO) {
+        await sendCredentialsEmail(user.email, user.nombres, passwordToUse);
+      }
+    } catch (error) {
+      console.error('Error enviando el correo:', error);
+    }
 
     return {
       id: user.id,

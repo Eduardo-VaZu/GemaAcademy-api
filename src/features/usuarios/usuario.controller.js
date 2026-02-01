@@ -17,7 +17,7 @@ export const usuarioController = {
     }
 
     const usuario = await usuarioService.createUser(req.body);
-
+    
     return apiResponse.created(res, {
       message: 'Usuario creado exitosamente',
       data: {
