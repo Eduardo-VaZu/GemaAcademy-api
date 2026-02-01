@@ -78,7 +78,7 @@ export const usuarioService = {
     }
 
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(passwordToUse, saltRounds);
 
     const user = await prisma.$transaction(
       async (tx) => {
