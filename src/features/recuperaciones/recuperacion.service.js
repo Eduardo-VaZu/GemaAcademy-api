@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.config.js';
-import { AppError } from '../../shared/utils/error.util.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
 /**
  * Valida TODAS las reglas de negocio antes de permitir una recuperación.
@@ -19,7 +19,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     });
 
     if (!inscripcion) {
-        throw new AppError('No tienes una inscripción activa.', 403);
+        throw new ApiError('No tienes una inscripción activa.', 403);
     }
 
     const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
@@ -35,7 +35,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     });
 
     if (cantidadClasesInscritas < 2) {
-        throw new AppError(
+        throw new ApiError(
             'Tu plan actual no incluye el beneficio de recuperaciones.',
             403
         );
@@ -50,7 +50,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     const diasTranscurridosFalta = Math.floor(diffFalta / (1000 * 60 * 60 * 24));
 
     if (diasTranscurridosFalta < 0) {
-        throw new AppError('La fecha de la falta es anterior a tu inscripción.', 400);
+        throw new ApiError('La fecha de la falta es anterior a tu inscripción.', 400);
     }
 
     const numeroBloqueFalta = Math.floor(diasTranscurridosFalta / 30);
@@ -70,7 +70,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     fechaLimiteValida.setUTCDate(finCicloFalta.getUTCDate() + 30);
 
     if (fechaProgramadaDate > fechaLimiteValida) {
-        throw new AppError(
+        throw new ApiError(
             'La vigencia para recuperar esta falta ha expirado.',
             400
         );
@@ -89,7 +89,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     });
 
     if (faltaYaUsada) {
-        throw new AppError(
+        throw new ApiError(
             'Ya has programado una recuperación para esta falta anteriormente.',
             409
         );
@@ -116,7 +116,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     }
 
     if (recuperacionesEnCiclo >= limitePermitido) {
-        throw new AppError(
+        throw new ApiError(
             `Has alcanzado tu límite de ${limitePermitido} recuperaciones.`,
             400
         );
@@ -144,7 +144,7 @@ const crearRecuperacion = async ({
     });
 
     if (!horarioDestino) {
-        throw new AppError('El horario seleccionado no existe.', 404);
+        throw new ApiError('El horario seleccionado no existe.', 404);
     }
 
     // A. Contar inscritos fijos en ese horario
@@ -167,7 +167,7 @@ const crearRecuperacion = async ({
     const ocupacionTotal = inscritosFijos + recuperacionesEseDia;
 
     if (ocupacionTotal >= horarioDestino.capacidad_max) {
-        throw new AppError(
+        throw new ApiError(
             'Lo sentimos, este horario ya no tiene cupos disponibles para la fecha seleccionada.',
             409
         );
