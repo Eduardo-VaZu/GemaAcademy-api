@@ -52,7 +52,21 @@ const SEDE_SELECT_FIELDS = {
 
 export const sedeService = {
   createSede: async (sedeData) => {
-    const { direccion } = sedeData;
+    const { direccion, administrador_id } = sedeData;
+
+    if (!administrador_id) {
+      throw new ApiError('El ID del administrador es requerido', 400);
+    }
+
+    const adminRelacion = await prisma.administrador.findUnique({
+      where: {
+        usuario_id: parseInt(administrador_id),
+      },
+    });
+
+    if (!adminRelacion) {
+      throw new ApiError('El usuario proporcionado no es un administrador válido', 404);
+    }
 
     const sede = await prisma.$transaction(
       async (tx) => {
@@ -62,6 +76,7 @@ export const sedeService = {
             distrito: direccion.distrito,
             ciudad: direccion.ciudad || 'Lima',
             referencia: direccion.referencia || null,
+
           },
         });
 
@@ -72,6 +87,9 @@ export const sedeService = {
             tipo_instalacion: sedeData.tipo_instalacion || null,
             activo: true,
             direccion_id: nuevaDireccion.id,
+            administrador: {
+              connect: { usuario_id: adminRelacion.usuario_id },
+            },
           },
           include: {
             direcciones: true,
@@ -154,6 +172,77 @@ export const sedeService = {
     }
 
     return sede;
+  },
+
+  getCanchaForSedeCount: async (filters = {}) => {
+    let { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
+
+    page = Number.parseInt(page, 10);
+    limit = Number.parseInt(limit, 10);
+
+    const where = {};
+
+    if (activo !== undefined) {
+      where.activo = String(activo) === 'true';
+    }
+
+    if (distrito) {
+      where.direcciones = {
+        distrito: {
+          contains: distrito,
+          mode: 'insensitive',
+        },
+      };
+    }
+
+    if (tipo_instalacion) {
+      where.tipo_instalacion = {
+        contains: tipo_instalacion,
+        mode: 'insensitive',
+      };
+    }
+
+    const skip = (page - 1) * limit;
+
+    const [sedes, total] = await Promise.all([
+      prisma.sedes.findMany({
+        where,
+        select: {
+          id: true,
+          nombre: true,
+          tipo_instalacion: true,
+          activo: true,
+          direcciones: true,
+          _count: {
+            select: {
+              canchas: true,
+            },
+          },
+        },
+        orderBy: {
+          nombre: 'asc',
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.sedes.count({ where }),
+    ]);
+
+    const sedesConConteo = sedes.map((sede) => {
+      const { _count, ...rest } = sede;
+      return {
+        ...rest,
+        canchas_count: _count?.canchas ?? 0,
+      };
+    });
+
+    return {
+      sedes: sedesConConteo,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   },
 
   updateSede: async (id, sedeData) => {

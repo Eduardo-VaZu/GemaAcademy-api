@@ -22,7 +22,11 @@ const canchaController = {
   }),
 
   getById: catchAsync(async (req, res) => {
-    const cancha = await canchaService.getById(req.params.id);
+    const id = Number.parseInt(req.params.id);
+    if (Number.isNaN(id)) {
+      throw new ApiError('ID de cancha inválido', 400);
+    }
+    const cancha = await canchaService.getById(id);
     if (!cancha) {
       throw new ApiError('Cancha no encontrada', 404);
     }
@@ -33,7 +37,11 @@ const canchaController = {
   }),
 
   update: catchAsync(async (req, res) => {
-    const cancha = await canchaService.update(req.params.id, req.body);
+    const id = Number.parseInt(req.params.id);
+    if (Number.isNaN(id)) {
+      throw new ApiError('ID de cancha inválido', 400);
+    }
+    const cancha = await canchaService.update(id, req.body);
     return apiResponse.success(res, {
       message: 'Cancha actualizada exitosamente',
       data: cancha,
@@ -41,7 +49,11 @@ const canchaController = {
   }),
 
   delete: catchAsync(async (req, res) => {
-    await canchaService.delete(req.params.id);
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      throw new ApiError('ID de cancha inválido', 400);
+    }
+    await canchaService.delete(id);
     return apiResponse.noContent(res);
   }),
 };

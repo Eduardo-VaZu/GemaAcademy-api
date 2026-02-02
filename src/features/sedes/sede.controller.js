@@ -5,8 +5,8 @@ import { ApiError } from '../../shared/utils/error.util.js';
 
 export const sedeController = {
   createSede: catchAsync(async (req, res) => {
-    const { sedeData } = req.body;
-    if (!sedeData) {
+    const sedeData = req.body;
+    if (!sedeData || Object.keys(sedeData).length === 0) {
       throw new ApiError('No se proporcionó datos de la sede', 400);
     }
     if (!sedeData.direccion) {
@@ -41,10 +41,32 @@ export const sedeController = {
     });
   }),
 
-  getSedeById: catchAsync(async (req, res) => {
-    const id = parseInt(req.params.id);
+  getCanchaForSedeCount: catchAsync(async (req, res) => {
+    const filter = {
+      activo: req.query.activo,
+      distrito: req.query.distrito,
+      tipo_instalacion: req.query.tipo_instalacion,
+      page: req.query.page,
+      limit: req.query.limit,
+    };
 
-    if (isNaN(id)) {
+    const result = await sedeService.getCanchaForSedeCount(filter);
+    return apiResponse.success(res, {
+      message: 'Conteo de canchas por sede obtenido exitosamente',
+      data: result.sedes,
+      meta: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+    });
+  }),
+
+  getSedeById: catchAsync(async (req, res) => {
+    const id = Number.parseInt(req.params.id);
+
+    if (Number.isNaN(id)) {
       throw new ApiError('ID de sede inválido', 400);
     }
 
@@ -61,10 +83,10 @@ export const sedeController = {
   }),
 
   updateSede: catchAsync(async (req, res) => {
-    const id = parseInt(req.params.id);
-    const { sedeData } = req.body;
+    const id = Number.parseInt(req.params.id);
+    const sedeData = req.body;
 
-    if (isNaN(id)) {
+    if (Number.isNaN(id)) {
       throw new ApiError('ID de sede inválido', 400);
     }
 
@@ -81,9 +103,9 @@ export const sedeController = {
   }),
 
   updateDefuseSede: catchAsync(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = Number.parseInt(req.params.id);
 
-    if (isNaN(id)) {
+    if (Number.isNaN(id)) {
       throw new ApiError('ID de sede inválido', 400);
     }
 
@@ -97,9 +119,9 @@ export const sedeController = {
   }),
 
   updateActiveSede: catchAsync(async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = Number.parseInt(req.params.id);
 
-    if (isNaN(id)) {
+    if (Number.isNaN(id)) {
       throw new ApiError('ID de sede inválido', 400);
     }
 

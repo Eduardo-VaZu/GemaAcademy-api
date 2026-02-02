@@ -42,6 +42,9 @@ export const sedeSchema = {
       .nullable()
       .optional(),
     activo: z.boolean().optional().default(true),
+    administrador_id: z.number({
+      required_error: 'El ID del administrador es requerido',
+    }).positive('El ID del administrador debe ser un número positivo'),
     direccion: direccionSchema,
   }),
 
@@ -68,6 +71,7 @@ export const sedeSchema = {
         .optional(),
 
       activo: z.boolean().optional(),
+      administrador_id: z.number().positive().optional(),
     })
     .refine(
       (data) => Object.keys(data).length > 0,

@@ -491,6 +491,45 @@
           }
         },
         {
+          "name": "Get All Sedes Canchas Conteo",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/sedes/canchas/conteo?activo=true&page=1&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sedes", "canchas", "conteo"],
+              "query": [
+                {
+                  "key": "activo",
+                  "value": "true",
+                  "description": "Filtrar por estado activo"
+                },
+                {
+                  "key": "distrito",
+                  "value": "",
+                  "description": "Filtrar por distrito",
+                  "disabled": true
+                },
+                {
+                  "key": "tipo_instalacion",
+                  "value": "",
+                  "description": "Filtrar por tipo de instalacion",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Obtiene todo el conteo de canchas por sedes con paginaci\u00f3n y filtros"
+          }
+        },
+        {
           "name": "Get Sede By ID",
           "request": {
             "method": "GET",

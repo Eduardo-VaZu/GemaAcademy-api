@@ -13,6 +13,11 @@ const router = Router();
 
 router.get('/', validateQuery(schemas.sedeSchema.sedeQuerySchema), sedeController.getAllSedes);
 router.get(
+  '/canchas/conteo',
+  validateQuery(schemas.sedeSchema.sedeQuerySchema),
+  sedeController.getCanchaForSedeCount
+);
+router.get(
   '/:id',
   validateParams(schemas.sedeSchema.sedeIdParamSchema),
   sedeController.getSedeById
@@ -21,7 +26,7 @@ router.get(
 router.post(
   '/',
   authenticate,
-  authorize('administrador'),
+  authorize('Administrador'),
   validate(schemas.sedeSchema.createSedeSchema),
   sedeController.createSede
 );
@@ -29,7 +34,7 @@ router.post(
 router.put(
   '/:id',
   authenticate,
-  authorize('administrador'),
+  authorize('Administrador'),
   validateParams(schemas.sedeSchema.sedeIdParamSchema),
   validate(schemas.sedeSchema.updateSedeSchema),
   sedeController.updateSede
@@ -46,7 +51,7 @@ router.patch(
 router.patch(
   '/:id/activar',
   authenticate,
-  authorize('Administrador'),
+  authorize('administrador'),
   validateParams(schemas.sedeSchema.sedeIdParamSchema),
   sedeController.updateActiveSede
 );
