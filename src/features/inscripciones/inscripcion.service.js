@@ -2,7 +2,7 @@ import { prisma } from '../../config/database.config.js';
 
 export const inscripcionService = {
 
-  // 📦 Lógica Maestra: Inscripción Dinámica y Sincronizada
+  // 📦 Lógica Maestra: Inscripción con Bloqueo de Deudores, Sincronización y Tolerancia
   inscribirPaquete: async (data) => {
     const { alumno_id, horario_ids } = data;
 
@@ -14,20 +14,35 @@ export const inscripcionService = {
     return await prisma.$transaction(async (tx) => {
       
       // =================================================================
-      // PASO 1: ANTI-ZOMBIE 🧟‍♂️ (Protección de Aforo)
+      // 🛡️ PASO 0: EL MURO DE DEUDA (Regla de Negocio Crítica)
+      // =================================================================
+      const deudasPendientes = await tx.cuentas_por_cobrar.count({
+        where: {
+          alumno_id: parseInt(alumno_id),
+          estado: { in: ['PENDIENTE', 'PARCIAL'] }, 
+          activo: true 
+        }
+      });
+
+      if (deudasPendientes > 0) {
+        throw new Error("⛔ BLOQUEO: Tienes pagos pendientes. Cancela tu deuda anterior para poder inscribirte nuevamente.");
+      }
+
+      // =================================================================
+      // PASO 1: CONFIGURACIÓN ANTI-ZOMBIE 🧟‍♂️
       // =================================================================
       const paramTiempo = await tx.parametros_sistema.findUnique({ where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' } });
       const tiempoLimite = paramTiempo ? parseInt(paramTiempo.valor) : 20;
       const fechaLimiteZombie = new Date(Date.now() - tiempoLimite * 60 * 1000);
 
       // =================================================================
-      // PASO 2: DETECTAR "FECHA GUÍA" (¿Es nuevo o antiguo?) 📅
+      // PASO 2: DETECTAR EL CICLO (¿Es nuevo o es Upgrade?) 📅
       // =================================================================
       const hoy = new Date();
       let fechaCorte = null;
       let esInscripcionAdicional = false;
 
-      // Buscamos si el alumno tiene una inscripción ACTIVA para saber su ciclo
+      // Buscamos inscripción ACTIVA para sincronizar fechas
       const ultimaInscripcionActiva = await tx.inscripciones.findFirst({
         where: {
           alumno_id: parseInt(alumno_id),
@@ -40,11 +55,11 @@ export const inscripcionService = {
         esInscripcionAdicional = true;
         const fechaInicioCiclo = new Date(ultimaInscripcionActiva.fecha_inscripcion);
         
-        // Calculamos el fin de su ciclo actual (30 días comercial)
+        // Calculamos fin de ciclo (30 días comercial)
         const fechaFinCiclo = new Date(fechaInicioCiclo);
         fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30); 
 
-        // Solo sincronizamos si su ciclo vence en el futuro
+        // Solo aplicamos prorrateo si el ciclo vence en el futuro
         if (fechaFinCiclo > hoy) {
           fechaCorte = fechaFinCiclo;
           console.log(`🔄 Upgrade detectado. Sincronizando cierre al: ${fechaCorte.toISOString()}`);
@@ -52,12 +67,12 @@ export const inscripcionService = {
       }
 
       // =================================================================
-      // PASO 3: OBTENER PRECIO DINÁMICO 💰
+      // 👮‍♂️ PASO 3: OBTENER PRECIO DINÁMICO (MODO ESTRICTO)
       // =================================================================
       const cantidadClases = horario_ids.length;
 
-      // A. Buscamos el concepto exacto en la BD (ej: "2 clases" -> ID 2)
-      let conceptoAplicar = await tx.catalogo_conceptos.findFirst({ 
+      // A. Buscamos el plan exacto por cantidad de días
+      const conceptoAplicar = await tx.catalogo_conceptos.findFirst({ 
         where: { 
             cantidad_clases_semanal: cantidadClases, 
             activo: true,
@@ -65,30 +80,42 @@ export const inscripcionService = {
         } 
       });
 
-      // B. Fallback de Seguridad (Si elige 3 días y no existe plan de 3)
+      // B. VALIDACIÓN DE HIERRO: Si no existe, explota.
       if (!conceptoAplicar) {
-         console.warn(`⚠️ No existe plan para ${cantidadClases} días. Calculando basado en unitario.`);
-         
-         const conceptoBase = await tx.catalogo_conceptos.findFirst({
-            where: { cantidad_clases_semanal: 1, activo: true }
-         });
-         
-         if (!conceptoBase) throw new Error("No hay planes de precios configurados en el sistema.");
-         
-         // Creamos un concepto temporal multiplicando el base
-         conceptoAplicar = {
-             ...conceptoBase,
-             precio_base: Number(conceptoBase.precio_base) * cantidadClases,
-             nombre: `Paquete Personalizado (${cantidadClases} días)`
-         };
+         throw new Error(`⛔ ERROR DE CONFIGURACIÓN: No existe un plan de precios activo para un paquete de ${cantidadClases} días a la semana. Contacta al administrador.`);
       }
 
-      // C. Calculamos precio por clase individual (para prorrateos de upgrade)
-      // Asumimos mes de 4 semanas para sacar el valor unitario
-      const precioPorClase = Number(conceptoAplicar.precio_base) / (cantidadClases * 4); 
+      // =================================================================
+      // 🧮 PREPARACIÓN PARA UPGRADES (Cálculo Unitario Real)
+      // =================================================================
+      // ... (código anterior igual) ...
 
       // =================================================================
-      // PASO 4: PROCESAR HORARIOS Y CALCULAR TOTAL 🔄
+      // 🧮 PREPARACIÓN PARA UPGRADES (Cálculo Unitario Real)
+      // =================================================================
+      let precioUnitarioOficial = 0;
+
+      if (esInscripcionAdicional) {
+          // CAMBIO: Ahora buscamos el "Concepto Unitario" específico en la BD
+          // Ya no dividimos nada. Usamos el precio que tú configuraste.
+          const conceptoUnitario = await tx.catalogo_conceptos.findFirst({
+            where: { codigo_interno: 'CLASE_UNITARIA_2026', activo: true }
+          });
+          
+          if (!conceptoUnitario) {
+             throw new Error("⛔ ERROR DE CONFIGURACIÓN: No se encontró el precio 'CLASE_UNITARIA_2026' en el catálogo. Es necesario para calcular el cobro proporcional del upgrade.");
+          }
+          
+          // Usamos el precio directo de la base de datos
+          precioUnitarioOficial = Number(conceptoUnitario.precio_base);
+          
+          console.log(`💰 Precio base para cálculo: S/ ${precioUnitarioOficial} por clase.`);
+      }
+
+      // ... (el resto del código sigue igual, usando precioUnitarioOficial) ...
+
+      // =================================================================
+      // PASO 4: PROCESAR HORARIOS Y VALIDAR AFORO 🔄
       // =================================================================
       const inscripcionesCreadas = [];
       let totalCobrar = 0;
@@ -96,50 +123,54 @@ export const inscripcionService = {
 
       for (const idHorario of horario_ids) {
         
-        // A. Validar Horario y Aforo
+        // A. Validar Horario
         const horario = await tx.horarios_clases.findUnique({ where: { id: idHorario } });
         if (!horario) throw new Error(`El horario ID ${idHorario} no existe.`);
 
-        // Anti-Zombie Count
+        // B. CONTAR AFORO REAL (Incluyendo VENCIDOS en tolerancia)
         const ocupados = await tx.inscripciones.count({
           where: {
             horario_id: idHorario,
             OR: [
               { estado: 'ACTIVO' }, 
               { estado: 'POR_VALIDAR' }, 
+              { estado: 'VENCIDO' }, // El sitio del "Vencido" se respeta
               { AND: [{ estado: 'PENDIENTE_PAGO' }, { fecha_inscripcion: { gt: fechaLimiteZombie } }] }
             ]
           },
         });
 
-        if (ocupados >= horario.capacidad_max) throw new Error(`El horario del día ${horario.dia_semana} ya está AGOTADO.`);
+        if (ocupados >= horario.capacidad_max) {
+          throw new Error(`El horario del día ${horario.dia_semana} ya está AGOTADO.`);
+        }
 
-        // B. Calcular Monto para este horario
+        // C. Calcular Monto Específico
         let montoEsteHorario = 0;
 
         if (esInscripcionAdicional && fechaCorte) {
-          // --- MODO UPGRADE (Cobro proporcional hasta fin de mes) ---
+          // --- MODO UPGRADE (Preciso) ---
+          // Contamos cuántas clases reales quedan en el calendario
           const clasesRestantes = contarClasesEnIntervalo(horario.dia_semana, hoy, fechaCorte);
           
           if (clasesRestantes > 0) {
-            montoEsteHorario = clasesRestantes * precioPorClase;
-            detalleCobro.push(`Upgrade ${horario.dia_semana} (${clasesRestantes} clases)`);
+            // Multiplicamos clases reales * precio unitario oficial
+            montoEsteHorario = clasesRestantes * precioUnitarioOficial;
+            detalleCobro.push(`Upgrade ${horario.dia_semana} (${clasesRestantes} clases x S/ ${precioUnitarioOficial.toFixed(2)})`);
           } else {
-            // Alineación gratuita (si vence mañana y no hay clase hoy)
             montoEsteHorario = 0; 
-            detalleCobro.push(`Reserva ${horario.dia_semana} (Alineada)`);
+            detalleCobro.push(`Reserva ${horario.dia_semana} (Sincronización - Sin costo)`);
           }
 
         } else {
-          // --- MODO NUEVO (Cobro Full) ---
-          // Dividimos el precio total del paquete entre los horarios para registrar
+          // --- MODO NUEVO (Full) ---
+          // Dividimos el precio del paquete entre los días para referencia interna
           montoEsteHorario = Number(conceptoAplicar.precio_base) / cantidadClases; 
           detalleCobro.push(`Mensualidad ${horario.dia_semana}`);
         }
 
         totalCobrar += montoEsteHorario;
 
-        // C. Crear Inscripción
+        // D. Crear Inscripción
         const nuevaInscripcion = await tx.inscripciones.create({
           data: {
             alumnos: { connect: { usuario_id: parseInt(alumno_id) } },
@@ -160,21 +191,16 @@ export const inscripcionService = {
           data: {
             alumnos: { connect: { usuario_id: parseInt(alumno_id) } },
             catalogo_conceptos: { connect: { id: conceptoAplicar.id } },
-            
-            // Unimos los detalles para que se vea bonito en el recibo
             detalle_adicional: [...new Set(detalleCobro)].join(' | '), 
             monto_final: totalCobrar,
-            
-            fecha_vencimiento: new Date(Date.now() + (2 * 24 * 60 * 60 * 1000)), // 48 horas para pagar
+            fecha_vencimiento: new Date(Date.now() + (2 * 24 * 60 * 60 * 1000)), 
             estado: 'PENDIENTE',
           },
         });
       }
 
       return {
-        mensaje: esInscripcionAdicional 
-          ? "Upgrade exitoso. Ciclo sincronizado." 
-          : "Inscripción creada. Ciclo iniciado.",
+        mensaje: esInscripcionAdicional ? "Upgrade procesado correctamente." : "Inscripción creada. Realiza el pago.",
         total_a_pagar: totalCobrar,
         detalle: detalleCobro,
         inscripciones: inscripcionesCreadas
@@ -193,11 +219,11 @@ export const inscripcionService = {
   }
 };
 
-// --- FUNCIÓN AUXILIAR (Fuera del objeto, solo uso interno) ---
+// --- HELPER (Calendario) ---
 function contarClasesEnIntervalo(diaSemana, inicio, fin) {
   let contador = 0;
   let puntero = new Date(inicio);
-  puntero.setHours(12,0,0,0); // Evitar líos de hora
+  puntero.setHours(12,0,0,0); 
   let finFijo = new Date(fin);
   finFijo.setHours(23,59,59,999);
 

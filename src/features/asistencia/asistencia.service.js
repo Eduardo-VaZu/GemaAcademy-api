@@ -1,29 +1,30 @@
-// src/features/asistencia/asistencia.service.js
 import { prisma } from '../../config/database.config.js';
 
 /**
- * Función auxiliar para calcular fechas (Interna)
- * Mantiene la corrección de zona horaria (Mediodía)
+ * Función auxiliar para calcular fechas DENTRO DE UN RANGO (Dinámico) 📅
+ * Ahora recibe una 'fechaLimite' en lugar de una cantidad fija.
  */
-const calcularProximasFechas = (fechaInicio, diaSemanaClase, cantidadSemanas) => {
+const calcularProximasFechas = (fechaInicio, diaSemanaClase, fechaLimite) => {
   const fechas = [];
   const fechaActual = new Date(fechaInicio); 
   
-  // 🔥 CORRECCIÓN CRÍTICA DE ZONA HORARIA 🔥
-  // Fijamos la hora a las 12:00 del mediodía para evitar saltos de día por UTC.
+  // 🔥 CORRECCIÓN DE ZONA HORARIA (Mediodía)
   fechaActual.setHours(12, 0, 0, 0);
 
+  // Aseguramos que el límite también sea a mediodía para comparar peras con peras
+  const limiteFijo = new Date(fechaLimite);
+  limiteFijo.setHours(12, 0, 0, 0);
+
   // 1. Buscamos el primer día de clase válido
-  // Si fechaActual ya es el día correcto, el bucle no corre (perfecto para Smart Append)
-  // Si no, avanza hasta encontrarlo.
   while (fechaActual.getDay() !== diaSemanaClase) {
     fechaActual.setDate(fechaActual.getDate() + 1);
   }
 
-  // 2. Generamos las fechas para las semanas solicitadas
-  for (let i = 0; i < cantidadSemanas; i++) {
+  // 2. Generamos fechas MIENTRAS estemos dentro del rango de tiempo
+  // (Esto cubre automáticamente si el mes tiene 4 o 5 clases)
+  while (fechaActual <= limiteFijo) {
     fechas.push(new Date(fechaActual)); // Guardamos copia
-    fechaActual.setDate(fechaActual.getDate() + 7); // +7 días
+    fechaActual.setDate(fechaActual.getDate() + 7); // Saltamos a la próxima semana
   }
   
   return fechas;
@@ -32,39 +33,35 @@ const calcularProximasFechas = (fechaInicio, diaSemanaClase, cantidadSemanas) =>
 export const asistenciaService = {
   
   /**
-   * Genera masivamente las clases futuras.
-   * Lógica: "Smart Append" (Continuidad Inteligente)
+   * Genera masivamente las clases futuras respetando el CICLO DE 30 DÍAS.
    */
   generarClasesFuturas: async (tx, params) => {
     // Desestructuramos los datos
     const { inscripcion_id, dia_semana, usuario_admin_id, profesor_id } = params;
     
-    // Configuración: 4 semanas por defecto
-    const CANTIDAD_SEMANAS = 4;
+    // =================================================================
+    // 🧠 CONFIGURACIÓN DE TIEMPO (Aquí definimos la regla de negocio)
+    // =================================================================
+    const DIAS_CICLO = 30; // El estándar comercial que acordamos
 
     // =================================================================
-    // 🧠 LÓGICA SMART APPEND: ¿Desde cuándo empezamos a contar?
+    // 🧠 LÓGICA SMART APPEND: ¿Desde cuándo empezamos?
     // =================================================================
     
-    // 1. Buscamos la última clase registrada para esta inscripción
+    // 1. Buscamos la última clase registrada
     const ultimaClase = await tx.registros_asistencia.findFirst({
       where: { inscripcion_id: inscripcion_id },
-      orderBy: { fecha: 'desc' } // La fecha más futura
+      orderBy: { fecha: 'desc' } 
     });
 
     let fechaInicioCalculo = new Date(); // Por defecto: HOY
 
     if (ultimaClase) {
-      // Si existe una clase previa, verificamos si es futura
       const fechaUltima = new Date(ultimaClase.fecha);
       
-      // Si la última clase es MAYOR a hoy (Ej: El alumno paga su renovación antes de tiempo)
-      // entonces empezamos a generar DESPUÉS de esa última clase.
+      // Si renueva antes de tiempo (Upgrade o Renovación)
       if (fechaUltima > fechaInicioCalculo) {
         console.log(`📅 Renovación detectada. Empalmando después de: ${fechaUltima.toISOString()}`);
-        
-        // Movemos el inicio al día siguiente de su última clase
-        // La función 'calcularProximasFechas' se encargará de buscar el siguiente día hábil
         fechaUltima.setDate(fechaUltima.getDate() + 1);
         fechaInicioCalculo = fechaUltima;
       } else {
@@ -75,17 +72,24 @@ export const asistenciaService = {
     }
 
     // =================================================================
+    // 🧠 LÓGICA DE CÁLCULO DE LÍMITE (El "Hasta Cuándo")
+    // =================================================================
+    // Calculamos la fecha en la que se le vence el derecho a asistir
+    const fechaLimite = new Date(fechaInicioCalculo);
+    fechaLimite.setDate(fechaLimite.getDate() + (DIAS_CICLO - 1)); 
+    // Nota: Restamos 1 porque si entro el 1, venzo el 30 (inclusive), no el 31.
 
-    // 2. Calculamos las fechas exactas usando la fecha de inicio inteligente
-    const fechasClases = calcularProximasFechas(fechaInicioCalculo, dia_semana, CANTIDAD_SEMANAS);
+    // 2. Calculamos las fechas dinámicamente
+    // Si hay 5 lunes en este rango, generará 5. Si hay 4, generará 4.
+    const fechasClases = calcularProximasFechas(fechaInicioCalculo, dia_semana, fechaLimite);
 
     // 3. Preparamos los objetos para insertar
     const datosAsistencia = fechasClases.map(fecha => ({
       inscripcion_id: inscripcion_id,
       fecha: fecha,
       estado: 'PROGRAMADA',
-      registrado_por: profesor_id, // El profesor titular del horario
-      comentario: `Generado automáticamente tras validación de pago por Admin ID: ${usuario_admin_id}`
+      registrado_por: profesor_id, 
+      comentario: `Generado auto (Ciclo 30 días) - Admin ID: ${usuario_admin_id}`
     }));
 
     // 4. Insertamos usando la transacción
@@ -96,12 +100,12 @@ export const asistenciaService = {
       });
     }
 
-    console.log(`✅ Se generaron ${datosAsistencia.length} clases para inscripción ${inscripcion_id}`);
+    console.log(`✅ Se generaron ${datosAsistencia.length} clases para inscripción ${inscripcion_id} (Rango: ${fechaInicioCalculo.toLocaleDateString()} al ${fechaLimite.toLocaleDateString()})`);
+    
     return datosAsistencia.length;
   },
 
-  // 📋 Funciones extra que podrías necesitar para la App del Profesor
-  
+  // 📋 Funciones extra (sin cambios)
   marcarAsistencia: async (asistenciaId, estado, comentario) => {
     return await prisma.registros_asistencia.update({
       where: { id: asistenciaId },

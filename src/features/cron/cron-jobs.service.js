@@ -1,127 +1,117 @@
-// src/features/cron/cron-jobs.service.js
 import cron from 'node-cron';
-import { prisma } from '../../config/database.config.js';
+import { prisma } from '../config/database.config.js';
 
-export const cronJobsService = {
+export const iniciarCronJobs = () => {
   
-  // Función principal para iniciar los relojes
-  iniciarCronJobs: () => {
-    console.log('🕒 Cron Jobs iniciados: El sistema está vigilando...');
+  console.log('🕰️ Cron Jobs iniciados: El sistema está vigilando...');
 
-    // ------------------------------------------------------------------
-    // TAREA 1: EL FRANCOTIRADOR (Cada 10 minutos) 🧟‍♂️
-    // Objetivo: Eliminar inscripciones "zombies" (nuevas sin pagar)
-    // ------------------------------------------------------------------
-    cron.schedule('* * * * *', async () => {
-      console.log('🔫 Ejecutando limpieza de reservas expiradas (Francotirador)...');
-      try {
-        await limpiarReservasExpiradas();
-      } catch (error) {
-        console.error('❌ Error en el Cron de Reservas:', error);
-      }
-    });
+  // ------------------------------------------------------------------
+  // TAREA 1: EL FRANCOTIRADOR (Cada minuto) 🧟‍♂️🔫
+  // Objetivo: Eliminar inscripciones nuevas que no se pagaron en 20 min.
+  // ------------------------------------------------------------------
+  cron.schedule('* * * * *', async () => {
+    try {
+      await limpiarReservasZombies();
+    } catch (error) {
+      console.error('❌ [CRON ERROR] Falló el Francotirador:', error);
+    }
+  });
 
-    // ------------------------------------------------------------------
-    // TAREA 2: LA GUILLOTINA (Todos los días a las 00:01 AM) 🪓
-    // Objetivo: Inactivar alumnos con deuda vencida fuera de tolerancia
-    // ------------------------------------------------------------------
-    cron.schedule('1 0 * * *', async () => {
-      console.log('🪓 Ejecutando corte de servicio por morosidad (Guillotina)...');
-      try {
-        await suspenderAlumnosMorosos();
-      } catch (error) {
-        console.error('❌ Error en el Cron de Morosos:', error);
-      }
-    });
-  }
+  // ------------------------------------------------------------------
+  // TAREA 2: EL VERDUGO DE VENCIMIENTOS (Todos los días a las 00:00 AM) ⏳💀
+  // Objetivo: Congelar (VENCIDO) y luego Eliminar (FINALIZADO) según ciclo de 30 días.
+  // ------------------------------------------------------------------
+  cron.schedule('0 0 * * *', async () => {
+    console.log(`🕒 [CRON] Iniciando revisión nocturna de ciclos: ${new Date().toISOString()}`);
+    try {
+      await gestionarVencimientos();
+    } catch (error) {
+      console.error("❌ [CRON ERROR] Falló el Verdugo de Vencimientos:", error);
+    }
+  });
 };
 
-// --- LÓGICAS INTERNAS ---
-
-/**
- * LÓGICA 1: Eliminar reservas PENDIENTE_PAGO antiguas
- */
-async function limpiarReservasExpiradas() {
-  // 1. Obtener el tiempo límite desde la BD (Configurable)
+// =====================================================================
+// 🧠 LÓGICA 1: LIMPIEZA DE ZOMBIES (Tu código original recuperado)
+// =====================================================================
+const limpiarReservasZombies = async () => {
+  // 1. Obtener el tiempo límite de la BD
   const param = await prisma.parametros_sistema.findUnique({
     where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' }
   });
   
-  // Si no existe el parámetro, usamos 20 min por defecto
+  // Si no existe, usamos 20 min por defecto
   const minutosLimite = param ? parseInt(param.valor) : 20;
 
   // 2. Calcular la "Hora de Corte"
-  // (Si son las 4:30pm y el límite es 20min, buscamos reservas creadas antes de las 4:10pm)
   const horaCorte = new Date(Date.now() - minutosLimite * 60 * 1000);
 
   // 3. Ejecutar la limpieza
+  // Borramos solo las que siguen en PENDIENTE_PAGO y son viejas
   const resultado = await prisma.inscripciones.deleteMany({
     where: {
       estado: 'PENDIENTE_PAGO',
       fecha_inscripcion: {
-        lt: horaCorte // "lt" significa "Less Than" (Menor que / Antes de)
+        lt: horaCorte // Antes de hace 20 min
       }
-      // NOTA: Esto solo borra las que siguen en PENDIENTE_PAGO. 
-      // Si subió el voucher, el estado sería 'POR_VALIDAR' y se salva.
     }
   });
 
   if (resultado.count > 0) {
-    console.log(`🗑️  Se eliminaron ${resultado.count} reservas zombies expiradas.`);
-  } else {
-    console.log('✅ No se encontraron reservas expiradas.');
+    console.log(`🗑️ [FRANCOTIRADOR] Se eliminaron ${resultado.count} reservas zombies expiradas.`);
   }
-}
+  // No hacemos log si es 0 para no ensuciar la consola cada minuto
+};
 
-/**
- * LÓGICA 2: Suspender alumnos con deuda vencida
- */
-async function suspenderAlumnosMorosos() {
-  // 1. Obtener días de tolerancia desde la BD
-  const param = await prisma.parametros_sistema.findUnique({
-    where: { clave: 'DIAS_TOLERANCIA_PAGO' }
-  });
+// =====================================================================
+// 🧠 LÓGICA 2: GESTIÓN DE CICLO DE VIDA (La lógica nueva)
+// =====================================================================
+const gestionarVencimientos = async () => {
+    const hoy = new Date();
 
-  const diasTolerancia = param ? parseInt(param.valor) : 3;
+    // A. OBTENER TOLERANCIA
+    const paramTolerancia = await prisma.parametros_sistema.findUnique({
+      where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' }
+    });
+    const diasGracia = paramTolerancia ? parseInt(paramTolerancia.valor) : 5;
+    
+    // B. FASE 1: CONGELAR (De ACTIVO a VENCIDO) ❄️
+    // Criterio: Han pasado 30 días desde la inscripción
+    const limiteCiclo = new Date();
+    limiteCiclo.setDate(hoy.getDate() - 30); 
 
-  // 2. Calcular fecha límite (Hoy - 3 días)
-  // Si venció hace 4 días, esa fecha es MENOR a (Hoy - 3).
-  const fechaLimite = new Date();
-  fechaLimite.setDate(fechaLimite.getDate() - diasTolerancia);
-
-  // 3. Buscar alumnos con deudas vencidas más allá de la tolerancia
-  // Primero buscamos las DEUDAS problemáticas
-  const deudasVencidas = await prisma.cuentas_por_cobrar.findMany({
-    where: {
-      estado: { in: ['PENDIENTE', 'VENCIDA'] }, // Aceptamos ambos nombres por si acaso
-      fecha_vencimiento: {
-        lt: fechaLimite
+    const congelados = await prisma.inscripciones.updateMany({
+      where: { 
+        estado: 'ACTIVO', 
+        fecha_inscripcion: { lt: limiteCiclo } 
+      },
+      data: { 
+        estado: 'VENCIDO',
+        actualizado_en: new Date()
       }
-    },
-    select: { alumno_id: true } // Solo queremos los IDs de los culpables
-  });
+    });
 
-  const idsMorosos = deudasVencidas.map(d => d.alumno_id);
-
-  // Si no hay morosos, terminamos
-  if (idsMorosos.length === 0) {
-    console.log('✅ Todos los alumnos están al día (o dentro de la tolerancia).');
-    return;
-  }
-
-  // 4. Ejecutar la suspensión (Update masivo)
-  const resultado = await prisma.inscripciones.updateMany({
-    where: {
-      alumno_id: { in: idsMorosos },
-      estado: 'ACTIVO' // Solo suspendemos a los que todavía están activos
-    },
-    data: {
-      estado: 'INACTIVO',
-      actualizado_en: new Date()
+    if (congelados.count > 0) {
+      console.log(`🧊 [VERDUGO] Se congelaron ${congelados.count} inscripciones (Fin de mes).`);
     }
-  });
 
-  if (resultado.count > 0) {
-    console.log(`🚫 Se suspendieron ${resultado.count} inscripciones por falta de pago (Usuario IDs: ${idsMorosos.join(', ')}).`);
-  }
-}
+    // C. FASE 2: ELIMINAR (De VENCIDO a FINALIZADO) 🪓
+    // Criterio: Han pasado (30 + Tolerancia) días
+    const limiteTotal = new Date();
+    limiteTotal.setDate(hoy.getDate() - (30 + diasGracia)); 
+
+    const finalizados = await prisma.inscripciones.updateMany({
+      where: { 
+        estado: 'VENCIDO', 
+        fecha_inscripcion: { lt: limiteTotal } 
+      },
+      data: { 
+        estado: 'FINALIZADO',
+        actualizado_en: new Date()
+      }
+    });
+
+    if (finalizados.count > 0) {
+      console.log(`🗑️ [VERDUGO] Se liberaron ${finalizados.count} cupos tras vencer su tolerancia.`);
+    }
+};

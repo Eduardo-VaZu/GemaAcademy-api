@@ -1,6 +1,8 @@
 import { pagosService } from './pagos.service.js';
 
 export const pagosController = {
+  
+  // 1. REPORTAR PAGO (Lógica original intacta ✅)
   reportarPago: async (req, res) => {
     try {
       const resultado = await pagosService.registrarPago(req.body);
@@ -21,20 +23,26 @@ export const pagosController = {
       });
     }
   },
+
+  // 2. VALIDAR PAGO (Actualizado con "La Verdad del Admin" 👮‍♂️)
   validarPagoAdmin: async (req, res) => {
     try {
-      // ❌ ANTES (Mal):
-      // const data = { ...req.body, usuario_admin_id: 1 }; 
-
-      // ✅ AHORA (Bien): 
-      // Esperamos que nos digan QUIÉN es el admin en el cuerpo de la petición (req.body)
-      const { pago_id, accion, notas, usuario_admin_id } = req.body;
+      // Recibimos los datos del Body.
+      // 🆕 AGREGADO: 'monto_real_confirmado' por si el Admin necesita corregir.
+      const { pago_id, accion, notas, usuario_admin_id, monto_real_confirmado } = req.body;
 
       if (!usuario_admin_id) {
         throw new Error("Se requiere el ID del administrador (usuario_admin_id).");
       }
 
-      const data = { pago_id, accion, notas, usuario_admin_id };
+      // Preparamos el objeto completo para el servicio
+      const data = { 
+        pago_id, 
+        accion, 
+        notas, 
+        usuario_admin_id,
+        monto_real_confirmado // <--- Aquí pasamos el dato nuevo
+      };
 
       const resultado = await pagosService.validarPago(data);
       

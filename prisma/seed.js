@@ -11,16 +11,24 @@ async function main() {
   
   // Roles
   console.log('📝 Verificando roles...');
-  const roles = await Promise.all([
+  // Usamos un array para asegurar que se crean todos antes de buscar
+  await Promise.all([
     prisma.roles.upsert({ where: { nombre: 'Alumno' }, update: {}, create: { nombre: 'Alumno', descripcion: 'Estudiante' } }),
     prisma.roles.upsert({ where: { nombre: 'Profesor' }, update: {}, create: { nombre: 'Profesor', descripcion: 'Instructor' } }),
     prisma.roles.upsert({ where: { nombre: 'Administrador' }, update: {}, create: { nombre: 'Administrador', descripcion: 'Admin total' } }),
   ]);
   
-  // Obtenemos los objetos Rol para usarlos
-  const rolProfe = roles.find(r => r.nombre === 'Profesor');
-  const rolAlumno = roles.find(r => r.nombre === 'Alumno');
-  const rolAdmin = roles.find(r => r.nombre === 'Administrador'); // <--- Nuevo
+  // Recuperamos los roles de la BD para tener los IDs reales
+  const todosLosRoles = await prisma.roles.findMany();
+  
+  const rolProfe = todosLosRoles.find(r => r.nombre === 'Profesor');
+  const rolAlumno = todosLosRoles.find(r => r.nombre === 'Alumno');
+  const rolAdmin = todosLosRoles.find(r => r.nombre === 'Administrador');
+
+  // VALIDACIÓN DE SEGURIDAD (Esto evita que el seed explote si falla la base de datos)
+  if (!rolProfe || !rolAlumno || !rolAdmin) {
+    throw new Error("❌ Error crítico: No se pudieron recuperar los roles necesarios.");
+  }
 
   // Documentos
   await Promise.all([
@@ -37,7 +45,7 @@ async function main() {
       nombres: 'Super', 
       apellidos: 'Administrador', 
       email: 'admin@gema.com',
-      rol_id: rolAdmin.id, // Asignado al rol Admin
+      rol_id: rolAdmin.id, 
       tipo_documento_id: 'DNI', 
       numero_documento: '00000001',
       telefono_personal: '900000000'
@@ -84,11 +92,15 @@ async function main() {
   await prisma.profesores.upsert({
     where: { usuario_id: usuarioProfe.id },
     update: {},
-    create: { usuario_id: usuarioProfe.id, especializacion: 'Voley Alto Rendimiento', tarifa_hora: 50.00 },
+    create: { 
+        usuario_id: usuarioProfe.id, 
+        especializacion: 'Voley Alto Rendimiento', 
+        
+    },
   });
 
   // -------------------------------------------------------
-  // 4. CATÁLOGO DE PRECIOS (LÓGICA NUEVA) 💰
+  // 4. CATÁLOGO DE PRECIOS 💰
   // -------------------------------------------------------
   console.log('💰 Configurando Precios y Paquetes...');
 
@@ -96,7 +108,7 @@ async function main() {
   const nivel = await prisma.niveles_entrenamiento.upsert({
     where: { id: 1 },
     update: {},
-    create: { nombre: 'Vóley Formativo' }, 
+    create: { nombre: 'Vóley Formativo', precio_referencial: 0 }, 
   });
 
   // B. Catálogo de Conceptos
@@ -141,11 +153,10 @@ async function main() {
   });
 
   // -------------------------------------------------------
-  // 5. CONFIGURACIÓN DEL SISTEMA (ACTUALIZADO - FLEXIBLE) ⚙️
+  // 5. CONFIGURACIÓN DEL SISTEMA ⚙️
   // -------------------------------------------------------
-  console.log('⚙️ Configurando reglas del sistema (Tabla Parametros)...');
+  console.log('⚙️ Configurando reglas del sistema...');
   
-  // ---> AQUÍ ESTÁ EL CAMBIO IMPORTANTE PARA ARREGLAR EL ERROR <---
   const parametros = [
     { 
       clave: 'TIEMPO_LIMITE_RESERVA_MIN', 
@@ -162,8 +173,12 @@ async function main() {
   for (const param of parametros) {
     await prisma.parametros_sistema.upsert({
       where: { clave: param.clave },
-      update: {}, // Si existe, no lo tocamos
-      create: param
+      update: {}, 
+      create: {
+        clave: param.clave,
+        valor: param.valor,
+        descripcion: param.descripcion
+      }
     });
   }
 
@@ -172,7 +187,7 @@ async function main() {
   // -------------------------------------------------------
   console.log('📅 Creando Horarios...');
 
-  const fechaBase = '1970-01-01T';
+  const fechaBase = '1970-01-01T'; // Fecha dummy para campos Time
   
   // Lunes 4pm
   const lunes = await prisma.horarios_clases.findFirst({ where: { dia_semana: 1, hora_inicio: new Date(`${fechaBase}16:00:00Z`) } });
@@ -252,7 +267,7 @@ async function main() {
       }
     });
 
-    // D. Crear la DEUDA (Para probar POST /pagos/reportar)
+    // D. Crear la DEUDA
     const conceptoMensual = await prisma.catalogo_conceptos.findFirst({ where: { codigo_interno: 'MENSUAL_1_DIA_2026' } });
     
     // Verificamos si existe deuda PENDIENTE
