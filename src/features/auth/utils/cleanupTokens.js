@@ -26,6 +26,8 @@ export const cleanupExpiredTokens = async () => {
 };
 
 export const scheduleTokenCleanup = () => {
+  console.log('☢️  Sistema de limpieza de tokens activado... 🛡️');
+
   setInterval(
     async () => {
       await cleanupExpiredTokens();
