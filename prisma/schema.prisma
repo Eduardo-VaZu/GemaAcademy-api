@@ -195,13 +195,13 @@ model recuperaciones {
   alumno_id           Int
   fecha_falta         DateTime            @db.Date
   motivo_falta        String?             @default("PERSONAL") @db.VarChar(50)
-  horario_destino_id  Int
-  fecha_programada    DateTime            @db.Date
+  horario_destino_id  Int?
+  fecha_programada    DateTime?            @db.Date
   es_por_lesion       Boolean?            @default(false)
   solicitud_lesion_id Int?
   estado              String?             @default("PROGRAMADA") @db.VarChar(20)
   alumnos             alumnos             @relation(fields: [alumno_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
-  horarios_clases     horarios_clases     @relation(fields: [horario_destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  horarios_clases     horarios_clases?     @relation(fields: [horario_destino_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   solicitudes_lesion  solicitudes_lesion? @relation(fields: [solicitud_lesion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([alumno_id, horario_destino_id, fecha_programada], map: "unica_recuperacion_slot")

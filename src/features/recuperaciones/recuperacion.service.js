@@ -1,12 +1,53 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
+const registrarFaltaPendiente = async (alumnoId, fechaFalta) => {
+    // 1. Evitar duplicados
+    const yaExiste = await prisma.recuperaciones.findFirst({
+        where: {
+            alumno_id: parseInt(alumnoId),
+            fecha_falta: new Date(fechaFalta),
+            estado: 'PENDIENTE'
+        }
+    });
+
+    if (yaExiste) {
+        return yaExiste;
+    }
+
+    // 2. Crear el registro pendiente
+    const nuevaFalta = await prisma.recuperaciones.create({
+        data: {
+            alumno_id: parseInt(alumnoId),
+            fecha_falta: new Date(fechaFalta),
+            estado: 'PENDIENTE',
+        }
+    });
+
+    return nuevaFalta;
+};
+
 /**
  * Valida TODAS las reglas de negocio antes de permitir una recuperación.
  */
 const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     const fechaFaltaDate = new Date(fechaFalta);
     const fechaProgramadaDate = new Date(fechaProgramada);
+
+    const faltaPendiente = await prisma.recuperaciones.findFirst({
+        where: {
+            alumno_id: parseInt(alumnoId),
+            fecha_falta: fechaFaltaDate,
+            estado: 'PENDIENTE',
+        }
+    });
+
+    if (!faltaPendiente) {
+        throw new ApiError(
+            'No se encontró una falta pendiente para esta fecha. Puede que ya haya sido recuperada o no se haya registrado la inasistencia aún.',
+            404
+        );
+    }
 
     const inscripcion = await prisma.inscripciones.findFirst({
         where: {
@@ -77,26 +118,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
     }
 
     // ---------------------------------------------------------
-    // 4. VALIDACIÓN DE DUPLICIDAD
-    // ---------------------------------------------------------
-
-    const faltaYaUsada = await prisma.recuperaciones.findFirst({
-        where: {
-            alumno_id: parseInt(alumnoId),
-            fecha_falta: fechaFaltaDate,
-            estado: { not: 'CANCELADO' }
-        }
-    });
-
-    if (faltaYaUsada) {
-        throw new ApiError(
-            'Ya has programado una recuperación para esta falta anteriormente.',
-            409
-        );
-    }
-
-    // ---------------------------------------------------------
-    // 5. VALIDACIÓN DE TOPE DE CUPOS
+    // 4. VALIDACIÓN DE TOPE DE CUPOS
     // ---------------------------------------------------------
     const recuperacionesEnCiclo = await prisma.recuperaciones.count({
         where: {
@@ -106,7 +128,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
                 gte: inicioCicloFalta,
                 lt: finCicloFalta,
             },
-            estado: { not: 'CANCELADO' },
+            estado: { not: 'PENDIENTE' },
         },
     });
 
@@ -128,7 +150,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
 /**
  * Crea el registro de recuperación tras pasar validaciones y chequear aforo.
  */
-const crearRecuperacion = async ({
+const agendarRecuperacion = async ({
     alumnoId,
     fechaFalta,
     horarioDestinoId,
@@ -160,7 +182,7 @@ const crearRecuperacion = async ({
         where: {
             horario_destino_id: parseInt(horarioDestinoId),
             fecha_programada: new Date(fechaProgramada),
-            estado: { not: 'CANCELADO' },
+            estado: { not: 'PENDIENTE' }, //Podría ser un estado 'CANCELADO'
         },
     });
 
@@ -173,12 +195,25 @@ const crearRecuperacion = async ({
         );
     }
 
-    // 3. Crear el registro
-    const nuevaRecuperacion = await prisma.recuperaciones.create({
-        data: {
+    // 3. RECUPERAR EL ID DEL REGISTRO PENDIENTE
+    const faltaPendiente = await prisma.recuperaciones.findFirst({
+        where: {
             alumno_id: parseInt(alumnoId),
             fecha_falta: new Date(fechaFalta),
-            motivo_falta: 'PERSONAL', // Valor por defecto flujo normal
+            estado: 'PENDIENTE',
+        },
+    });
+
+    if (!faltaPendiente) {
+        throw new ApiError('El registro de falta pendiente no se pudo encontrar para actualizar.', 404);
+    }
+
+    // 4. ACTUALIZAR (UPDATE) EL REGISTRO EXISTENTE
+    const recuperacionActualizada = await prisma.recuperaciones.update({
+        where: {
+            id: faltaPendiente.id, // Usamos el ID que acabamos de encontrar
+        },
+        data: {
             horario_destino_id: parseInt(horarioDestinoId),
             fecha_programada: new Date(fechaProgramada),
             es_por_lesion: false,
@@ -186,11 +221,12 @@ const crearRecuperacion = async ({
         },
     });
 
-    return nuevaRecuperacion;
+    return recuperacionActualizada;
 };
 
 // Exportamos el objeto con las funciones
 export const recuperacionService = {
     validarElegibilidad,
-    crearRecuperacion
+    agendarRecuperacion,
+    registrarFaltaPendiente
 };

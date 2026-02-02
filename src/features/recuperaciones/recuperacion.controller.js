@@ -21,7 +21,7 @@ const validarElegibilidad = catchAsync(async (req, res) => {
     return apiResponse(res, { elegible: true }, 'El alumno cumple los requisitos para recuperar.');
 });
 
-const crearRecuperacion = catchAsync(async (req, res) => {
+const agendarRecuperacion = catchAsync(async (req, res) => {
     const { id: usuarioId } = req.user;
     const { fechaFalta, horarioDestinoId, fechaProgramada } = req.body;
 
@@ -29,17 +29,17 @@ const crearRecuperacion = catchAsync(async (req, res) => {
         throw new ApiError('Faltan datos obligatorios (fechaFalta, horarioDestinoId, fechaProgramada)', 400);
     }
 
-    const nuevaRecuperacion = await recuperacionService.crearRecuperacion({
+    const recuperacionActualizada = await recuperacionService.agendarRecuperacion({
         alumnoId: usuarioId,
         fechaFalta,
         horarioDestinoId,
         fechaProgramada
     });
 
-    return apiResponse(res, nuevaRecuperacion, 'Recuperación agendada con éxito.', 201);
+    return apiResponse(res, recuperacionActualizada, 'Recuperación agendada con éxito.', 201);
 });
 
 export const recuperacionController = {
     validarElegibilidad,
-    crearRecuperacion
+    agendarRecuperacion
 };

@@ -16,9 +16,9 @@ router.post(
 
 // POST /api/recuperaciones
 router.post(
-    '/',
+    '/agendar-recuperacion',
     authorize('alumno', 'administrador'),
-    recuperacionController.crearRecuperacion
+    recuperacionController.agendarRecuperacion
 );
 
 export default router;
