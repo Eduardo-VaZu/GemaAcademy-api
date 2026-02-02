@@ -1,0 +1,24 @@
+import { Router } from 'express';
+import { recuperacionController } from './recuperacion.controller.js';
+import { authenticate } from '../../shared/middlewares/auth.middleware.js';
+import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+
+const router = Router();
+
+router.use(authenticate);
+
+// POST /api/recuperaciones/validar-elegibilidad
+router.post(
+    '/validar-elegibilidad',
+    authorize(['ALUMNO', 'ADMIN']),
+    recuperacionController.validarElegibilidad
+);
+
+// POST /api/recuperaciones
+router.post(
+    '/',
+    authorize(['ALUMNO', 'ADMIN']),
+    recuperacionController.crearRecuperacion
+);
+
+export default router;
