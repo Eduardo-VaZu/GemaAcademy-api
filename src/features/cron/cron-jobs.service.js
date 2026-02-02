@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { prisma } from '../config/database.config.js';
+import { prisma } from '../../config/database.config.js';
 
 export const iniciarCronJobs = () => {
   
