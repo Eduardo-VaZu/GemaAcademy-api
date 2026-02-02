@@ -41,6 +41,23 @@ export const validateRoleSpecificData = (rol, datos = {}) => {
 
   switch (normalizedRol) {
     case VALID_ROLES.ALUMNO:
+      if (!datos.direccion) {
+        errors.push('La dirección es obligatoria para el rol alumno');
+      } else {
+        const { direccion_completa, distrito, ciudad, referencia } = datos.direccion;
+        if (!direccion_completa || direccion_completa.toString().trim().length < 3) {
+          errors.push('La dirección debe tener al menos 3 caracteres');
+        }
+        if (!distrito || distrito.toString().trim().length < 1) {
+          errors.push('El distrito es requerido');
+        }
+        if (ciudad !== undefined && ciudad !== null && ciudad.toString().trim().length < 1) {
+          errors.push('La ciudad es requerida');
+        }
+        if (referencia !== undefined && referencia !== null && referencia.toString().trim().length < 1) {
+          errors.push('La referencia es requerida');
+        }
+      }
       if (datos.grupo_sanguineo) {
         const gruposSanguineos = ['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'];
         if (!gruposSanguineos.includes(datos.grupo_sanguineo)) {

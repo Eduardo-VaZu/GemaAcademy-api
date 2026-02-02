@@ -2,6 +2,25 @@ import z from 'zod';
 import { userCommonValidation } from '../common/common.validation.js';
 import { VALID_ROLES_ARRAY, ROLE_REQUIRED_FIELDS } from '../../constants/roles.constants.js';
 
+const direccionSchema = z.object({
+  direccion_completa: z
+    .string({
+      required_error: 'La dirección es requerida',
+    })
+    .trim()
+    .min(3, 'La dirección debe tener al menos 3 caracteres')
+    .max(255),
+  distrito: z
+    .string({
+      required_error: 'El distrito es requerido',
+    })
+    .trim()
+    .min(1, 'El distrito es requerido')
+    .max(100),
+  ciudad: z.string().trim().min(1, 'La ciudad es requerida').max(100).default('Lima').optional(),
+  referencia: z.string().trim().min(1, 'La referencia es requerida').max(255).nullable().optional(),
+});
+
 const user = {
   baseUserSchema: z.object({
     email: userCommonValidation.emailSchema,
@@ -51,6 +70,7 @@ const user = {
         }),
       })
       .optional(),
+    direccion: direccionSchema,
   }),
 
   profesorSpecificSchema: z.object({

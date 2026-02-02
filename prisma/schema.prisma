@@ -21,10 +21,12 @@ model administrador {
 
 model alumnos {
   usuario_id          Int                  @id
+  direccion_id        Int?
   condiciones_medicas String?
   seguro_medico       String?              @db.VarChar(100)
   grupo_sanguineo     String?              @db.VarChar(5)
   usuarios            usuarios             @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  direcciones         direcciones?         @relation(fields: [direccion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   alumnos_contactos   alumnos_contactos[]
   cuentas_por_cobrar  cuentas_por_cobrar[]
   inscripciones       inscripciones[]
@@ -107,6 +109,7 @@ model direcciones {
   ciudad             String?   @default("Lima") @db.VarChar(100)
   referencia         String?
   creado_en          DateTime? @default(now()) @db.Timestamp(6)
+  alumnos            alumnos[]
   sedes              sedes[]
 }
 
@@ -181,7 +184,6 @@ model pagos {
 model profesores {
   usuario_id           Int                    @id
   especializacion      String?                @db.VarChar(100)
-  tarifa_hora          Decimal?               @db.Decimal(10, 2)
   horarios_clases      horarios_clases[]
   usuarios             usuarios               @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   registros_asistencia registros_asistencia[]

@@ -135,7 +135,11 @@ export const usuarioService = {
       where: { id: userId },
       include: {
         roles: true,
-        alumnos: true,
+        alumnos: {
+          include: {
+            direcciones: true,
+          },
+        },
         profesores: true,
         administrador: {
           include: {
@@ -182,9 +186,21 @@ export const usuarioService = {
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
   const roleHandlers = {
     [VALID_ROLES.ALUMNO]: async () => {
+      if (!datos.direccion) {
+        throw new ApiError('La dirección es obligatoria para alumnos', 400);
+      }
+      const nuevaDireccion = await tx.direcciones.create({
+        data: {
+          direccion_completa: datos.direccion.direccion_completa,
+          distrito: datos.direccion.distrito,
+          ciudad: datos.direccion.ciudad || 'Lima',
+          referencia: datos.direccion.referencia || null,
+        },
+      });
       await tx.alumnos.create({
         data: {
           usuario_id: usuarioId,
+          direccion_id: nuevaDireccion.id,
           condiciones_medicas: datos.condiciones_medicas || null,
           seguro_medico: datos.seguro_medico || null,
           grupo_sanguineo: datos.grupo_sanguineo || null,
