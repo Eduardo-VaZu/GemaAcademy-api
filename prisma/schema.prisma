@@ -12,7 +12,7 @@ model administrador {
   sede_id              Int?
   cargo                String                 @db.VarChar(100)
   area                 String?                @db.VarChar(100)
-  sedes                sedes?                 @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sedes       sedes?   @relation(fields: [sede_id], references: [id], onDelete: SetNull)
   usuarios             usuarios               @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   descuentos_aplicados descuentos_aplicados[]
   pagos                pagos[]
@@ -49,7 +49,7 @@ model canchas {
   sede_id         Int
   nombre          String            @db.VarChar(50)
   descripcion     String?           @db.VarChar(200)
-  sedes           sedes             @relation(fields: [sede_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sedes       sedes    @relation(fields: [sede_id], references: [id], onDelete: Cascade)
   horarios_clases horarios_clases[]
 }
 

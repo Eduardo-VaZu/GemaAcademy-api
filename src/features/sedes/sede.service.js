@@ -52,59 +52,66 @@ const SEDE_SELECT_FIELDS = {
 
 export const sedeService = {
   createSede: async (sedeData) => {
-    const { direccion, administrador_id } = sedeData;
+    const { direccion, administrador_id, canchas } = sedeData;
 
-    if (!administrador_id) {
-      throw new ApiError('El ID del administrador es requerido', 400);
-    }
-
+    // 1. Validar administrador
+    const adminId = parseInt(administrador_id);
     const adminRelacion = await prisma.administrador.findUnique({
-      where: {
-        usuario_id: parseInt(administrador_id),
-      },
+      where: { usuario_id: adminId },
     });
 
-    if (!adminRelacion) {
-      throw new ApiError('El usuario proporcionado no es un administrador válido', 404);
-    }
+    if (!adminRelacion) throw new ApiError('Administrador no válido', 404);
 
-    const sede = await prisma.$transaction(
-      async (tx) => {
-        const nuevaDireccion = await prisma.direcciones.create({
-          data: {
-            direccion_completa: direccion.direccion_completa,
-            distrito: direccion.distrito,
-            ciudad: direccion.ciudad || 'Lima',
-            referencia: direccion.referencia || null,
+    // 2. Ejecutar transacción secuencial
+    return await prisma.$transaction(async (tx) => {
 
-          },
+      // A. Crear la dirección primero
+      const nuevaDireccion = await tx.direcciones.create({
+        data: {
+          direccion_completa: direccion.direccion_completa,
+          distrito: direccion.distrito,
+          ciudad: direccion.ciudad || 'Lima',
+          referencia: direccion.referencia || null,
+        },
+      });
+
+      // B. Crear la sede (vinculada a la dirección y al admin)
+      const sedeCreada = await tx.sedes.create({
+        data: {
+          nombre: sedeData.nombre,
+          telefono_contacto: sedeData.telefono_contacto || null,
+          tipo_instalacion: sedeData.tipo_instalacion || null,
+          activo: true,
+          direccion_id: nuevaDireccion.id,
+          administrador: {
+            connect: { usuario_id: adminRelacion.usuario_id }
+          }
+        }
+      });
+
+      // C. CREACIÓN MANUAL DE CANCHAS (Aquí aseguramos que se guarden)
+      if (canchas && canchas.length > 0) {
+        // Usamos createMany para eficiencia
+        await tx.canchas.createMany({
+          data: canchas.map(c => ({
+            nombre: c.nombre,
+            descripcion: c.descripcion || '',
+            sede_id: sedeCreada.id // Vinculación manual por ID
+          }))
         });
-
-        const nuevaSede = await tx.sedes.create({
-          data: {
-            nombre: sedeData.nombre,
-            telefono_contacto: sedeData.telefono_contacto || null,
-            tipo_instalacion: sedeData.tipo_instalacion || null,
-            activo: true,
-            direccion_id: nuevaDireccion.id,
-            administrador: {
-              connect: { usuario_id: adminRelacion.usuario_id },
-            },
-          },
-          include: {
-            direcciones: true,
-          },
-        });
-
-        return nuevaSede;
-      },
-      {
-        maxWait: 2000,
-        timeout: 5000,
       }
-    );
 
-    return sede;
+      // D. Retornar todo el objeto completo
+      return await tx.sedes.findUnique({
+        where: { id: sedeCreada.id },
+        include: {
+          direcciones: true,
+          canchas: true
+        }
+      });
+    }, {
+      timeout: 10000 // 10 segundos para asegurar que termine todo
+    });
   },
 
   getAllSedes: async (filters = {}) => {
@@ -306,4 +313,28 @@ export const sedeService = {
       },
     });
   },
+  deleteSede: async (id) => {
+    const sedeId = parseInt(id);
+
+    return await prisma.$transaction(async (tx) => {
+      const sede = await tx.sedes.findUnique({
+        where: { id: sedeId },
+        select: { direccion_id: true }
+      });
+
+      if (!sede) throw new ApiError('Sede no encontrada', 404);
+
+      await tx.sedes.delete({
+        where: { id: sedeId }
+      });
+
+      if (sede.direccion_id) {
+        await tx.direcciones.delete({
+          where: { id: sede.direccion_id }
+        });
+      }
+
+      return { success: true, message: 'Sede, canchas y dirección eliminadas correctamente' };
+    });
+  }
 };
