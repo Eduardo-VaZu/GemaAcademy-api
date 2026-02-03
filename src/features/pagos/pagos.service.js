@@ -247,10 +247,22 @@ export const pagosService = {
         });
       }
 
+     // --- CORRECCIÓN DE MENSAJE (Lógica de 3 casos) ---
+      let mensajeFinal = "";
+      
+      if (!esAprobado) {
+          // Caso 1: Rechazado ❌
+          mensajeFinal = "⛔ PAGO RECHAZADO. La inscripción ha vuelto a estado PENDIENTE (o será eliminada por el sistema).";
+      } else if (esPagoCompleto) {
+          // Caso 2: Aprobado Total ✅
+          mensajeFinal = "✅ Deuda SALDADA. Alumno ACTIVO y limpio.";
+      } else {
+          // Caso 3: Aprobado Parcial ⚠️
+          mensajeFinal = `⚠️ Abono registrado. Saldo: S/ ${saldoRestante.toFixed(2)}. Alumno ACTIVO (con deuda PARCIAL).`;
+      }
+
       return {
-        resultado: esPagoCompleto 
-            ? "Deuda SALDADA. Alumno ACTIVO y limpio." 
-            : `Abono registrado. Saldo: S/ ${saldoRestante.toFixed(2)}. Alumno ACTIVO (con deuda PARCIAL).`,
+        resultado: mensajeFinal,
         pago: pagoActualizado,
         saldo_pendiente: saldoRestante
       };

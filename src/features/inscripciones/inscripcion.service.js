@@ -2,7 +2,9 @@ import { prisma } from '../../config/database.config.js';
 
 export const inscripcionService = {
 
-  // 📦 Lógica Maestra: Inscripción con Bloqueo de Deudores, Sincronización y Tolerancia
+  // =================================================================
+  // 📦 LÓGICA MAESTRA: INSCRIPCIÓN / UPGRADE (Con Switch Legacy/Nuevo)
+  // =================================================================
   inscribirPaquete: async (data) => {
     const { alumno_id, horario_ids } = data;
 
@@ -13,14 +15,11 @@ export const inscripcionService = {
 
     return await prisma.$transaction(async (tx) => {
       
-      // =================================================================
-      // 🛡️ PASO 0: EL MURO DE DEUDA (Regla de Negocio Crítica)
-      // =================================================================
+      // 🛡️ PASO 0: EL MURO DE DEUDA
       const deudasPendientes = await tx.cuentas_por_cobrar.count({
         where: {
           alumno_id: parseInt(alumno_id),
-          estado: { in: ['PENDIENTE', 'PARCIAL'] }, 
-          activo: true 
+          estado: { in: ['PENDIENTE', 'PARCIAL'] } 
         }
       });
 
@@ -28,21 +27,38 @@ export const inscripcionService = {
         throw new Error("⛔ BLOQUEO: Tienes pagos pendientes. Cancela tu deuda anterior para poder inscribirte nuevamente.");
       }
 
-      // =================================================================
       // PASO 1: CONFIGURACIÓN ANTI-ZOMBIE 🧟‍♂️
-      // =================================================================
       const paramTiempo = await tx.parametros_sistema.findUnique({ where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' } });
       const tiempoLimite = paramTiempo ? parseInt(paramTiempo.valor) : 20;
       const fechaLimiteZombie = new Date(Date.now() - tiempoLimite * 60 * 1000);
 
       // =================================================================
-      // PASO 2: DETECTAR EL CICLO (¿Es nuevo o es Upgrade?) 📅
+      // 🕵️‍♂️ PASO 2: DETECTIVE DE RÉGIMEN (¿ES LEGACY O NUEVO?)
       // =================================================================
       const hoy = new Date();
       let fechaCorte = null;
       let esInscripcionAdicional = false;
+      let esAlumnoLegacy = false; // Por defecto asumimos que es nuevo
 
-      // Buscamos inscripción ACTIVA para sincronizar fechas
+      // A. Buscamos si tiene historial de pagos para definir su "Régimen"
+      const ultimoPago = await tx.pagos.findFirst({
+        where: { 
+            cuentas_por_cobrar: { alumno_id: parseInt(alumno_id) },
+            estado_validacion: 'APROBADO' 
+        },
+        orderBy: { fecha_pago: 'desc' },
+        include: { cuentas_por_cobrar: { include: { catalogo_conceptos: true } } }
+      });
+
+      if (ultimoPago && ultimoPago.cuentas_por_cobrar.catalogo_conceptos) {
+          // Si su último plan pagado NO ES VIGENTE, entonces es un alumno LEGACY (Antiguo)
+          if (ultimoPago.cuentas_por_cobrar.catalogo_conceptos.es_vigente === false) {
+              esAlumnoLegacy = true;
+              console.log(`👴 Alumno ${alumno_id} detectado como LEGACY. Se aplicarán precios antiguos.`);
+          }
+      }
+
+      // B. Lógica de Ciclo (Upgrade)
       const ultimaInscripcionActiva = await tx.inscripciones.findFirst({
         where: {
           alumno_id: parseInt(alumno_id),
@@ -54,87 +70,71 @@ export const inscripcionService = {
       if (ultimaInscripcionActiva) {
         esInscripcionAdicional = true;
         const fechaInicioCiclo = new Date(ultimaInscripcionActiva.fecha_inscripcion);
-        
-        // Calculamos fin de ciclo (30 días comercial)
         const fechaFinCiclo = new Date(fechaInicioCiclo);
         fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30); 
 
-        // Solo aplicamos prorrateo si el ciclo vence en el futuro
         if (fechaFinCiclo > hoy) {
           fechaCorte = fechaFinCiclo;
-          console.log(`🔄 Upgrade detectado. Sincronizando cierre al: ${fechaCorte.toISOString()}`);
         }
       }
 
       // =================================================================
-      // 👮‍♂️ PASO 3: OBTENER PRECIO DINÁMICO (MODO ESTRICTO)
+      // 👮‍♂️ PASO 3: OBTENER PRECIO (SEGÚN RÉGIMEN)
       // =================================================================
       const cantidadClases = horario_ids.length;
 
-      // A. Buscamos el plan exacto por cantidad de días
+      // EL SWITCH MÁGICO 🎚️
+      // - Si es Legacy (esAlumnoLegacy = true) -> Busca es_vigente: false
+      // - Si es Nuevo (esAlumnoLegacy = false)  -> Busca es_vigente: true
       const conceptoAplicar = await tx.catalogo_conceptos.findFirst({ 
         where: { 
             cantidad_clases_semanal: cantidadClases, 
             activo: true,
-            es_vigente: true
+            es_vigente: !esAlumnoLegacy 
         } 
       });
 
-      // B. VALIDACIÓN DE HIERRO: Si no existe, explota.
       if (!conceptoAplicar) {
-         throw new Error(`⛔ ERROR DE CONFIGURACIÓN: No existe un plan de precios activo para un paquete de ${cantidadClases} días a la semana. Contacta al administrador.`);
+          const tipoPrecio = esAlumnoLegacy ? "ANTIGUO (Legacy)" : "VIGENTE (2026)";
+          throw new Error(`⛔ No existe un plan de precios ${tipoPrecio} configurado para un paquete de ${cantidadClases} días a la semana. Contacta administración.`);
       }
 
-      // =================================================================
-      // 🧮 PREPARACIÓN PARA UPGRADES (Cálculo Unitario Real)
-      // =================================================================
-      // ... (código anterior igual) ...
-
-      // =================================================================
-      // 🧮 PREPARACIÓN PARA UPGRADES (Cálculo Unitario Real)
-      // =================================================================
+      // 🧮 PREPARACIÓN PARA UPGRADES (Unitario Dinámico)
       let precioUnitarioOficial = 0;
 
       if (esInscripcionAdicional) {
-          // CAMBIO: Ahora buscamos el "Concepto Unitario" específico en la BD
-          // Ya no dividimos nada. Usamos el precio que tú configuraste.
+          // ✅ CORRECCIÓN AQUÍ: Usamos el código corto que pusiste en la base de datos
+          const codigoUnitarioBuscar = esAlumnoLegacy ? 'CLASE_UNI_LEGACY' : 'CLASE_UNITARIA_2026';
+
           const conceptoUnitario = await tx.catalogo_conceptos.findFirst({
-            where: { codigo_interno: 'CLASE_UNITARIA_2026', activo: true }
+            where: { codigo_interno: codigoUnitarioBuscar, activo: true }
           });
           
           if (!conceptoUnitario) {
-             throw new Error("⛔ ERROR DE CONFIGURACIÓN: No se encontró el precio 'CLASE_UNITARIA_2026' en el catálogo. Es necesario para calcular el cobro proporcional del upgrade.");
+              throw new Error(`⛔ ERROR DE CONFIGURACIÓN: No se encontró el concepto '${codigoUnitarioBuscar}'.`);
           }
           
-          // Usamos el precio directo de la base de datos
           precioUnitarioOficial = Number(conceptoUnitario.precio_base);
-          
-          console.log(`💰 Precio base para cálculo: S/ ${precioUnitarioOficial} por clase.`);
       }
 
-      // ... (el resto del código sigue igual, usando precioUnitarioOficial) ...
-
-      // =================================================================
       // PASO 4: PROCESAR HORARIOS Y VALIDAR AFORO 🔄
-      // =================================================================
       const inscripcionesCreadas = [];
       let totalCobrar = 0;
       let detalleCobro = [];
 
       for (const idHorario of horario_ids) {
-        
         // A. Validar Horario
         const horario = await tx.horarios_clases.findUnique({ where: { id: idHorario } });
         if (!horario) throw new Error(`El horario ID ${idHorario} no existe.`);
 
-        // B. CONTAR AFORO REAL (Incluyendo VENCIDOS en tolerancia)
+        // B. CONTAR AFORO REAL
         const ocupados = await tx.inscripciones.count({
           where: {
             horario_id: idHorario,
             OR: [
               { estado: 'ACTIVO' }, 
               { estado: 'POR_VALIDAR' }, 
-              { estado: 'VENCIDO' }, // El sitio del "Vencido" se respeta
+              { estado: 'VENCIDO' }, 
               { AND: [{ estado: 'PENDIENTE_PAGO' }, { fecha_inscripcion: { gt: fechaLimiteZombie } }] }
             ]
           },
@@ -148,24 +148,18 @@ export const inscripcionService = {
         let montoEsteHorario = 0;
 
         if (esInscripcionAdicional && fechaCorte) {
-          // --- MODO UPGRADE (Preciso) ---
-          // Contamos cuántas clases reales quedan en el calendario
+          // MODO UPGRADE
           const clasesRestantes = contarClasesEnIntervalo(horario.dia_semana, hoy, fechaCorte);
-          
           if (clasesRestantes > 0) {
-            // Multiplicamos clases reales * precio unitario oficial
             montoEsteHorario = clasesRestantes * precioUnitarioOficial;
-            detalleCobro.push(`Upgrade ${horario.dia_semana} (${clasesRestantes} clases x S/ ${precioUnitarioOficial.toFixed(2)})`);
+            detalleCobro.push(`Upgrade ${esAlumnoLegacy ? '(Legacy)' : ''} ${horario.dia_semana} (${clasesRestantes} clases x S/ ${precioUnitarioOficial.toFixed(2)})`);
           } else {
-            montoEsteHorario = 0; 
             detalleCobro.push(`Reserva ${horario.dia_semana} (Sincronización - Sin costo)`);
           }
-
         } else {
-          // --- MODO NUEVO (Full) ---
-          // Dividimos el precio del paquete entre los días para referencia interna
+          // MODO NUEVO
           montoEsteHorario = Number(conceptoAplicar.precio_base) / cantidadClases; 
-          detalleCobro.push(`Mensualidad ${horario.dia_semana}`);
+          detalleCobro.push(`Mensualidad ${esAlumnoLegacy ? '(Legacy)' : ''} ${horario.dia_semana}`);
         }
 
         totalCobrar += montoEsteHorario;
@@ -183,14 +177,12 @@ export const inscripcionService = {
         inscripcionesCreadas.push(nuevaInscripcion);
       }
 
-      // =================================================================
       // PASO 5: GENERAR LA DEUDA 💸
-      // =================================================================
       if (totalCobrar > 0) {
         await tx.cuentas_por_cobrar.create({
           data: {
             alumnos: { connect: { usuario_id: parseInt(alumno_id) } },
-            catalogo_conceptos: { connect: { id: conceptoAplicar.id } },
+            catalogo_conceptos: { connect: { id: conceptoAplicar.id } }, 
             detalle_adicional: [...new Set(detalleCobro)].join(' | '), 
             monto_final: totalCobrar,
             fecha_vencimiento: new Date(Date.now() + (2 * 24 * 60 * 60 * 1000)), 
@@ -205,6 +197,99 @@ export const inscripcionService = {
         detalle: detalleCobro,
         inscripciones: inscripcionesCreadas
       };
+    });
+  },
+
+  // =================================================================
+  // 🔮 LA LÓGICA DEL PROFETA: Renovaciones Masivas (Herencia Estricta)
+  // =================================================================
+  generarRenovacionesMasivas: async (diasAnticipacion) => {
+    console.log(`🔮 [SERVICIO] Buscando alumnos para renovar (Herencia de Plan)...`);
+    
+    // 1. CALCULAR FECHAS MÁGICAS
+    const diasCiclo = 30;
+    const diasAtras = diasCiclo - diasAnticipacion; 
+    
+    const inicioBusqueda = new Date();
+    inicioBusqueda.setDate(inicioBusqueda.getDate() - diasAtras);
+    inicioBusqueda.setHours(0,0,0,0);
+
+    const finBusqueda = new Date(inicioBusqueda);
+    finBusqueda.setHours(23,59,59,999);
+
+    return await prisma.$transaction(async (tx) => {
+        // 2. BUSCAR CANDIDATOS
+        const candidatos = await tx.inscripciones.findMany({
+            where: {
+                estado: 'ACTIVO',
+                fecha_inscripcion: { gte: inicioBusqueda, lte: finBusqueda }
+            },
+            distinct: ['alumno_id'] 
+        });
+
+        let renovacionesCreadas = 0;
+
+        // 3. PROCESAR CADA ALUMNO
+        for (const candidato of candidatos) {
+            const alumnoId = candidato.alumno_id;
+
+            // A. Anti-Duplicados
+            const deudaExistente = await tx.cuentas_por_cobrar.findFirst({
+                where: {
+                    alumno_id: alumnoId,
+                    estado: 'PENDIENTE',
+                    detalle_adicional: { contains: 'Renovación Automática' },
+                    creado_en: { gte: inicioBusqueda } 
+                }
+            });
+
+            if (deudaExistente) continue; 
+
+            // B. HERENCIA GENÉTICA DEL PLAN
+            // Buscamos la última deuda generada para este alumno (su plan actual)
+            const ultimaDeuda = await tx.cuentas_por_cobrar.findFirst({
+                where: { alumno_id: alumnoId },
+                orderBy: { id: 'desc' },
+                include: { catalogo_conceptos: true }
+            });
+
+            if (!ultimaDeuda || !ultimaDeuda.catalogo_conceptos) {
+                console.log(`⚠️ Alumno ${alumnoId} sin historial de precios. Se omite.`);
+                continue;
+            }
+
+            // COPIAMOS EL PLAN TAL CUAL (Aunque es_vigente sea false)
+            const conceptoHeredado = ultimaDeuda.catalogo_conceptos;
+
+            if (!conceptoHeredado.activo) {
+                 console.log(`⛔ El plan ID ${conceptoHeredado.id} está desactivado por completo. No se renueva.`);
+                 continue;
+            }
+
+            // C. Validación de Cantidad de Clases
+            const totalCursosActivos = await tx.inscripciones.count({
+                where: { alumno_id: alumnoId, estado: 'ACTIVO' }
+            });
+
+            // Si sigue teniendo la misma cantidad de clases, le renovamos su plan viejo o nuevo
+            if (conceptoHeredado.cantidad_clases_semanal === totalCursosActivos) {
+                await tx.cuentas_por_cobrar.create({
+                    data: {
+                        alumno_id: alumnoId,
+                        concepto_id: conceptoHeredado.id, 
+                        monto_final: conceptoHeredado.precio_base,
+                        detalle_adicional: `Renovación Automática (Plan: ${conceptoHeredado.nombre})`,
+                        fecha_vencimiento: new Date(Date.now() + (diasAnticipacion * 24 * 60 * 60 * 1000)),
+                        estado: 'PENDIENTE'
+                    }
+                });
+                renovacionesCreadas++;
+            } else {
+                 console.log(`⚠️ Alumno ${alumnoId} cambió frecuencia (Tiene ${totalCursosActivos}, Plan era ${conceptoHeredado.cantidad_clases_semanal}).`);
+            }
+        }
+
+        return renovacionesCreadas;
     });
   },
 

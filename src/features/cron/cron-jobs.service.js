@@ -1,6 +1,9 @@
 import cron from 'node-cron';
 import { prisma } from '../../config/database.config.js';
 
+// ✅ CORRECCIÓN: Importamos con llaves { } y en SINGULAR (tal como está en tu servicio)
+import { inscripcionService } from '../inscripciones/inscripcion.service.js'; 
+
 export const iniciarCronJobs = () => {
   
   console.log('🕰️ Cron Jobs iniciados: El sistema está vigilando...');
@@ -29,54 +32,53 @@ export const iniciarCronJobs = () => {
       console.error("❌ [CRON ERROR] Falló el Verdugo de Vencimientos:", error);
     }
   });
+
+  // ------------------------------------------------------------------
+  // 🆕 TAREA 3: EL PROFETA (Todos los días a las 00:30 AM) 🔮
+  // Objetivo: Generar la deuda del próximo mes X días antes del vencimiento.
+  // ------------------------------------------------------------------
+  // 💡 TRUCO DE PRUEBA: Si quieres probarlo YA, cambia '30 0 * * *' por '* * * * *'
+  cron.schedule('30 0 * * *', async () => {
+    console.log(`🔮 [CRON] El Profeta buscando renovaciones futuras...`);
+    try {
+       await ejecutarProfetaRenovaciones();
+    } catch (error) {
+       console.error("❌ [CRON ERROR] Falló el Profeta:", error);
+    }
+  });
 };
 
 // =====================================================================
-// 🧠 LÓGICA 1: LIMPIEZA DE ZOMBIES (Tu código original recuperado)
+// 🧠 LÓGICA 1: LIMPIEZA DE ZOMBIES
 // =====================================================================
 const limpiarReservasZombies = async () => {
-  // 1. Obtener el tiempo límite de la BD
-  const param = await prisma.parametros_sistema.findUnique({
-    where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' }
-  });
-  
-  // Si no existe, usamos 20 min por defecto
+  const param = await prisma.parametros_sistema.findUnique({ where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' } });
   const minutosLimite = param ? parseInt(param.valor) : 20;
-
-  // 2. Calcular la "Hora de Corte"
   const horaCorte = new Date(Date.now() - minutosLimite * 60 * 1000);
 
-  // 3. Ejecutar la limpieza
-  // Borramos solo las que siguen en PENDIENTE_PAGO y son viejas
   const resultado = await prisma.inscripciones.deleteMany({
     where: {
       estado: 'PENDIENTE_PAGO',
-      fecha_inscripcion: {
-        lt: horaCorte // Antes de hace 20 min
-      }
+      fecha_inscripcion: { lt: horaCorte }
     }
   });
 
   if (resultado.count > 0) {
     console.log(`🗑️ [FRANCOTIRADOR] Se eliminaron ${resultado.count} reservas zombies expiradas.`);
   }
-  // No hacemos log si es 0 para no ensuciar la consola cada minuto
 };
 
 // =====================================================================
-// 🧠 LÓGICA 2: GESTIÓN DE CICLO DE VIDA (La lógica nueva)
+// 🧠 LÓGICA 2: GESTIÓN DE CICLO DE VIDA (Verdugo)
 // =====================================================================
 const gestionarVencimientos = async () => {
     const hoy = new Date();
 
     // A. OBTENER TOLERANCIA
-    const paramTolerancia = await prisma.parametros_sistema.findUnique({
-      where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' }
-    });
+    const paramTolerancia = await prisma.parametros_sistema.findUnique({ where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' } });
     const diasGracia = paramTolerancia ? parseInt(paramTolerancia.valor) : 5;
     
     // B. FASE 1: CONGELAR (De ACTIVO a VENCIDO) ❄️
-    // Criterio: Han pasado 30 días desde la inscripción
     const limiteCiclo = new Date();
     limiteCiclo.setDate(hoy.getDate() - 30); 
 
@@ -96,7 +98,6 @@ const gestionarVencimientos = async () => {
     }
 
     // C. FASE 2: ELIMINAR (De VENCIDO a FINALIZADO) 🪓
-    // Criterio: Han pasado (30 + Tolerancia) días
     const limiteTotal = new Date();
     limiteTotal.setDate(hoy.getDate() - (30 + diasGracia)); 
 
@@ -113,5 +114,24 @@ const gestionarVencimientos = async () => {
 
     if (finalizados.count > 0) {
       console.log(`🗑️ [VERDUGO] Se liberaron ${finalizados.count} cupos tras vencer su tolerancia.`);
+    }
+};
+
+// =====================================================================
+// 🧠 LÓGICA 3: PRE-AVISO DE RENOVACIÓN (El Profeta)
+// =====================================================================
+const ejecutarProfetaRenovaciones = async () => {
+    // 1. Obtener días de anticipación
+    const param = await prisma.parametros_sistema.findUnique({ 
+        where: { clave: 'DIAS_ANTICIPACION_RENOVACION' } 
+    });
+    const diasAnticipacion = param ? parseInt(param.valor) : 5;
+
+    // 2. Invocar al Servicio
+    // ✅ CORRECCIÓN: Usamos 'inscripcionService' (SINGULAR)
+    const renovacionesGeneradas = await inscripcionService.generarRenovacionesMasivas(diasAnticipacion);
+
+    if (renovacionesGeneradas > 0) {
+        console.log(`🔮 [PROFETA] Se generaron ${renovacionesGeneradas} deudas de renovación anticipada.`);
     }
 };
