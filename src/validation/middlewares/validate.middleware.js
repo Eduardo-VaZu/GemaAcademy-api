@@ -9,12 +9,26 @@ export const validate = (schema) => (req, res, next) => {
     next();
   } catch (error) {
     if (error instanceof z.ZodError) {
+      // 1. Mapeamos todos los errores
+      const formattedErrors = error.errors.map((err) => ({
+        campo: err.path.join('.'),
+        mensaje: err.message
+      }));
+
+      // 2. Tomamos el mensaje del PRIMER error para que el 'message' sea útil
+      const mensajePrincipal = formattedErrors[0].mensaje;
+
       return res.status(400).json({
         status: 'error',
-        message: 'Errores de validación',
-        errors: error.errors,
+        message: mensajePrincipal, 
+        errors: formattedErrors
       });
     }
+
+    return res.status(500).json({
+      status: 'error',
+      message: 'Error interno del servidor durante la validación'
+    });
   }
 };
 
