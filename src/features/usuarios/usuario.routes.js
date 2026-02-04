@@ -22,6 +22,8 @@ router.get(
   usuarioController.getUserProfile
 );
 
+router.get('/role/:rol', authenticate, authorize('administrador'), usuarioController.getUsersByRol);
+
 router.get('/count/alumnos', usuarioController.getContadorAlumnos);
 
 export default router;

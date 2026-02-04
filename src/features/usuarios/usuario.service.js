@@ -173,14 +173,34 @@ export const usuarioService = {
     return descriptions[rol.toLowerCase()] || 'Rol desconocido';
   },
 
+  getUsersByRol: async (rolOrId) => {
+    let rolId;
+    if (typeof rolOrId === 'string') {
+      const rolNombreNormalizado = rolOrId.charAt(0).toUpperCase() + rolOrId.slice(1).toLowerCase();
+
+      rolId = await prisma.roles.findUnique({
+        where: {
+          nombre: rolNombreNormalizado,
+        },
+      });
+    } else {
+      rolId = rolOrId;
+    }
+    return await prisma.usuarios.findMany({
+      where: { rol_id: rolId, activo: true },
+      include: { roles: true },
+      orderBy: { nombres: 'asc' },
+    });
+  },
+
   async countAlumnos() {
     return await prisma.usuarios.count({
       where: {
-        rol_id: 1, 
-        activo: true
-      }
+        rol_id: 1,
+        activo: true,
+      },
     });
-  }
+  },
 };
 
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {

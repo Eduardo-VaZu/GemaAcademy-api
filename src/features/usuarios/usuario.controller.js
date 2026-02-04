@@ -67,10 +67,29 @@ export const usuarioController = {
     });
   }),
 
+  getUsersByRol: catchAsync(async (req, res) => {
+    const rolParam = req.params.rol;
+
+    if (!rolParam) {
+      throw new ApiError('Parámetro "rol" es requerido', 400);
+    }
+
+    if (!usuarioService.isValidRole(rolParam)) {
+      throw new ApiError('Rol inválido', 400);
+    }
+
+    const usuarios = await usuarioService.getUsersByRol(rolParam);
+
+    return apiResponse.success(res, {
+      message: 'Usuarios obtenidos exitosamente',
+      data: usuarios,
+    });
+  }),
+
   getContadorAlumnos: catchAsync(async (req, res) => {
     const total = await usuarioService.countAlumnos();
 
-   return apiResponse.success(res, {
+    return apiResponse.success(res, {
       data: total,
     });
   }),

@@ -2,7 +2,6 @@ import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
 export const horarioService = {
-
   getAllHorarios: async () => {
     const horarios = await prisma.horarios_clases.findMany({
       include: {
@@ -49,12 +48,11 @@ export const horarioService = {
   },
 
   createHorario: async (data) => {
-
     const cancha_id = Number.parseInt(data.cancha_id);
     const profesor_id = Number.parseInt(data.profesor_id);
     const nivel_id = Number.parseInt(data.nivel_id);
     const dia_semana = Number.parseInt(data.dia_semana);
- 
+
     const [canchaExistente, profesorExistente, nivelExistente] = await Promise.all([
       prisma.canchas.findUnique({ where: { id: cancha_id } }),
       prisma.profesores.findUnique({ where: { usuario_id: profesor_id } }),
@@ -97,25 +95,16 @@ export const horarioService = {
         activo: true,
         OR: [
           {
-            AND: [
-              { hora_inicio: { lte: horaInicioDate } },
-              { hora_fin: { gt: horaInicioDate } }
-            ]
+            AND: [{ hora_inicio: { lte: horaInicioDate } }, { hora_fin: { gt: horaInicioDate } }],
           },
           {
-            AND: [
-              { hora_inicio: { lt: horaFinDate } },
-              { hora_fin: { gte: horaFinDate } }
-            ]
+            AND: [{ hora_inicio: { lt: horaFinDate } }, { hora_fin: { gte: horaFinDate } }],
           },
           {
-            AND: [
-              { hora_inicio: { gte: horaInicioDate } },
-              { hora_fin: { lte: horaFinDate } }
-            ]
-          }
-        ]
-      }
+            AND: [{ hora_inicio: { gte: horaInicioDate } }, { hora_fin: { lte: horaFinDate } }],
+          },
+        ],
+      },
     });
 
     if (solapamientoCancha) {
@@ -129,29 +118,23 @@ export const horarioService = {
         activo: true,
         OR: [
           {
-            AND: [
-              { hora_inicio: { lte: horaInicioDate } },
-              { hora_fin: { gt: horaInicioDate } }
-            ]
+            AND: [{ hora_inicio: { lte: horaInicioDate } }, { hora_fin: { gt: horaInicioDate } }],
           },
           {
-            AND: [
-              { hora_inicio: { lt: horaFinDate } },
-              { hora_fin: { gte: horaFinDate } }
-            ]
+            AND: [{ hora_inicio: { lt: horaFinDate } }, { hora_fin: { gte: horaFinDate } }],
           },
           {
-            AND: [
-              { hora_inicio: { gte: horaInicioDate } },
-              { hora_fin: { lte: horaFinDate } }
-            ]
-          }
-        ]
-      }
+            AND: [{ hora_inicio: { gte: horaInicioDate } }, { hora_fin: { lte: horaFinDate } }],
+          },
+        ],
+      },
     });
 
     if (solapamientoProfesor) {
-      throw new ApiError('El profesor ya tiene un horario asignado que se solapa con este rango', 400);
+      throw new ApiError(
+        'El profesor ya tiene un horario asignado que se solapa con este rango',
+        400
+      );
     }
 
     return await prisma.horarios_clases.create({
@@ -168,6 +151,25 @@ export const horarioService = {
           : null,
         activo: true,
       },
+    });
+  },
+
+  updateHorario: async () => {
+    
+  },
+
+  deleteHorario: async (id) => {
+    const horarioExistente = await prisma.horarios_clases.findUnique({
+      where: { id: Number.parseInt(id) },
+    });
+
+    if (!horarioExistente) {
+      throw new ApiError('El horario especificado no existe', 404);
+    }
+
+    return await prisma.horarios_clases.update({
+      where: { id: Number.parseInt(id) },
+      data: { activo: false },
     });
   },
 };
