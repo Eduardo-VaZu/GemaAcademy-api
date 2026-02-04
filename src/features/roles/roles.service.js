@@ -39,6 +39,18 @@ export const rolesService = {
     return rol;
   },
 
+  getRoleByNombre: async (nombre) => {
+    const rol = await prisma.roles.findUnique({
+      where: {
+        nombre,
+      },
+    });
+    if (!rol) {
+      throw new ApiError('El rol no existe', 404);
+    }
+    return rol;
+  },
+
   updateRole: async (id, data) => {
     return await prisma.roles.update({
       where: {

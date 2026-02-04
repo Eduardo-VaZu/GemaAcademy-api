@@ -27,6 +27,20 @@ export const rolesController = {
     });
   }),
 
+  getRoleByNombre: catchAsync(async (req, res) => {
+    const nombre = req.params.nombre;
+    const role = await rolesService.getRoleByNombre(nombre);
+
+    if (!role) {
+      throw new ApiError('Rol no encontrado', 404);
+    }
+
+    return apiResponse.success(res, {
+      message: 'Rol obtenido exitosamente',
+      data: role,
+    });
+  }),
+
   createRole: catchAsync(async (req, res) => {
     const role = await rolesService.createRole(req.body);
 

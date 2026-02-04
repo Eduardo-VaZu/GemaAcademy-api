@@ -193,14 +193,16 @@ export const usuarioService = {
     });
   },
 
-  async countAlumnos() {
-    return await prisma.usuarios.count({
+  async getDashboardStats() {
+    // 1. Agrupamos usuarios por su rol y contamos
+    const counts = await prisma.usuarios.groupBy({
+      by: ['rol_id'],
       where: {
-        rol_id: 1,
-        activo: true,
-      },
+        rol_id: 1, 
+        activo: true
+      }
     });
-  },
+  }
 };
 
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
