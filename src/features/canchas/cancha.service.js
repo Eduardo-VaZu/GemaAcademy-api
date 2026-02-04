@@ -5,13 +5,13 @@ const canchaService = {
   create: async (canchaData) => {
     const { sede_id, ...data } = canchaData;
     const sede = await prisma.sedes.findUnique({
-      where: { id: parseInt(sede_id) },
+      where: { id: Number.parseInt(sede_id) },
     });
     if (!sede) {
       throw new ApiError('Sede no encontrada', 404);
     }
     return await prisma.canchas.create({
-      data: { ...data, sede_id: parseInt(sede_id) },
+      data: { ...data, sede_id: Number.parseInt(sede_id) },
     });
   },
 
@@ -21,7 +21,7 @@ const canchaService = {
 
   getById: async (id) => {
     return await prisma.canchas.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: Number.parseInt(id) },
     });
   },
 
@@ -30,23 +30,23 @@ const canchaService = {
 
     if (sede_id) {
       const sede = await prisma.sedes.findUnique({
-        where: { id: parseInt(sede_id) },
+        where: { id: Number.parseInt(sede_id) },
       });
       if (!sede) {
         throw new ApiError('Sede no encontrada', 404);
       }
-      data.sede_id = parseInt(sede_id);
+      data.sede_id = Number.parseInt(sede_id);
     }
 
     return await prisma.canchas.update({
-      where: { id: parseInt(id) },
+      where: { id: Number.parseInt(id) },
       data: data,
     });
   },
 
   delete: async (id) => {
     return await prisma.canchas.delete({
-      where: { id: parseInt(id) },
+      where: { id: Number.parseInt(id) },
     });
   },
 };

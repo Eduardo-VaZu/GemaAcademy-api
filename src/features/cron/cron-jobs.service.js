@@ -2,10 +2,9 @@ import cron from 'node-cron';
 import { prisma } from '../../config/database.config.js';
 
 // ✅ CORRECCIÓN: Importamos con llaves { } y en SINGULAR (tal como está en tu servicio)
-import { inscripcionService } from '../inscripciones/inscripcion.service.js'; 
+import { inscripcionService } from '../inscripciones/inscripcion.service.js';
 
 export const iniciarCronJobs = () => {
-  
   console.log('🕰️ Cron Jobs iniciados: El sistema está vigilando...');
 
   // ------------------------------------------------------------------
@@ -29,7 +28,7 @@ export const iniciarCronJobs = () => {
     try {
       await gestionarVencimientos();
     } catch (error) {
-      console.error("❌ [CRON ERROR] Falló el Verdugo de Vencimientos:", error);
+      console.error('❌ [CRON ERROR] Falló el Verdugo de Vencimientos:', error);
     }
   });
 
@@ -41,9 +40,9 @@ export const iniciarCronJobs = () => {
   cron.schedule('30 0 * * *', async () => {
     console.log(`🔮 [CRON] El Profeta buscando renovaciones futuras...`);
     try {
-       await ejecutarProfetaRenovaciones();
+      await ejecutarProfetaRenovaciones();
     } catch (error) {
-       console.error("❌ [CRON ERROR] Falló el Profeta:", error);
+      console.error('❌ [CRON ERROR] Falló el Profeta:', error);
     }
   });
 };
@@ -52,15 +51,17 @@ export const iniciarCronJobs = () => {
 // 🧠 LÓGICA 1: LIMPIEZA DE ZOMBIES
 // =====================================================================
 const limpiarReservasZombies = async () => {
-  const param = await prisma.parametros_sistema.findUnique({ where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' } });
-  const minutosLimite = param ? parseInt(param.valor) : 20;
+  const param = await prisma.parametros_sistema.findUnique({
+    where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' },
+  });
+  const minutosLimite = param ? Number.parseInt(param.valor) : 20;
   const horaCorte = new Date(Date.now() - minutosLimite * 60 * 1000);
 
   const resultado = await prisma.inscripciones.deleteMany({
     where: {
       estado: 'PENDIENTE_PAGO',
-      fecha_inscripcion: { lt: horaCorte }
-    }
+      fecha_inscripcion: { lt: horaCorte },
+    },
   });
 
   if (resultado.count > 0) {
@@ -72,66 +73,71 @@ const limpiarReservasZombies = async () => {
 // 🧠 LÓGICA 2: GESTIÓN DE CICLO DE VIDA (Verdugo)
 // =====================================================================
 const gestionarVencimientos = async () => {
-    const hoy = new Date();
+  const hoy = new Date();
 
-    // A. OBTENER TOLERANCIA
-    const paramTolerancia = await prisma.parametros_sistema.findUnique({ where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' } });
-    const diasGracia = paramTolerancia ? parseInt(paramTolerancia.valor) : 5;
-    
-    // B. FASE 1: CONGELAR (De ACTIVO a VENCIDO) ❄️
-    const limiteCiclo = new Date();
-    limiteCiclo.setDate(hoy.getDate() - 30); 
+  // A. OBTENER TOLERANCIA
+  const paramTolerancia = await prisma.parametros_sistema.findUnique({
+    where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' },
+  });
+  const diasGracia = paramTolerancia ? Number.parseInt(paramTolerancia.valor) : 5;
 
-    const congelados = await prisma.inscripciones.updateMany({
-      where: { 
-        estado: 'ACTIVO', 
-        fecha_inscripcion: { lt: limiteCiclo } 
-      },
-      data: { 
-        estado: 'VENCIDO',
-        actualizado_en: new Date()
-      }
-    });
+  // B. FASE 1: CONGELAR (De ACTIVO a VENCIDO) ❄️
+  const limiteCiclo = new Date();
+  limiteCiclo.setDate(hoy.getDate() - 30);
 
-    if (congelados.count > 0) {
-      console.log(`🧊 [VERDUGO] Se congelaron ${congelados.count} inscripciones (Fin de mes).`);
-    }
+  const congelados = await prisma.inscripciones.updateMany({
+    where: {
+      estado: 'ACTIVO',
+      fecha_inscripcion: { lt: limiteCiclo },
+    },
+    data: {
+      estado: 'VENCIDO',
+      actualizado_en: new Date(),
+    },
+  });
 
-    // C. FASE 2: ELIMINAR (De VENCIDO a FINALIZADO) 🪓
-    const limiteTotal = new Date();
-    limiteTotal.setDate(hoy.getDate() - (30 + diasGracia)); 
+  if (congelados.count > 0) {
+    console.log(`🧊 [VERDUGO] Se congelaron ${congelados.count} inscripciones (Fin de mes).`);
+  }
 
-    const finalizados = await prisma.inscripciones.updateMany({
-      where: { 
-        estado: 'VENCIDO', 
-        fecha_inscripcion: { lt: limiteTotal } 
-      },
-      data: { 
-        estado: 'FINALIZADO',
-        actualizado_en: new Date()
-      }
-    });
+  // C. FASE 2: ELIMINAR (De VENCIDO a FINALIZADO) 🪓
+  const limiteTotal = new Date();
+  limiteTotal.setDate(hoy.getDate() - (30 + diasGracia));
 
-    if (finalizados.count > 0) {
-      console.log(`🗑️ [VERDUGO] Se liberaron ${finalizados.count} cupos tras vencer su tolerancia.`);
-    }
+  const finalizados = await prisma.inscripciones.updateMany({
+    where: {
+      estado: 'VENCIDO',
+      fecha_inscripcion: { lt: limiteTotal },
+    },
+    data: {
+      estado: 'FINALIZADO',
+      actualizado_en: new Date(),
+    },
+  });
+
+  if (finalizados.count > 0) {
+    console.log(`🗑️ [VERDUGO] Se liberaron ${finalizados.count} cupos tras vencer su tolerancia.`);
+  }
 };
 
 // =====================================================================
 // 🧠 LÓGICA 3: PRE-AVISO DE RENOVACIÓN (El Profeta)
 // =====================================================================
 const ejecutarProfetaRenovaciones = async () => {
-    // 1. Obtener días de anticipación
-    const param = await prisma.parametros_sistema.findUnique({ 
-        where: { clave: 'DIAS_ANTICIPACION_RENOVACION' } 
-    });
-    const diasAnticipacion = param ? parseInt(param.valor) : 5;
+  // 1. Obtener días de anticipación
+  const param = await prisma.parametros_sistema.findUnique({
+    where: { clave: 'DIAS_ANTICIPACION_RENOVACION' },
+  });
+  const diasAnticipacion = param ? Number.parseInt(param.valor) : 5;
 
-    // 2. Invocar al Servicio
-    // ✅ CORRECCIÓN: Usamos 'inscripcionService' (SINGULAR)
-    const renovacionesGeneradas = await inscripcionService.generarRenovacionesMasivas(diasAnticipacion);
+  // 2. Invocar al Servicio
+  // ✅ CORRECCIÓN: Usamos 'inscripcionService' (SINGULAR)
+  const renovacionesGeneradas =
+    await inscripcionService.generarRenovacionesMasivas(diasAnticipacion);
 
-    if (renovacionesGeneradas > 0) {
-        console.log(`🔮 [PROFETA] Se generaron ${renovacionesGeneradas} deudas de renovación anticipada.`);
-    }
+  if (renovacionesGeneradas > 0) {
+    console.log(
+      `🔮 [PROFETA] Se generaron ${renovacionesGeneradas} deudas de renovación anticipada.`
+    );
+  }
 };

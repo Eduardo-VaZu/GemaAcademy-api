@@ -16,7 +16,7 @@ export const inscripcionService = {
       // 🛡️ PASO 0: EL MURO DE DEUDA
       const deudasPendientes = await tx.cuentas_por_cobrar.count({
         where: {
-          alumno_id: parseInt(alumno_id),
+          alumno_id: Number.parseInt(alumno_id),
           estado: { in: ['PENDIENTE', 'PARCIAL'] },
         },
       });
