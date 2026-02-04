@@ -256,6 +256,7 @@ export const sedeService = {
     const sedeId = parseInt(id);
 
     return await prisma.$transaction(async (tx) => {
+      // 1. Actualizar datos de Sede y Dirección
       await tx.sedes.update({
         where: { id: sedeId },
         data: {
@@ -289,27 +290,62 @@ export const sedeService = {
       });
 
       if (sedeData.canchas && Array.isArray(sedeData.canchas)) {
-        await tx.canchas.deleteMany({
-          where: { sede_id: sedeId }
-        });
+        // 2. Obtener IDs de las canchas que llegan del frontend (las que queremos conservar)
+        const idsQueSeQuedan = sedeData.canchas
+          .map(c => c.id)
+          .filter(id => id !== undefined)
+          .map(id => parseInt(id));
 
-        if (sedeData.canchas.length > 0) {
-          await tx.canchas.createMany({
-            data: sedeData.canchas.map(cancha => ({
-              nombre: cancha.nombre,
-              descripcion: cancha.descripcion || '',
-              sede_id: sedeId
-            }))
+        // 3. Borrar las que NO están en esa lista
+        // Nota: Esto fallará si la cancha tiene horarios. 
+        // Si quieres borrarla sí o sí, deberías borrar sus horarios primero.
+        try {
+          await tx.canchas.deleteMany({
+            where: {
+              sede_id: sedeId,
+              id: { notIn: idsQueSeQuedan }
+            }
           });
+        } catch (error) {
+          throw new Error("No se pueden eliminar canchas que ya tienen horarios o clases asignadas.");
+        }
+
+        // 4. Crear o Actualizar las que vienen en el arreglo
+        for (const cancha of sedeData.canchas) {
+          if (cancha.id) {
+            // Actualizar existente
+            await tx.canchas.update({
+              where: { id: parseInt(cancha.id) },
+              data: {
+                nombre: cancha.nombre,
+                descripcion: cancha.descripcion || ''
+              }
+            });
+          } else {
+            // Crear nueva (validando nombre duplicado antes)
+            const existeNombre = await tx.canchas.findFirst({
+              where: {
+                sede_id: sedeId,
+                nombre: { equals: cancha.nombre, mode: 'insensitive' }
+              }
+            });
+
+            if (!existeNombre) {
+              await tx.canchas.create({
+                data: {
+                  nombre: cancha.nombre,
+                  descripcion: cancha.descripcion || '',
+                  sede_id: sedeId
+                }
+              });
+            }
+          }
         }
       }
 
       return await tx.sedes.findUnique({
         where: { id: sedeId },
-        include: {
-          direcciones: true,
-          canchas: true
-        }
+        include: { direcciones: true, canchas: { orderBy: { id: 'asc' } } }
       });
     });
   },

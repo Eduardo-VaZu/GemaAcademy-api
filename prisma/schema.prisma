@@ -125,7 +125,7 @@ model horarios_clases {
   capacidad_max         Int?                  @default(20)
   activo                Boolean?              @default(true)
   minutos_reserva_especifico Int?
-  canchas               canchas               @relation(fields: [cancha_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  canchas   canchas  @relation(fields: [cancha_id], references: [id], onDelete: Cascade)
   niveles_entrenamiento niveles_entrenamiento @relation(fields: [nivel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   profesores            profesores            @relation(fields: [profesor_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
   inscripciones         inscripciones[]
