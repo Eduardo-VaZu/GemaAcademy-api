@@ -261,8 +261,7 @@ const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
       await tx.profesores.create({
         data: {
           usuario_id: usuarioId,
-          especializacion: datos.especializacion || null,
-          tarifa_hora: datos.tarifa_hora ? parseFloat(datos.tarifa_hora) : null,
+          especializacion: datos.especializacion || null
         },
       });
     },
