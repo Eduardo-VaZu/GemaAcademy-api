@@ -68,20 +68,16 @@ export const usuarioController = {
   }),
 
   getUsersByRol: catchAsync(async (req, res) => {
-    const rolParam = req.params.rol;
+    const { rol } = req.params;
 
-    if (!rolParam) {
-      throw new ApiError('Parámetro "rol" es requerido', 400);
+    if (!rol) {
+      throw new ApiError('Es necesario especificar un rol o ID', 400);
     }
 
-    if (!usuarioService.isValidRole(rolParam)) {
-      throw new ApiError('Rol inválido', 400);
-    }
-
-    const usuarios = await usuarioService.getUsersByRol(rolParam);
+    const usuarios = await usuarioService.getUsersByRol(rol);
 
     return apiResponse.success(res, {
-      message: 'Usuarios obtenidos exitosamente',
+      message: `Usuarios con rol ${rol} obtenidos exitosamente`,
       data: usuarios,
     });
   }),

@@ -174,23 +174,35 @@ export const usuarioService = {
   },
 
   getUsersByRol: async (rolOrId) => {
-    let rolId;
-    if (typeof rolOrId === 'string') {
-      const rolNombreNormalizado = rolOrId.charAt(0).toUpperCase() + rolOrId.slice(1).toLowerCase();
+    const isNumber = !isNaN(rolOrId);
 
-      rolId = await prisma.roles.findUnique({
-        where: {
-          nombre: rolNombreNormalizado,
+    const usuarios = await prisma.usuarios.findMany({
+      where: {
+        activo: true,
+        roles: isNumber
+          ? { id: parseInt(rolOrId) }
+          : { nombre: { equals: rolOrId, mode: 'insensitive' } }
+      },
+      include: {
+        roles: true,
+        // Solo trae los datos del rol, no vuelvas a incluir 'usuarios' dentro de ellos
+        alumnos: {
+          select: {
+            condiciones_medicas: true,
+            seguro_medico: true,
+            grupo_sanguineo: true
+          }
         },
-      });
-    } else {
-      rolId = rolOrId;
-    }
-    return await prisma.usuarios.findMany({
-      where: { rol_id: rolId, activo: true },
-      include: { roles: true },
+        profesores: {
+          select: {
+            especializacion: true
+          }
+        }
+      },
       orderBy: { nombres: 'asc' },
     });
+
+    return usuarios;
   },
 
   async getDashboardStats() {

@@ -22,7 +22,7 @@ router.get(
   usuarioController.getUserProfile
 );
 
-router.get('/role/:rol', authenticate, authorize('administrador'), usuarioController.getUsersByRol);
+router.get('/role/:rol', usuarioController.getUsersByRol);
 
 router.get('/count/usuarios-stats', usuarioController.getUsuariosStats);
 
