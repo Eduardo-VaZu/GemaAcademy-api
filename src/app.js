@@ -16,8 +16,9 @@ import rolesRoutes from './features/roles/roles.routes.js';
 import inscripcionRoutes from './features/inscripciones/inscripcion.routes.js';
 import pagosRoutes from './features/pagos/pagos.routes.js';
 import sedeRoutes from './features/sedes/sede.routers.js';
-import recuperacionRoutes from './features/recuperaciones/recuperacion.routes.js'
-import canchasRoutes from './features/canchas/cancha.router.js'
+import recuperacionRoutes from './features/recuperaciones/recuperacion.routes.js';
+import canchasRoutes from './features/canchas/cancha.router.js';
+import nivelesRoutes from './features/niveles/niveles.routes.js';
 
 const app = express();
 const morganFormat = ':method :url :status :response-time ms';
@@ -62,7 +63,7 @@ app.use('/api/pagos', pagosRoutes);
 app.use('/api/sedes', sedeRoutes);
 app.use('/api/recuperaciones', recuperacionRoutes);
 app.use('/api/canchas', canchasRoutes);
-
+app.use('/api/niveles', nivelesRoutes);
 
 app.use(errorHandler);
 
