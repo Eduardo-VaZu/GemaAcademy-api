@@ -7,5 +7,10 @@ const router = Router();
 
 router.get('/', horarioController.getHorarios);
 router.post('/', validate(schemas.horarioSchema.createHorarioSchema), horarioController.createHorario);
+router.put(
+  '/:id',
+  validate(schemas.horarioSchema.createHorarioSchema),
+  horarioController.updateHorario
+);
 
 export default router;
