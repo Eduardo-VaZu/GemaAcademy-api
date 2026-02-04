@@ -154,9 +154,7 @@ export const horarioService = {
     });
   },
 
-  updateHorario: async () => {
-    
-  },
+  updateHorario: async () => {},
 
   deleteHorario: async (id) => {
     const horarioExistente = await prisma.horarios_clases.findUnique({

@@ -18,7 +18,7 @@ const validarElegibilidad = catchAsync(async (req, res) => {
     );
 
     //elegible en true para poder permitir al front mostrar algun button que permita le recuperacion de una falta.
-    return apiResponse(res, { elegible: true }, 'El alumno cumple los requisitos para recuperar.');
+    return apiResponse.success(res, { data: { elegible: true }, message: 'El alumno cumple los requisitos para recuperar.' });
 });
 
 const agendarRecuperacion = catchAsync(async (req, res) => {
@@ -36,7 +36,7 @@ const agendarRecuperacion = catchAsync(async (req, res) => {
         fechaProgramada
     });
 
-    return apiResponse(res, recuperacionActualizada, 'Recuperación agendada con éxito.', 201);
+    return apiResponse.created(res, { data: recuperacionActualizada, message: 'Recuperación agendada con éxito.' });
 });
 
 export const recuperacionController = {
