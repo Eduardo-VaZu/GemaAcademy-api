@@ -253,40 +253,64 @@ export const sedeService = {
   },
 
   updateSede: async (id, sedeData) => {
-    return await prisma.sedes.update({
-      where: { id: parseInt(id) },
-      data: {
-        ...(sedeData.nombre && { nombre: sedeData.nombre }),
-        ...(sedeData.telefono_contacto !== undefined && {
-          telefono_contacto: sedeData.telefono_contacto,
-        }),
-        ...(sedeData.tipo_instalacion !== undefined && {
-          tipo_instalacion: sedeData.tipo_instalacion,
-        }),
-        ...(sedeData.activo !== undefined && { activo: sedeData.activo }),
-        ...(sedeData.direccion && {
-          direcciones: {
-            update: {
-              ...(sedeData.direccion.direccion_completa && {
-                direccion_completa: sedeData.direccion.direccion_completa,
-              }),
-              ...(sedeData.direccion.distrito && {
-                distrito: sedeData.direccion.distrito,
-              }),
-              ...(sedeData.direccion.ciudad && {
-                ciudad: sedeData.direccion.ciudad,
-              }),
-              ...(sedeData.direccion.referencia && {
-                referencia: sedeData.direccion.referencia,
-              }),
-              // Ensure we don't accidentally wipe unmatched fields if partial update is intended
+    const sedeId = parseInt(id);
+
+    return await prisma.$transaction(async (tx) => {
+      await tx.sedes.update({
+        where: { id: sedeId },
+        data: {
+          ...(sedeData.nombre && { nombre: sedeData.nombre }),
+          ...(sedeData.telefono_contacto !== undefined && {
+            telefono_contacto: sedeData.telefono_contacto,
+          }),
+          ...(sedeData.tipo_instalacion !== undefined && {
+            tipo_instalacion: sedeData.tipo_instalacion,
+          }),
+          ...(sedeData.activo !== undefined && { activo: sedeData.activo }),
+          ...(sedeData.direccion && {
+            direcciones: {
+              update: {
+                ...(sedeData.direccion.direccion_completa && {
+                  direccion_completa: sedeData.direccion.direccion_completa,
+                }),
+                ...(sedeData.direccion.distrito && {
+                  distrito: sedeData.direccion.distrito,
+                }),
+                ...(sedeData.direccion.ciudad && {
+                  ciudad: sedeData.direccion.ciudad,
+                }),
+                ...(sedeData.direccion.referencia !== undefined && {
+                  referencia: sedeData.direccion.referencia,
+                }),
+              },
             },
-          },
-        }),
-      },
-      include: {
-        direcciones: true,
-      },
+          }),
+        }
+      });
+
+      if (sedeData.canchas && Array.isArray(sedeData.canchas)) {
+        await tx.canchas.deleteMany({
+          where: { sede_id: sedeId }
+        });
+
+        if (sedeData.canchas.length > 0) {
+          await tx.canchas.createMany({
+            data: sedeData.canchas.map(cancha => ({
+              nombre: cancha.nombre,
+              descripcion: cancha.descripcion || '',
+              sede_id: sedeId
+            }))
+          });
+        }
+      }
+
+      return await tx.sedes.findUnique({
+        where: { id: sedeId },
+        include: {
+          direcciones: true,
+          canchas: true
+        }
+      });
     });
   },
 

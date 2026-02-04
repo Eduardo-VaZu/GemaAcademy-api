@@ -15,7 +15,6 @@ const direccionSchema = z.object({
   referencia: z.string().trim().max(255).nullable().optional(),
 });
 
-// Esquema para las canchas (reutilizable)
 const canchaSchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre de la cancha es requerido'),
   descripcion: z.string().trim().max(200).nullable().optional(),
@@ -53,7 +52,7 @@ export const sedeSchema = {
     canchas: z.array(canchaSchema).optional().default([]),
   }),
 
-  // ACTUALIZADO: Ahora permite actualizar dirección y canchas
+  // ACTUALIZADO: Optimizado para el Service
   updateSedeSchema: z
     .object({
       nombre: z.string().trim().min(3).max(100).optional(),
@@ -65,7 +64,8 @@ export const sedeSchema = {
       tipo_instalacion: z.string().trim().max(50).nullable().optional(),
       activo: z.boolean().optional(),
       administrador_id: z.number().positive().optional(),
-      direccion: direccionSchema.partial().optional(), // .partial() permite actualizar campos sueltos de la dirección
+      // Usamos .deepPartial() o simplemente dejamos que los campos internos sean opcionales
+      direccion: direccionSchema.partial().optional(),
       canchas: z.array(canchaSchema).optional(),
     })
     .refine(
@@ -83,9 +83,11 @@ export const sedeSchema = {
 
   sedeQuerySchema: z.object({
     activo: z
-      .string()
-      .transform((val) => val === 'true')
-      .optional(),
+      .preprocess((val) => {
+        if (val === 'true') return true;
+        if (val === 'false') return false;
+        return val;
+      }, z.boolean().optional()),
     distrito: z.string().trim().optional(),
     tipo_instalacion: z.string().trim().optional(),
     page: z

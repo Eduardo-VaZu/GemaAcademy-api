@@ -133,4 +133,19 @@ export const sedeController = {
 
     return apiResponse.noContent(res);
   }),
+
+  deleteSede: catchAsync(async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    if (isNaN(id)) {
+      throw new ApiError('ID de sede inválido', 400);
+    }
+
+    const result = await sedeService.deleteSede(id);
+
+    return apiResponse.success(res, {
+      message: result.message,
+      data: null
+    });
+  }),
 };

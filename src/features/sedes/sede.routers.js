@@ -56,4 +56,12 @@ router.patch(
   sedeController.updateActiveSede
 );
 
+router.delete(
+  '/:id',
+  authenticate,
+  authorize('Administrador'),
+  validateParams(schemas.sedeSchema.sedeIdParamSchema),
+  sedeController.deleteSede
+);
+
 export default router;
