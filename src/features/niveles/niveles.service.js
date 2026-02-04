@@ -3,8 +3,13 @@ import { ApiError } from '../../shared/utils/error.util.js';
 
 export const nivelService = {
   createNivel: async (data) => {
-    const nivelExistente = await prisma.niveles_entrenamiento.findUnique({
-      where: { nombre: data.nombre },
+    const nivelExistente = await prisma.niveles_entrenamiento.findFirst({
+      where: {
+        nombre: {
+          equals: data.nombre,
+          mode: 'insensitive',
+        },
+      },
     });
 
     if (nivelExistente) {
