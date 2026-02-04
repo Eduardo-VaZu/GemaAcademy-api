@@ -10,6 +10,7 @@ const router = Router();
 // Rutas públicas - Listar roles (para que usuarios puedan ver opciones al registrarse)
 router.get('/', rolesController.getAllRoles);
 router.get('/:id', rolesController.getRoleById);
+router.get('/nombre/:nombre', rolesController.getRoleByNombre);
 
 // Rutas protegidas - Solo administradores pueden crear/modificar/eliminar roles
 router.post('/', authenticate, authorize('Administrador'), rolesController.createRole);

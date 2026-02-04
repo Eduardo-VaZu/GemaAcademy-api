@@ -22,6 +22,6 @@ router.get(
   usuarioController.getUserProfile
 );
 
-router.get('/count/alumnos', usuarioController.getContadorAlumnos);
+router.get('/count/usuarios-stats', usuarioController.getUsuariosStats);
 
 export default router;

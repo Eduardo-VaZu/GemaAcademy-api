@@ -173,13 +173,34 @@ export const usuarioService = {
     return descriptions[rol.toLowerCase()] || 'Rol desconocido';
   },
 
-  async countAlumnos() {
-    return await prisma.usuarios.count({
+  async getDashboardStats() {
+    // 1. Agrupamos usuarios por su rol y contamos
+    const counts = await prisma.usuarios.groupBy({
+      by: ['rol_id'],
       where: {
-        rol_id: 1, 
         activo: true
+      },
+      _count: {
+        id: true
       }
     });
+
+    // 2. Traemos los nombres de los roles para mapear los IDs
+    const roles = await prisma.roles.findMany({
+      select: {
+        id: true,
+        nombre: true
+      }
+    });
+
+    // 3. Formateamos el resultado en un objeto amigable
+    const stats = roles.reduce((acc, rol) => {
+      const group = counts.find(c => c.rol_id === rol.id);
+      acc[rol.nombre.toLowerCase()] = group ? group._count.id : 0;
+      return acc;
+    }, {});
+
+    return stats;
   }
 };
 
