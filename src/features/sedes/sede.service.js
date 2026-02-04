@@ -291,33 +291,10 @@ export const sedeService = {
         },
       });
 
+      // 2. Procesar Canchas (Solo Crear o Actualizar, NO BORRAR)
       if (sedeData.canchas && Array.isArray(sedeData.canchas)) {
-        // 2. Obtener IDs de las canchas que llegan del frontend (las que queremos conservar)
-        const idsQueSeQuedan = sedeData.canchas
-          .map((c) => c.id)
-          .filter((id) => id !== undefined)
-          .map((id) => parseInt(id));
-
-        // 3. Borrar las que NO están en esa lista
-        // Nota: Esto fallará si la cancha tiene horarios.
-        // Si quieres borrarla sí o sí, deberías borrar sus horarios primero.
-        try {
-          await tx.canchas.deleteMany({
-            where: {
-              sede_id: sedeId,
-              id: { notIn: idsQueSeQuedan },
-            },
-          });
-        } catch (error) {
-          throw new Error(
-            'No se pueden eliminar canchas que ya tienen horarios o clases asignadas.'
-          );
-        }
-
-        // 4. Crear o Actualizar las que vienen en el arreglo
         for (const cancha of sedeData.canchas) {
           if (cancha.id) {
-            // Actualizar existente
             await tx.canchas.update({
               where: { id: parseInt(cancha.id) },
               data: {
@@ -326,7 +303,6 @@ export const sedeService = {
               },
             });
           } else {
-            // Crear nueva (validando nombre duplicado antes)
             const existeNombre = await tx.canchas.findFirst({
               where: {
                 sede_id: sedeId,
@@ -347,9 +323,13 @@ export const sedeService = {
         }
       }
 
+      // 3. Retornar la sede con su info actualizada y todas sus canchas
       return await tx.sedes.findUnique({
         where: { id: sedeId },
-        include: { direcciones: true, canchas: { orderBy: { id: 'asc' } } },
+        include: {
+          direcciones: true,
+          canchas: { orderBy: { id: 'asc' } }
+        },
       });
     });
   },
