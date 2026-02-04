@@ -89,8 +89,9 @@ export const usuarioController = {
   getUsuariosStats: catchAsync(async (req, res) => {
     const stats = await usuarioService.getDashboardStats();
 
-   return apiResponse.success(res, {
-      data: total,
+    return apiResponse.success(res, {
+      message: 'Estadísticas de usuarios obtenidas exitosamente',
+      data: stats,
     });
   }),
 };
