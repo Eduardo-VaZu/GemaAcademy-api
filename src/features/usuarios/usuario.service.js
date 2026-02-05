@@ -154,6 +154,7 @@ export const usuarioService = {
     return await prisma.usuarios.findUnique({
       where: { email },
       include: {
+        alumnos: true,
         roles: true,
         credenciales_usuario: true,
       },
