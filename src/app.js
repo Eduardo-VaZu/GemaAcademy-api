@@ -71,7 +71,6 @@ app.use('/api/tipos-beneficio', tiposBeneficioRoutes);
 app.use('/api/descuentos', descuentosRoutes);
 app.use('/api/asistencias', asistenciaRoutes);
 
-
 app.use(errorHandler);
 
 export default app;
