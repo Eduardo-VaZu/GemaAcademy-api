@@ -49,8 +49,8 @@ const canchaController = {
   }),
 
   delete: catchAsync(async (req, res) => {
-    const id = parseInt(req.params.id);
-    if (isNaN(id)) {
+    const id = Number.parseInt(req.params.id);
+    if (Number.isNaN(id)) {
       throw new ApiError('ID de cancha inválido', 400);
     }
     await canchaService.delete(id);
