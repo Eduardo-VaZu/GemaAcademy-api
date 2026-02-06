@@ -12,10 +12,17 @@ export const usuarioService = {
       tipo_documento_id,
       numero_documento,
       rol_id,
+      fecha_nacimiento,
       rolNombre: providedRolNombre,
       datosRolEspecifico = {},
       ...otrosdatos
     } = userData;
+
+    const fechaConvertida = fecha_nacimiento ? new Date(fecha_nacimiento) : null;
+
+    if (fechaConvertida && isNaN(fechaConvertida.getTime())) {
+      throw new ApiError('Formato de fecha de nacimiento inválido', 400);
+    }
 
     const rolNombre = providedRolNombre || rol_id || VALID_ROLES.ALUMNO;
 
@@ -154,6 +161,7 @@ export const usuarioService = {
     return await prisma.usuarios.findUnique({
       where: { email },
       include: {
+        alumnos: true,
         roles: true,
         credenciales_usuario: true,
       },
@@ -236,21 +244,24 @@ export const usuarioService = {
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
   const roleHandlers = {
     [VALID_ROLES.ALUMNO]: async () => {
-      if (!datos.direccion) {
-        throw new ApiError('La dirección es obligatoria para alumnos', 400);
+      let direccionId = null;
+
+      if (datos.direccion && datos.direccion.direccion_completa) {
+        const nuevaDireccion = await tx.direcciones.create({
+          data: {
+            direccion_completa: datos.direccion.direccion_completa,
+            distrito: datos.direccion.distrito,
+            ciudad: datos.direccion.ciudad || 'Lima',
+            referencia: datos.direccion.referencia || null,
+          },
+        });
+        direccionId = nuevaDireccion.id;
       }
-      const nuevaDireccion = await tx.direcciones.create({
-        data: {
-          direccion_completa: datos.direccion.direccion_completa,
-          distrito: datos.direccion.distrito,
-          ciudad: datos.direccion.ciudad || 'Lima',
-          referencia: datos.direccion.referencia || null,
-        },
-      });
+
       await tx.alumnos.create({
         data: {
           usuario_id: usuarioId,
-          direccion_id: nuevaDireccion.id,
+          direccion_id: direccionId,
           condiciones_medicas: datos.condiciones_medicas || null,
           seguro_medico: datos.seguro_medico || null,
           grupo_sanguineo: datos.grupo_sanguineo || null,

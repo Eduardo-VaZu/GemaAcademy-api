@@ -21,7 +21,6 @@ import canchasRoutes from './features/canchas/cancha.router.js';
 import nivelesRoutes from './features/niveles/niveles.routes.js';
 import tiposBeneficioRoutes from './features/tipos_beneficio/tipos_beneficio.routes.js';
 import descuentosRoutes from './features/descuentos_aplicados/descuentos_aplicados.routes.js';
-import claseRoutes from './features/clases/clase.routes.js';
 
 const app = express();
 const morganFormat = ':method :url :status :response-time ms';
@@ -69,7 +68,6 @@ app.use('/api/canchas', canchasRoutes);
 app.use('/api/niveles', nivelesRoutes);
 app.use('/api/tipos-beneficio', tiposBeneficioRoutes);
 app.use('/api/descuentos', descuentosRoutes);
-app.use('/api/clases', claseRoutes);
 
 app.use(errorHandler);
 

@@ -17,6 +17,7 @@ export const authService = {
       include: {
         credenciales_usuario: true,
         roles: true,
+        alumnos: true,
       },
     });
 
@@ -81,6 +82,7 @@ export const authService = {
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,
         rol: usuario.roles.nombre,
+        alumnos: usuario.alumnos,
       },
     };
   },
@@ -200,6 +202,7 @@ export const authService = {
         nombres: tokenRecord.usuarios.nombres,
         apellidos: tokenRecord.usuarios.apellidos,
         rol: tokenRecord.usuarios.roles.nombre,
+        alumnos: tokenRecord.usuarios.alumnos,
       },
     };
   },
