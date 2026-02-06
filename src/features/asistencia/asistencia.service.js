@@ -122,5 +122,40 @@ export const asistenciaService = {
       where: { inscripcion_id: parseInt(inscripcionId) },
       orderBy: { fecha: 'asc' }
     });
+  },
+  obtenerPorAlumno: async (alumnoId) => {
+    return await prisma.registros_asistencia.findMany({
+      where: {
+        inscripciones: {
+          alumno_id: parseInt(alumnoId)
+        }
+      },
+      include: {
+        inscripciones: {
+          include: {
+            horarios_clases: {
+              include: { canchas: { include: { sedes: true } } }
+            }
+          }
+        }
+      },
+      orderBy: { fecha: 'desc' }
+    });
+  },
+
+  /**
+   * 🆕 Obtener todas las asistencias (Vista Admin)
+   */
+  obtenerTodas: async () => {
+    return await prisma.registros_asistencia.findMany({
+      include: {
+        inscripciones: {
+          include: {
+            alumnos: { include: { usuarios: true } }
+          }
+        }
+      },
+      orderBy: { fecha: 'desc' }
+    });
   }
 };

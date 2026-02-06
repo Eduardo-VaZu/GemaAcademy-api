@@ -67,5 +67,54 @@ export const inscripcionController = {
         detail: error.message
       });
     }
+  },
+
+  // CORREGIDO: Nombre del servicio corregido a inscripcionService
+  listarPorAlumno: async (req, res) => {
+    try {
+      const { alumnoId } = req.params;
+      const data = await inscripcionService.obtenerPorAlumno(alumnoId); //
+      
+      res.status(200).json({
+        status: 'success',
+        data
+      });
+    } catch (error) {
+      res.status(400).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  },
+
+  // 🆕 NUEVO: Obtener detalle de una inscripción específica
+  obtenerDetalle: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const inscripcion = await inscripcionService.getInscripcionById(id);
+      if (!inscripcion) {
+        return res.status(404).json({ status: 'error', message: 'Inscripción no encontrada' });
+      }
+      res.json({ status: 'success', data: inscripcion });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  },
+
+  // 🆕 NUEVO: Cancelar o eliminar inscripción
+  eliminar: async (req, res) => {
+    try {
+      const { id } = req.params;
+      await inscripcionService.eliminarInscripcion(id);
+      res.json({
+        status: 'success',
+        message: 'Inscripción eliminada o cancelada correctamente'
+      });
+    } catch (error) {
+      res.status(400).json({
+        status: 'error',
+        message: error.message
+      });
+    }
   }
 };

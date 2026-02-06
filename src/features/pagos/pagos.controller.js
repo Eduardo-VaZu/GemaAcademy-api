@@ -58,5 +58,34 @@ export const pagosController = {
         message: error.message
       });
     }
+  }, 
+  // 3. LISTAR PAGOS
+  listarPagos: async (req, res) => {
+    try {
+      const pagos = await pagosService.obtenerTodos();
+      res.status(200).json({ status: 'success', data: pagos });
+    } catch (error) {
+      res.status(500).json({ status: 'error', message: error.message });
+    }
+  },
+
+  // 4. OBTENER UN PAGO
+  obtenerPago: async (req, res) => {
+    try {
+      const pago = await pagosService.obtenerPorId(req.params.id);
+      res.status(200).json({ status: 'success', data: pago });
+    } catch (error) {
+      res.status(404).json({ status: 'error', message: error.message });
+    }
+  },
+
+  // 5. ELIMINAR PAGO
+  eliminarPago: async (req, res) => {
+    try {
+      await pagosService.eliminarPago(req.params.id);
+      res.status(200).json({ status: 'success', message: 'Registro de pago eliminado.' });
+    } catch (error) {
+      res.status(400).json({ status: 'error', message: error.message });
+    }
   }
 };

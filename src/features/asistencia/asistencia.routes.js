@@ -5,13 +5,26 @@ import { authorize } from '../../shared/middlewares/authorize.middleware.js';
 
 const router = Router();
 
-router.use(authenticate);
+// ======================================================
+// 🔓 RUTAS PÚBLICAS (Sin Token por ahora)
+// ======================================================
+
+// Buscar asistencias por ID de alumno
+router.get('/alumno/:alumnoId', asistenciaController.listarPorAlumno);
+
+// Listado general de asistencias
+router.get('/', asistenciaController.listarTodas);
+
+
+// ======================================================
+// 🔒 RUTAS PROTEGIDAS (Necesitan Token)
+// ======================================================
+router.use(authenticate); 
 
 // Endpoint: PATCH /api/asistencias/:id
-// Body: { "estado": "FALTA", "comentario": "No vino" }
+// Solo profesores y admins pueden marcar asistencia
 router.patch(
     '/:id',
-    // Solo profesores y admins pueden tomar lista
     authorize(['profesor', 'administrador']),
     asistenciaController.marcarAsistencia
 );

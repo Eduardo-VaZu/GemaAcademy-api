@@ -327,6 +327,58 @@ export const inscripcionService = {
       orderBy: { fecha_inscripcion: 'desc' },
     });
   },
+  obtenerPorAlumno: async (alumnoId) => {
+    return await prisma.inscripciones.findMany({
+      where: {
+        alumno_id: Number.parseInt(alumnoId),
+        estado: 'ACTIVO' // Solo traemos las clases vigentes
+      },
+      include: {
+        horarios_clases: {
+          include: {
+            canchas: true,
+            niveles_entrenamiento: true,
+            profesores: { include: { usuarios: true } }
+          }
+        }
+      }
+    });
+  },
+  getInscripcionById: async (id) => {
+    return await prisma.inscripciones.findUnique({
+      where: { id: Number.parseInt(id) },
+      include: {
+        alumnos: {
+          include: { usuarios: { select: { nombres: true, apellidos: true, email: true } } },
+        },
+        horarios_clases: { 
+          include: { 
+            canchas: true, 
+            niveles_entrenamiento: true,
+            profesores: { include: { usuarios: true } }
+          } 
+        },
+      }
+    });
+  },
+
+  // =================================================================
+  // 🗑️ ELIMINAR / CANCELAR INSCRIPCIÓN
+  // =================================================================
+  eliminarInscripcion: async (id) => {
+    // Primero verificamos si existe
+    const existe = await prisma.inscripciones.findUnique({
+      where: { id: Number.parseInt(id) }
+    });
+
+    if (!existe) throw new Error('La inscripción no existe.');
+
+    // En lugar de borrar físicamente, podrías cambiar el estado a 'CANCELADO'
+    // Pero si el requerimiento es borrar de la BD:
+    return await prisma.inscripciones.delete({
+      where: { id: Number.parseInt(id) }
+    });
+  }
 };
 
 // --- HELPER (Calendario) ---

@@ -22,6 +22,7 @@ import nivelesRoutes from './features/niveles/niveles.routes.js';
 import tiposBeneficioRoutes from './features/tipos_beneficio/tipos_beneficio.routes.js';
 import descuentosRoutes from './features/descuentos_aplicados/descuentos_aplicados.routes.js';
 import asistenciaRoutes from './features/asistencia/asistencia.routes.js'
+import cuentaPorCobrarRoutes from './features/cuenta_por_cobrar/cuentas_por_cobrar.routes.js';
 
 const app = express();
 const morganFormat = ':method :url :status :response-time ms';
@@ -70,6 +71,7 @@ app.use('/api/niveles', nivelesRoutes);
 app.use('/api/tipos-beneficio', tiposBeneficioRoutes);
 app.use('/api/descuentos', descuentosRoutes);
 app.use('/api/asistencias', asistenciaRoutes);
+app.use('/api/cuentaPorCobrar', cuentaPorCobrarRoutes);
 
 app.use(errorHandler);
 

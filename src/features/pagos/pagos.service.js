@@ -264,4 +264,36 @@ export const pagosService = {
       };
     });
   },
+  obtenerTodos: async () => {
+    return await prisma.pagos.findMany({
+      include: {
+        cuentas_por_cobrar: {
+          include: { alumnos: { include: { usuarios: true } } }
+        },
+        metodos_pago: true,
+        administrador: { include: { usuarios: true } }
+      },
+      orderBy: { fecha_pago: 'desc' }
+    });
+  },
+
+  // 4. OBTENER PAGO POR ID
+  obtenerPorId: async (id) => {
+    const pago = await prisma.pagos.findUnique({
+      where: { id: Number.parseInt(id) },
+      include: {
+        cuentas_por_cobrar: true,
+        metodos_pago: true
+      }
+    });
+    if (!pago) throw new Error('El pago no existe.');
+    return pago;
+  },
+
+  // 5. ELIMINAR REGISTRO DE PAGO (Uso delicado)
+  eliminarPago: async (id) => {
+    return await prisma.pagos.delete({
+      where: { id: Number.parseInt(id) }
+    });
+  }
 };

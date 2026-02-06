@@ -3,30 +3,26 @@ import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
+// 1. Marcar o actualizar una asistencia específica
 const marcarAsistencia = catchAsync(async (req, res) => {
-    // 1. Obtener datos de la petición
     const { id } = req.params;
     const { estado, comentario } = req.body;
 
-    // 2. Validación básica
     if (!id) {
         throw new ApiError('El ID de la asistencia es requerido.', 400);
     }
 
-    // Validamos que el estado sea uno de los permitidos)
     const estadosValidos = ['PRESENTE', 'FALTA', 'PROGRAMADA'];
     if (estado && !estadosValidos.includes(estado)) {
         throw new ApiError(`Estado inválido. Valores permitidos: ${estadosValidos.join(', ')}`, 400);
     }
 
-    // 3. Llamar al servicio
     const asistenciaActualizada = await asistenciaService.marcarAsistencia(
         id,
         estado,
         comentario
     );
 
-    // 4. Responder
     return apiResponse(
         res,
         asistenciaActualizada,
@@ -35,6 +31,36 @@ const marcarAsistencia = catchAsync(async (req, res) => {
     );
 });
 
+// ======================================================
+// 🆕 TUS FUNCIONES CORREGIDAS (Usando apiResponse.success)
+// ======================================================
+
+const listarPorAlumno = catchAsync(async (req, res) => {
+    const { alumnoId } = req.params;
+    
+    if (!alumnoId) throw new ApiError('El ID del alumno es requerido.', 400);
+
+    const asistencias = await asistenciaService.obtenerPorAlumno(alumnoId);
+
+    // ✅ Llamada correcta a tu clase estática
+    return apiResponse.success(res, { 
+        data: asistencias, 
+        message: 'Asistencias del alumno recuperadas.' 
+    });
+});
+
+const listarTodas = catchAsync(async (req, res) => {
+    const asistencias = await asistenciaService.obtenerTodas();
+
+    // ✅ Llamada correcta a tu clase estática
+    return apiResponse.success(res, { 
+        data: asistencias, 
+        message: 'Listado general de asistencias.' 
+    });
+});
+
 export const asistenciaController = {
-    marcarAsistencia
+    marcarAsistencia,
+    listarPorAlumno,
+    listarTodas
 };
