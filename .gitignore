@@ -10,3 +10,4 @@ logs
 /src/generated/prisma
 
 .agent
+.trae
