@@ -12,10 +12,17 @@ export const usuarioService = {
       tipo_documento_id,
       numero_documento,
       rol_id,
+      fecha_nacimiento,
       rolNombre: providedRolNombre,
       datosRolEspecifico = {},
       ...otrosdatos
     } = userData;
+
+    const fechaConvertida = fecha_nacimiento ? new Date(fecha_nacimiento) : null;
+
+    if (fechaConvertida && isNaN(fechaConvertida.getTime())) {
+      throw new ApiError('Formato de fecha de nacimiento inválido', 400);
+    }
 
     const rolNombre = providedRolNombre || rol_id || VALID_ROLES.ALUMNO;
 
@@ -254,7 +261,7 @@ const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
       await tx.alumnos.create({
         data: {
           usuario_id: usuarioId,
-          direccion_id: direccionId, // Puede ser null ahora
+          direccion_id: direccionId,
           condiciones_medicas: datos.condiciones_medicas || null,
           seguro_medico: datos.seguro_medico || null,
           grupo_sanguineo: datos.grupo_sanguineo || null,
