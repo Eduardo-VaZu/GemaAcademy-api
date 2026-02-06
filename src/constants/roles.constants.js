@@ -14,13 +14,13 @@ export const ROLES_DESCRIPTIONS = {
 
 export const ROLE_SPECIFIC_REQUIREMENTS = {
   [VALID_ROLES.ALUMNO]: ['condiciones_medicas', 'seguro_medico', 'grupo_sanguineo', 'direccion'],
-  [VALID_ROLES.PROFESOR]: ['especializacion', 'tarifa_hora'],
+  [VALID_ROLES.PROFESOR]: ['especializacion'],
   [VALID_ROLES.ADMINISTRADOR]: ['cargo', 'sede_id', 'area'],
 };
 
 export const ROLE_REQUIRED_FIELDS = {
-  [VALID_ROLES.ALUMNO]: ['direccion'],
-  [VALID_ROLES.PROFESOR]: [],
+  [VALID_ROLES.ALUMNO]: [],
+  [VALID_ROLES.PROFESOR]: ['especializacion'],
   [VALID_ROLES.ADMINISTRADOR]: ['cargo'],
 };
 
