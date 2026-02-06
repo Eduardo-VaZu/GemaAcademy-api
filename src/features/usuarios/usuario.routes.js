@@ -7,11 +7,7 @@ import { schemas } from '../../validation/index.js';
 
 const router = Router();
 
-router.post(
-  '/register',
-  validate(schemas.usuarioSchema.registerUserSchema),
-  usuarioController.register
-);
+router.post('/register', usuarioController.register);
 
 router.post('/validate-role', usuarioController.validateRole);
 
