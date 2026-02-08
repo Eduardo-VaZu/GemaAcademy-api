@@ -270,7 +270,7 @@ model usuarios {
   numero_documento     String?               @db.VarChar(20)
   nombres              String                @db.VarChar(100)
   apellidos            String                @db.VarChar(100)
-  email                String                @unique @db.VarChar(150)
+  email                String?                @unique @db.VarChar(150)
   telefono_personal    String?               @db.VarChar(20)
   fecha_nacimiento     DateTime?             @db.Date
   genero               String?               @db.Char(1)

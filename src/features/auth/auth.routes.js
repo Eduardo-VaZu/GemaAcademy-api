@@ -18,4 +18,11 @@ router.get('/profile', authenticate, authController.getProfile);
 // Rutas protegidas (requieren autenticación) -> cerrar todas las sesiones del usuario activas
 router.post('/logout-all', authenticate, authController.revokeAllSessions);
 
+router.post(
+    '/completar-email',
+    authenticate,
+    validate(schemas.authSchema.completarEmailSchema),
+    authController.completarEmail
+);
+
 export default router;
