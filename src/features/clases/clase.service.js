@@ -57,8 +57,9 @@ export const claseService = {
 
     // Validamos que la fecha coincida con el día de la semana del horario
     // getDay(): 0=Domingo, 1=Lunes... BD: 1=Lunes... 7=Domingo
-    const diaOrigen = fechaOrigenDate.getDay() === 0 ? 7 : fechaOrigenDate.getDay();
-    const diaDestino = fechaDestinoDate.getDay() === 0 ? 7 : fechaDestinoDate.getDay();
+    // Convertimos la fecha UTC a día de la semana para comparar con BD
+    const diaOrigen = fechaOrigenDate.getUTCDay() === 0 ? 7 : fechaOrigenDate.getUTCDay();
+    const diaDestino = fechaDestinoDate.getUTCDay() === 0 ? 7 : fechaDestinoDate.getUTCDay();
 
     if (diaOrigen !== horarioOrigen.dia_semana) {
       throw new ApiError(
@@ -217,5 +218,54 @@ export const claseService = {
     });
 
     return resultado;
+  },
+
+  /**
+   * Obtiene el detalle de una clase específica (horario)
+   * Incluye fecha, hora, día, profesor, nivel, cancha y alumnos inscritos.
+   */
+  obtenerDetalleClase: async (horario_id) => {
+    const horario = await prisma.horarios_clases.findUnique({
+      where: { id: Number(horario_id) },
+      include: {
+        canchas: {
+          select: { nombre: true, sedes: { select: { nombre: true } } },
+        },
+        profesores: {
+          include: { usuarios: { select: { nombres: true, apellidos: true } } },
+        },
+        niveles_entrenamiento: { select: { nombre: true } },
+        inscripciones: {
+          where: { estado: 'ACTIVO' },
+          include: {
+            alumnos: {
+              include: {
+                usuarios: { select: { id: true, nombres: true, apellidos: true, email: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!horario) throw new ApiError('Horario no encontrado', 404);
+
+    return {
+      id: horario.id,
+      dia_semana: horario.dia_semana,
+      hora_inicio: horario.hora_inicio.toISOString().substring(11, 16),
+      hora_fin: horario.hora_fin.toISOString().substring(11, 16),
+      cancha: `${horario.canchas.nombre} - ${horario.canchas.sedes.nombre}`,
+      profesor: `${horario.profesores.usuarios.nombres} ${horario.profesores.usuarios.apellidos}`,
+      nivel: horario.niveles_entrenamiento.nombre,
+      total_inscritos: horario.inscripciones.length,
+      capacidad_maxima: horario.capacidad_max,
+      alumnos_inscritos: horario.inscripciones.map((ins) => ({
+        inscripcion_id: ins.id,
+        alumno_id: ins.alumnos.usuario_id,
+        nombre_completo: `${ins.alumnos.usuarios.nombres} ${ins.alumnos.usuarios.apellidos}`,
+        email: ins.alumnos.usuarios.email,
+      })),
+    };
   },
 };

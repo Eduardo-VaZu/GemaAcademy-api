@@ -22,4 +22,11 @@ router.get('/role/:rol', usuarioController.getUsersByRol);
 
 router.get('/count/usuarios-stats', usuarioController.getUsuariosStats);
 
+router.put(
+  '/:id',
+  authenticate,
+  validate(schemas.usuarioSchema.updateUserSchema),
+  usuarioController.updateStudentProfile
+);
+
 export default router;

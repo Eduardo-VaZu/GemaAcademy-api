@@ -12,9 +12,16 @@ router.use(authenticate);
 // Solo administradores pueden reprogramar masivamente
 router.post(
   '/reprogramar-masivo',
-  authorize('administrador'),
+  authorize('Administrador'),
   validate(claseSchema.reprogramarMasivoSchema),
   claseController.reprogramarMasivo
+);
+
+// Obtener detalle de un horario (alumnos inscritos, info general)
+router.get(
+  '/:horario_id/detalle',
+  authorize('Administrador', 'Profesor'),
+  claseController.obtenerDetalle
 );
 
 export default router;

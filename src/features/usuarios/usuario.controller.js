@@ -82,6 +82,21 @@ export const usuarioController = {
     });
   }),
 
+  updateStudentProfile: catchAsync(async (req, res) => {
+    const userId = parseInt(req.params.id);
+
+    if (isNaN(userId)) {
+      throw new ApiError('ID de usuario inválido', 400);
+    }
+
+    const usuarioActualizado = await usuarioService.updateStudentProfile(userId, req.body);
+
+    return apiResponse.success(res, {
+      message: 'Perfil del estudiante actualizado exitosamente',
+      data: usuarioActualizado,
+    });
+  }),
+
   getUsuariosStats: catchAsync(async (req, res) => {
     const stats = await usuarioService.getDashboardStats();
 

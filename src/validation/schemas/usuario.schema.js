@@ -2,6 +2,8 @@ import z from 'zod';
 import { userCommonValidation } from '../common/common.validation.js';
 import { VALID_ROLES_ARRAY, ROLE_REQUIRED_FIELDS } from '../../constants/roles.constants.js';
 
+const emptyToUndefined = (schema) => z.preprocess((val) => (val === '' ? undefined : val), schema);
+
 const direccionSchema = z.object({
   direccion_completa: z
     .string({
@@ -178,5 +180,76 @@ export const usuarioSchema = {
           });
         }
       });
+    }),
+  updateUserSchema: z
+    .object({
+      password: emptyToUndefined(userCommonValidation.passwordSchema).optional(),
+      direccion_completa: emptyToUndefined(z.string().trim().min(3).max(255)).optional(),
+      distrito: emptyToUndefined(z.string().trim().min(1).max(100)).optional(),
+      ciudad: emptyToUndefined(z.string().trim().min(1).max(100)).optional(),
+      referencia: emptyToUndefined(z.string().trim().min(1).max(255)).optional().nullable(),
+      contacto_emergencia: z
+        .object({
+          nombre_completo: emptyToUndefined(z.string().trim().min(3).max(150)).optional(),
+          telefono: emptyToUndefined(z.string().trim().min(7).max(20)).optional(),
+          relacion: emptyToUndefined(z.string().trim().min(1).max(50)).optional().nullable(),
+        })
+        .optional(),
+      datosRolEspecifico: z
+        .object({
+          condiciones_medicas: emptyToUndefined(z.string().max(500)).optional(),
+          seguro_medico: emptyToUndefined(z.string().max(100)).optional(),
+          grupo_sanguineo: emptyToUndefined(
+            z.enum(['O+', 'O-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'])
+          ).optional(),
+        })
+        .optional(),
+    })
+    .superRefine((data, ctx) => {
+      const direccionFields = [
+        data.direccion_completa,
+        data.distrito,
+        data.ciudad,
+        data.referencia,
+      ];
+      const hasDireccion = direccionFields.some((value) => value !== undefined);
+      const hasContacto =
+        data.contacto_emergencia &&
+        Object.values(data.contacto_emergencia).some((value) => value !== undefined);
+      const hasDatosRol =
+        data.datosRolEspecifico &&
+        Object.values(data.datosRolEspecifico).some((value) => value !== undefined);
+      const hasPassword = data.password !== undefined;
+
+      if (!hasPassword && !hasDireccion && !hasContacto && !hasDatosRol) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [],
+          message: 'Debe proporcionar al menos un campo para actualizar',
+        });
+      }
+
+      if (data.contacto_emergencia) {
+        const { nombre_completo, telefono, relacion } = data.contacto_emergencia;
+        const anyProvided = [nombre_completo, telefono, relacion].some(
+          (value) => value !== undefined
+        );
+        if (anyProvided) {
+          if (!nombre_completo) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['contacto_emergencia', 'nombre_completo'],
+              message: 'Nombre completo es requerido para el contacto de emergencia',
+            });
+          }
+          if (!telefono) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['contacto_emergencia', 'telefono'],
+              message: 'Teléfono es requerido para el contacto de emergencia',
+            });
+          }
+        }
+      }
     }),
 };

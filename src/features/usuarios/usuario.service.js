@@ -168,6 +168,180 @@ export const usuarioService = {
     });
   },
 
+  updateStudentProfile: async (userId, payload) => {
+    const usuarioId = Number.parseInt(userId);
+
+    if (isNaN(usuarioId)) {
+      throw new ApiError('ID de usuario inválido', 400);
+    }
+
+    const usuario = await prisma.usuarios.findUnique({
+      where: { id: usuarioId },
+      include: {
+        alumnos: {
+          include: {
+            direcciones: true,
+            alumnos_contactos: true,
+          },
+        },
+        roles: true,
+        credenciales_usuario: true,
+      },
+    });
+
+    if (!usuario) {
+      throw new ApiError('Usuario no encontrado', 404);
+    }
+
+    if (!usuario.alumnos) {
+      throw new ApiError('El usuario no corresponde a un alumno', 400);
+    }
+
+    const {
+      password,
+      direccion_completa,
+      distrito,
+      ciudad,
+      referencia,
+      contacto_emergencia,
+      datosRolEspecifico,
+    } = payload;
+
+    const direccion =
+      direccion_completa !== undefined ||
+      distrito !== undefined ||
+      ciudad !== undefined ||
+      referencia !== undefined
+        ? { direccion_completa, distrito, ciudad, referencia }
+        : null;
+
+    const alumnoUpdates = {};
+    if (datosRolEspecifico) {
+      if (datosRolEspecifico.condiciones_medicas !== undefined) {
+        alumnoUpdates.condiciones_medicas = datosRolEspecifico.condiciones_medicas;
+      }
+      if (datosRolEspecifico.seguro_medico !== undefined) {
+        alumnoUpdates.seguro_medico = datosRolEspecifico.seguro_medico;
+      }
+      if (datosRolEspecifico.grupo_sanguineo !== undefined) {
+        alumnoUpdates.grupo_sanguineo = datosRolEspecifico.grupo_sanguineo;
+      }
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      if (password) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        if (usuario.credenciales_usuario) {
+          await tx.credenciales_usuario.update({
+            where: { usuario_id: usuarioId },
+            data: { hash_contrasena: hashedPassword },
+          });
+        } else {
+          await tx.credenciales_usuario.create({
+            data: { usuario_id: usuarioId, hash_contrasena: hashedPassword },
+          });
+        }
+      }
+
+      if (Object.keys(alumnoUpdates).length > 0) {
+        await tx.alumnos.update({
+          where: { usuario_id: usuarioId },
+          data: alumnoUpdates,
+        });
+      }
+
+      if (direccion) {
+        if (usuario.alumnos.direccion_id) {
+          const direccionData = {};
+          if (direccion.direccion_completa !== undefined) {
+            direccionData.direccion_completa = direccion.direccion_completa;
+          }
+          if (direccion.distrito !== undefined) {
+            direccionData.distrito = direccion.distrito;
+          }
+          if (direccion.ciudad !== undefined) {
+            direccionData.ciudad = direccion.ciudad;
+          }
+          if (direccion.referencia !== undefined) {
+            direccionData.referencia = direccion.referencia;
+          }
+
+          if (Object.keys(direccionData).length > 0) {
+            await tx.direcciones.update({
+              where: { id: usuario.alumnos.direccion_id },
+              data: direccionData,
+            });
+          }
+        } else {
+          if (!direccion.direccion_completa || !direccion.distrito) {
+            throw new ApiError(
+              'direccion_completa y distrito son requeridos para crear una dirección',
+              400
+            );
+          }
+          const nuevaDireccion = await tx.direcciones.create({
+            data: {
+              direccion_completa: direccion.direccion_completa,
+              distrito: direccion.distrito,
+              ciudad: direccion.ciudad || 'Lima',
+              referencia: direccion.referencia || null,
+            },
+          });
+
+          await tx.alumnos.update({
+            where: { usuario_id: usuarioId },
+            data: { direccion_id: nuevaDireccion.id },
+          });
+        }
+      }
+
+      if (contacto_emergencia) {
+        const contactoExistente = await tx.alumnos_contactos.findFirst({
+          where: { alumno_id: usuarioId, es_principal: true },
+        });
+
+        if (contactoExistente) {
+          await tx.alumnos_contactos.update({
+            where: { id: contactoExistente.id },
+            data: {
+              nombre_completo: contacto_emergencia.nombre_completo,
+              telefono: contacto_emergencia.telefono,
+              relacion: contacto_emergencia.relacion || null,
+            },
+          });
+        } else {
+          await tx.alumnos_contactos.create({
+            data: {
+              alumno_id: usuarioId,
+              nombre_completo: contacto_emergencia.nombre_completo,
+              telefono: contacto_emergencia.telefono,
+              relacion: contacto_emergencia.relacion || null,
+              es_principal: true,
+            },
+          });
+        }
+      }
+
+      return await tx.usuarios.findUnique({
+        where: { id: usuarioId },
+        include: {
+          roles: true,
+          alumnos: {
+            include: {
+              direcciones: true,
+              alumnos_contactos: true,
+            },
+          },
+          profesores: true,
+          administrador: {
+            include: { sedes: true },
+          },
+        },
+      });
+    });
+  },
+
   isValidRole: (rol) => {
     return Object.values(VALID_ROLES).includes(rol.toLowerCase());
   },
@@ -189,7 +363,7 @@ export const usuarioService = {
         activo: true,
         roles: isNumber
           ? { id: parseInt(rolOrId) }
-          : { nombre: { equals: rolOrId, mode: 'insensitive' } }
+          : { nombre: { equals: rolOrId, mode: 'insensitive' } },
       },
       include: {
         roles: true,
@@ -198,14 +372,14 @@ export const usuarioService = {
           select: {
             condiciones_medicas: true,
             seguro_medico: true,
-            grupo_sanguineo: true
-          }
+            grupo_sanguineo: true,
+          },
         },
         profesores: {
           select: {
-            especializacion: true
-          }
-        }
+            especializacion: true,
+          },
+        },
       },
       orderBy: { nombres: 'asc' },
     });
@@ -217,28 +391,28 @@ export const usuarioService = {
     const counts = await prisma.usuarios.groupBy({
       by: ['rol_id'],
       where: {
-        activo: true
+        activo: true,
       },
       _count: {
-        id: true
-      }
+        id: true,
+      },
     });
 
     const roles = await prisma.roles.findMany({
       select: {
         id: true,
-        nombre: true
-      }
+        nombre: true,
+      },
     });
 
     const stats = roles.reduce((acc, rol) => {
-      const group = counts.find(c => c.rol_id === rol.id);
+      const group = counts.find((c) => c.rol_id === rol.id);
       acc[rol.nombre.toLowerCase()] = group ? group._count.id : 0;
       return acc;
     }, {});
 
     return stats;
-  }
+  },
 };
 
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
@@ -272,7 +446,7 @@ const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
       await tx.profesores.create({
         data: {
           usuario_id: usuarioId,
-          especializacion: datos.especializacion || null
+          especializacion: datos.especializacion || null,
         },
       });
     },
