@@ -50,6 +50,7 @@ export const iniciarCronJobs = () => {
 // =====================================================================
 // 🧠 LÓGICA 1: LIMPIEZA DE ZOMBIES
 // =====================================================================
+// 🧠 LÓGICA 1: LIMPIEZA DE ZOMBIES (MEJORADA)
 const limpiarReservasZombies = async () => {
   const param = await prisma.parametros_sistema.findUnique({
     where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' },
@@ -57,16 +58,38 @@ const limpiarReservasZombies = async () => {
   const minutosLimite = param ? Number.parseInt(param.valor) : 20;
   const horaCorte = new Date(Date.now() - minutosLimite * 60 * 1000);
 
-  const resultado = await prisma.inscripciones.deleteMany({
+  const zombies = await prisma.inscripciones.findMany({
     where: {
       estado: 'PENDIENTE_PAGO',
       fecha_inscripcion: { lt: horaCorte },
     },
   });
 
-  if (resultado.count > 0) {
-    console.log(`🗑️ [FRANCOTIRADOR] Se eliminaron ${resultado.count} reservas zombies expiradas.`);
-  }
+  if (zombies.length === 0) return;
+
+  return await prisma.$transaction(async (tx) => {
+    for (const zombie of zombies) {
+      // 🛡️ FILTRO DE SEGURIDAD:
+      // Solo borramos deudas que coincidan exactamente con la fecha de la inscripción.
+      // Las deudas del "Profeta" tienen fechas de creación distintas (día 25).
+      await tx.cuentas_por_cobrar.deleteMany({
+        where: {
+          alumno_id: zombie.alumno_id,
+          estado: 'PENDIENTE',
+          // CRUCIAL: Solo deudas creadas junto con la inscripción zombie
+          creado_en: {
+            gte: new Date(zombie.fecha_inscripcion.getTime() - 30000), // 30s antes
+            lte: new Date(zombie.fecha_inscripcion.getTime() + 30000), // 30s después
+          },
+        },
+      });
+
+      await tx.inscripciones.delete({
+        where: { id: zombie.id },
+      });
+    }
+    console.log(`🗑️ [FRANCOTIRADOR] Limpieza segura de ${zombies.length} zombies. Deudas de renovación respetadas.`);
+  });
 };
 
 // =====================================================================
