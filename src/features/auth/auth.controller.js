@@ -6,19 +6,17 @@ import { ApiError } from '../../shared/utils/error.util.js';
 
 export const authController = {
   login: catchAsync(async (req, res) => {
-    const { email, password } = req.body;
+    const { email, numero_documento, password } = req.body;
 
-    if (!email || !password) {
-      throw new ApiError('Email y contraseña son requeridos', 400);
-    }
-
-    const result = await authService.login(email, password);
+    const result = await authService.login({ email, numero_documento, password });
 
     setAuthCookies(res, result);
 
     return apiResponse.success(res, {
       message: 'Login exitoso',
-      data: result.user,
+      data: {
+        user: result.user
+      }
     });
   }),
 
@@ -81,6 +79,17 @@ export const authController = {
 
     return apiResponse.success(res, {
       message: 'Todas las sesiones cerradas exitosamente',
+    });
+  }),
+
+  completarEmail: catchAsync(async (req, res) => {
+    const { email } = req.body;
+    const usuarioId = req.user.id;
+
+    const usuarioActualizado = await authService.actualizarEmailPrimerLogin(usuarioId, email);
+
+    return apiResponse.success(res, 'Email actualizado correctamente', {
+      user: usuarioActualizado
     });
   }),
 };

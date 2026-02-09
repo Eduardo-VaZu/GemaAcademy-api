@@ -11,9 +11,20 @@ import {
 } from '../../config/secret.config.js';
 
 export const authService = {
-  login: async (email, password) => {
-    const usuario = await prisma.usuarios.findUnique({
-      where: { email },
+  login: async (loginData) => {
+    const { email, numero_documento, password } = loginData;
+
+    if (!email && !numero_documento) {
+      throw new ApiError('Email o número de documento son requeridos', 400);
+    }
+
+    const usuario = await prisma.usuarios.findFirst({
+      where: {
+        OR: [
+          { email: email || undefined },
+          { numero_documento: numero_documento || undefined },
+        ],
+      },
       include: {
         credenciales_usuario: true,
         roles: true,
@@ -83,6 +94,7 @@ export const authService = {
         apellidos: usuario.apellidos,
         rol: usuario.roles.nombre,
         alumnos: usuario.alumnos,
+        debeCompletarEmail: !usuario.email,
       },
     };
   },
@@ -235,4 +247,27 @@ export const authService = {
 
     return { message: 'Todas las sesiones han sido cerradas' };
   },
+
+  actualizarEmailPrimerLogin: async (usuarioId, nuevoEmail) => {
+    const existe = await prisma.usuarios.findUnique({
+      where: { email: nuevoEmail }
+    });
+
+    if (existe) {
+      throw new ApiError('El email ya está registrado por otro usuario', 400);
+    }
+
+    const usuario = await prisma.usuarios.update({
+      where: { id: usuarioId },
+      data: { email: nuevoEmail },
+      select: {
+        id: true,
+        email: true,
+        nombres: true,
+        apellidos: true
+      }
+    });
+
+    return usuario;
+  }
 };
