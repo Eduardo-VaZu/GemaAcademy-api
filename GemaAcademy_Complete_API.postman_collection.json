@@ -136,9 +136,7 @@
           "name": "1. Register Juan Perez",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"email\": \"juan.perez@test.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Juan\",\n    \"apellidos\": \"Perez\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"10000001\",\n    \"telefono_personal\": \"+51900000001\",\n    \"fecha_nacimiento\": \"2010-01-01\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Ninguna\",\n        \"seguro_medico\": \"Rimac\",\n        \"grupo_sanguineo\": \"O+\",\n        \"direccion\": { \"direccion_completa\": \"Calle 1\", \"distrito\": \"Lima\" }\n    }\n}"
@@ -155,9 +153,7 @@
           "name": "2. Register Maria Lopez",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"email\": \"maria.lopez@test.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Maria\",\n    \"apellidos\": \"Lopez\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"10000002\",\n    \"telefono_personal\": \"+51900000002\",\n    \"fecha_nacimiento\": \"2010-02-02\",\n    \"genero\": \"F\",\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Alergia al polen\",\n        \"seguro_medico\": \"Pacifico\",\n        \"grupo_sanguineo\": \"A+\",\n        \"direccion\": { \"direccion_completa\": \"Calle 2\", \"distrito\": \"Lince\" }\n    }\n}"
@@ -174,9 +170,7 @@
           "name": "3. Register Carlos Ruiz",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"email\": \"carlos.ruiz@test.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Carlos\",\n    \"apellidos\": \"Ruiz\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"10000003\",\n    \"telefono_personal\": \"+51900000003\",\n    \"fecha_nacimiento\": \"2010-03-03\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"grupo_sanguineo\": \"B+\",\n        \"direccion\": { \"direccion_completa\": \"Calle 3\", \"distrito\": \"Miraflores\" }\n    }\n}"
@@ -193,9 +187,7 @@
           "name": "4. Register Ana Torres",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"email\": \"ana.torres@test.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Ana\",\n    \"apellidos\": \"Torres\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"10000004\",\n    \"telefono_personal\": \"+51900000004\",\n    \"fecha_nacimiento\": \"2010-04-04\",\n    \"genero\": \"F\",\n    \"datosRolEspecifico\": {\n        \"direccion\": { \"direccion_completa\": \"Calle 4\", \"distrito\": \"San Isidro\" }\n    }\n}"
@@ -212,9 +204,7 @@
           "name": "5. Register Luis Gomez",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n    \"email\": \"luis.gomez@test.com\",\n    \"password\": \"Alumno123!\",\n    \"nombres\": \"Luis\",\n    \"apellidos\": \"Gomez\",\n    \"rol_id\": \"alumno\",\n    \"tipo_documento_id\": \"DNI\",\n    \"numero_documento\": \"10000005\",\n    \"telefono_personal\": \"+51900000005\",\n    \"fecha_nacimiento\": \"2010-05-05\",\n    \"genero\": \"M\",\n    \"datosRolEspecifico\": {\n        \"direccion\": { \"direccion_completa\": \"Calle 5\", \"distrito\": \"Surco\" }\n    }\n}"
@@ -281,6 +271,32 @@
           "request": {
             "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/usuarios/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "usuarios", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Student Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"password\": \"NuevaClave123\",\n    \"direccion_completa\": \"Av. Siempre Viva 123\",\n    \"distrito\": \"Lince\",\n    \"ciudad\": \"Lima\",\n    \"referencia\": \"Frente al parque\",\n    \"contacto_emergencia\": {\n        \"nombre_completo\": \"Ana Perez\",\n        \"telefono\": \"+51999999999\",\n        \"relacion\": \"Madre\"\n    },\n    \"datosRolEspecifico\": {\n        \"condiciones_medicas\": \"Asma leve\",\n        \"seguro_medico\": \"Pacifico\",\n        \"grupo_sanguineo\": \"A+\"\n    }\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/usuarios/1",
               "host": ["{{base_url}}"],
@@ -1009,7 +1025,8 @@
     {
       "listen": "test",
       "script": {
-        "type": "text/javascript", "exec": [""]
+        "type": "text/javascript",
+        "exec": [""]
       }
     }
   ],
