@@ -24,6 +24,7 @@ import descuentosRoutes from './features/descuentos_aplicados/descuentos_aplicad
 import asistenciaRoutes from './features/asistencia/asistencia.routes.js';
 import cuentaPorCobrarRoutes from './features/cuenta_por_cobrar/cuentas_por_cobrar.routes.js';
 import claseRoutes from './features/clases/clase.routes.js';
+import catalogoRoutes from './features/catalogo_de_concepto/catalogo.routes.js';
 
 const app = express();
 const morganFormat = ':method :url :status :response-time ms';
@@ -84,6 +85,7 @@ app.use('/api/descuentos', descuentosRoutes);
 app.use('/api/asistencias', asistenciaRoutes);
 app.use('/api/cuentaPorCobrar', cuentaPorCobrarRoutes);
 app.use('/api/clases', claseRoutes);
+app.use('/api/catalogo', catalogoRoutes);
 
 app.use(errorHandler);
 
