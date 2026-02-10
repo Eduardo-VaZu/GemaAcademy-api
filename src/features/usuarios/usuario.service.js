@@ -95,6 +95,7 @@ export const usuarioService = {
             rol_id: rol.id,
             tipo_documento_id: tipo_documento_id || null,
             numero_documento: numero_documento || null,
+            fecha_nacimiento: fechaConvertida,
             ...otrosdatos,
             activo: true,
           },
