@@ -157,5 +157,59 @@ export const asistenciaService = {
       },
       orderBy: { fecha: 'desc' }
     });
+  },
+
+obtenerClasesDelDiaPorProfesor: async (profesorId, fecha) => {
+    // Normalizamos la fecha a medianoche (00:00:00) para buscar en la BD
+    const fechaConsulta = new Date(fecha);
+    fechaConsulta.setHours(0, 0, 0, 0);
+
+    // Obtenemos el día de la semana para filtrar los horarios (0=Dom, 1=Lun...)
+    const diaSemana = fechaConsulta.getDay();
+
+    return await prisma.horarios_clases.findMany({
+      where: {
+        profesor_id: profesorId,
+        dia_semana: diaSemana,
+        activo: true
+      },
+      include: {
+        niveles_entrenamiento: true, // Para mostrar "Nivel Básico", "Intermedio", etc.
+        canchas: {
+          include: { sedes: true } // Para mostrar "Sede Norte - Cancha 1"
+        },
+        inscripciones: {
+          where: { estado: 'ACTIVO' }, // Solo alumnos que no estén congelados o retirados
+          include: {
+            alumnos: {
+              include: {
+                usuarios: {
+                  select: {
+                    id: true,
+                    nombres: true,
+                    apellidos: true,
+                    numero_documento: true
+                  }
+                }
+              }
+            },
+            // Cruce vital: Obtenemos el registro de asistencia generado para HOY
+            registros_asistencia: {
+              where: {
+                fecha: fechaConsulta
+              },
+              select: {
+                id: true,
+                estado: true,
+                comentario: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        hora_inicio: 'asc'
+      }
+    });
   }
 };

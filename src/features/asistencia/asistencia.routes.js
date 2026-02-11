@@ -15,17 +15,18 @@ router.get('/alumno/:alumnoId', asistenciaController.listarPorAlumno);
 // Listado general de asistencias
 router.get('/', asistenciaController.listarTodas);
 
-
-// ======================================================
-// 🔒 RUTAS PROTEGIDAS (Necesitan Token)
-// ======================================================
+// ✅ Corrección en asistencia.routes.js
 router.use(authenticate); 
 
-// Endpoint: PATCH /api/asistencias/:id
-// Solo profesores y admins pueden marcar asistencia
+router.get(
+    '/agenda/hoy', 
+    authorize('Profesor'), // Sin corchetes
+    asistenciaController.listarClasesHoy
+);
+
 router.patch(
     '/:id',
-    authorize(['profesor', 'administrador']),
+    authorize('Profesor', 'Administrador'), // Sin corchetes
     asistenciaController.marcarAsistencia
 );
 

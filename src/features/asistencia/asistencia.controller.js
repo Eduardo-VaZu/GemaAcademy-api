@@ -57,10 +57,28 @@ const listarTodas = catchAsync(async (req, res) => {
         data: asistencias, 
         message: 'Listado general de asistencias.' 
     });
+
+
 });
+const listarClasesHoy = catchAsync(async (req, res) => {
+    // Extraemos el ID del profesor desde el middleware authenticate
+    const profesorId = req.user.id; 
+    
+    // Podemos permitir que envíen una fecha específica, o usar HOY por defecto
+    const { fecha } = req.query;
+    const fechaConsulta = fecha ? new Date(fecha) : new Date();
+
+    const clases = await asistenciaService.obtenerClasesDelDiaPorProfesor(profesorId, fechaConsulta);
+
+    return apiResponse.success(res, {
+        message: 'Agenda del día recuperada exitosamente.',
+        data: clases
+    });
+    });
 
 export const asistenciaController = {
     marcarAsistencia,
     listarPorAlumno,
-    listarTodas
+    listarTodas,
+    listarClasesHoy
 };
