@@ -60,6 +60,34 @@ const listarTodas = catchAsync(async (req, res) => {
 
 
 });
+const listarAgenda = catchAsync(async (req, res) => {
+    const profesorId = req.user.id; 
+    const { fecha } = req.query;
+    
+    // Si no viene fecha en el query, pasamos null para traer toda la data del profesor
+    const fechaConsulta = fecha ? new Date(fecha) : null;
+
+    const clases = await asistenciaService.obtenerAgendaProfesor(profesorId, fechaConsulta);
+
+    return apiResponse.success(res, {
+        message: 'Agenda de entrenamiento recuperada exitosamente.',
+        data: clases
+    });
+});
+const marcarAsistenciaMasiva = catchAsync(async (req, res) => {
+    const { asistencias } = req.body; 
+
+    if (!asistencias || !Array.isArray(asistencias)) {
+        throw new ApiError('Se requiere un listado de asistencias.', 400);
+    }
+
+    const resultado = await asistenciaService.procesarAsistenciaMasiva(asistencias);
+
+    return apiResponse.success(res, { 
+        data: resultado, 
+        message: 'Asistencia grupal actualizada correctamente.' 
+    });
+});
 const listarClasesHoy = catchAsync(async (req, res) => {
     // Extraemos el ID del profesor desde el middleware authenticate
     const profesorId = req.user.id; 
@@ -80,5 +108,7 @@ export const asistenciaController = {
     marcarAsistencia,
     listarPorAlumno,
     listarTodas,
-    listarClasesHoy
+    listarClasesHoy,
+    listarAgenda,
+    marcarAsistenciaMasiva
 };

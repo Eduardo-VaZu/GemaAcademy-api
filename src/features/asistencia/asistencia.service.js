@@ -160,11 +160,8 @@ export const asistenciaService = {
   },
 
 obtenerClasesDelDiaPorProfesor: async (profesorId, fecha) => {
-    // Normalizamos la fecha a medianoche (00:00:00) para buscar en la BD
     const fechaConsulta = new Date(fecha);
     fechaConsulta.setHours(0, 0, 0, 0);
-
-    // Obtenemos el día de la semana para filtrar los horarios (0=Dom, 1=Lun...)
     const diaSemana = fechaConsulta.getDay();
 
     return await prisma.horarios_clases.findMany({
@@ -174,42 +171,100 @@ obtenerClasesDelDiaPorProfesor: async (profesorId, fecha) => {
         activo: true
       },
       include: {
-        niveles_entrenamiento: true, // Para mostrar "Nivel Básico", "Intermedio", etc.
-        canchas: {
-          include: { sedes: true } // Para mostrar "Sede Norte - Cancha 1"
-        },
+        niveles_entrenamiento: true,
+        canchas: { include: { sedes: true } },
         inscripciones: {
-          where: { estado: 'ACTIVO' }, // Solo alumnos que no estén congelados o retirados
+          where: { estado: 'ACTIVO' }, 
           include: {
             alumnos: {
               include: {
                 usuarios: {
-                  select: {
-                    id: true,
-                    nombres: true,
-                    apellidos: true,
-                    numero_documento: true
-                  }
+                  select: { id: true, nombres: true, apellidos: true }
                 }
               }
             },
-            // Cruce vital: Obtenemos el registro de asistencia generado para HOY
+            // IMPORTANTE: Buscamos el registro de asistencia específico para este día
             registros_asistencia: {
-              where: {
-                fecha: fechaConsulta
-              },
+              where: { fecha: fechaConsulta },
               select: {
-                id: true,
-                estado: true,
+                id: true,       // Este es el ID que usará el profesor para marcar
+                estado: true,   // Saldrá "PROGRAMADA" inicialmente
                 comentario: true
               }
             }
           }
         }
       },
-      orderBy: {
-        hora_inicio: 'asc'
-      }
+      orderBy: { hora_inicio: 'asc' }
     });
-  }
+},
+// En asistencia.service.js
+obtenerAgendaProfesor: async (profesorId, fecha = null) => {
+    const whereCondition = {
+        profesor_id: profesorId,
+        activo: true
+    };
+
+    const horarios = await prisma.horarios_clases.findMany({
+        where: whereCondition,
+        include: {
+            niveles_entrenamiento: true,
+            canchas: { include: { sedes: true } },
+            inscripciones: {
+                where: { estado: 'ACTIVO' },
+                include: {
+                    alumnos: {
+                        include: {
+                            usuarios: {
+                                select: { id: true, nombres: true, apellidos: true, numero_documento: true }
+                            }
+                        }
+                    },
+                    registros_asistencia: {
+                        where: fecha ? { fecha: new Date(fecha) } : {},
+                        orderBy: { fecha: 'asc' },
+                        select: {
+                            id: true,
+                            fecha: true,
+                            estado: true,
+                            comentario: true
+                        }
+                    }
+                }
+            }
+        },
+        orderBy: { hora_inicio: 'asc' }
+    });
+
+    // TRANSFORMACIÓN: Limpiamos la data para el Frontend
+    return horarios.map(h => {
+        // Función interna para extraer solo HH:mm y evitar el bug de 1970
+        const formatTime = (timeField) => {
+            if (!timeField) return '--:--';
+            const d = new Date(timeField);
+            return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        return {
+            ...h,
+            hora_inicio: formatTime(h.hora_inicio),
+            hora_fin: formatTime(h.hora_fin)
+        };
+    });
+},
+    procesarAsistenciaMasiva: async (asistencias) => {
+        return await prisma.$transaction(
+            asistencias.map((a) =>
+                prisma.registros_asistencia.update({
+                    where: { id: Number(a.id) },
+                    data: { 
+                        estado: a.estado, 
+                        comentario: a.comentario || "",
+                        // Usamos el campo correcto según tu esquema
+                        registrado_en: new Date() 
+                    }
+                })
+            )
+        );
+    }
 };

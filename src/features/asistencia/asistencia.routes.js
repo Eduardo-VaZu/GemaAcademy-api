@@ -23,6 +23,16 @@ router.get(
     authorize('Profesor'), // Sin corchetes
     asistenciaController.listarClasesHoy
 );
+router.get(
+    '/agenda', // Quitamos el '/hoy' para que sea una ruta de agenda general
+    authorize('Profesor'), 
+    asistenciaController.listarAgenda
+);
+router.post(
+    '/masiva', 
+    authorize('Profesor'), 
+    asistenciaController.marcarAsistenciaMasiva
+);
 
 router.patch(
     '/:id',
