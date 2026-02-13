@@ -12,18 +12,15 @@ import {
 
 export const authService = {
   login: async (loginData) => {
-    const { email, numero_documento, password } = loginData;
+    const { username, password } = loginData;
 
-    if (!email && !numero_documento) {
-      throw new ApiError('Email o número de documento son requeridos', 400);
+    if (!username) {
+      throw new ApiError('Username es requerido', 400);
     }
 
     const usuario = await prisma.usuarios.findFirst({
       where: {
-        OR: [
-          { email: email || undefined },
-          { numero_documento: numero_documento || undefined },
-        ],
+        username: username || undefined
       },
       include: {
         credenciales_usuario: true,
@@ -65,7 +62,7 @@ export const authService = {
     const accessToken = jwt.sign(
       {
         id: usuario.id,
-        email: usuario.email,
+        username: usuario.username,
         rol_id: usuario.rol_id,
         rol_nombre: usuario.roles.nombre,
       },
@@ -89,6 +86,7 @@ export const authService = {
       refreshToken,
       user: {
         id: usuario.id,
+        username: usuario.username,
         email: usuario.email,
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,
@@ -249,19 +247,12 @@ export const authService = {
   },
 
   actualizarEmailPrimerLogin: async (usuarioId, nuevoEmail) => {
-    const existe = await prisma.usuarios.findUnique({
-      where: { email: nuevoEmail }
-    });
-
-    if (existe) {
-      throw new ApiError('El email ya está registrado por otro usuario', 400);
-    }
-
     const usuario = await prisma.usuarios.update({
       where: { id: usuarioId },
       data: { email: nuevoEmail },
       select: {
         id: true,
+        username: true,
         email: true,
         nombres: true,
         apellidos: true

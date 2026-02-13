@@ -22,7 +22,8 @@ export const usuarioController = {
       message: 'Usuario creado exitosamente',
       data: {
         id: usuario.id,
-        email: usuario.email,
+        username: usuario.username,
+        email: usuario.email, 
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,
         rol: usuario.rol,

@@ -25,7 +25,23 @@ const direccionSchema = z.object({
 
 const user = {
   baseUserSchema: z.object({
-    email: userCommonValidation.emailSchema,
+    username: z
+      .string({ required_error: 'El nombre de usuario es obligatorio' })
+      .trim()
+      .toLowerCase()
+      .min(3, 'El username debe tener al menos 3 caracteres')
+      .max(50)
+      .regex(/^[a-z0-9._]+$/, 'Solo letras, números, puntos y guiones bajos'),
+
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email('Email inválido')
+      .nullable()
+      .optional()
+      .or(z.literal('')),
+
     password: userCommonValidation.passwordSchema,
     nombres: userCommonValidation.nameSchema,
     apellidos: userCommonValidation.nameSchema,
@@ -183,6 +199,8 @@ export const usuarioSchema = {
     }),
   updateUserSchema: z
     .object({
+      username: z.string().trim().toLowerCase().min(3).max(50).optional(),
+      email: z.string().trim().toLowerCase().email().nullable().optional(),
       password: emptyToUndefined(userCommonValidation.passwordSchema).optional(),
       direccion_completa: emptyToUndefined(z.string().trim().min(3).max(255)).optional(),
       distrito: emptyToUndefined(z.string().trim().min(1).max(100)).optional(),
@@ -206,22 +224,19 @@ export const usuarioSchema = {
         .optional(),
     })
     .superRefine((data, ctx) => {
-      const direccionFields = [
-        data.direccion_completa,
-        data.distrito,
-        data.ciudad,
-        data.referencia,
-      ];
-      const hasDireccion = direccionFields.some((value) => value !== undefined);
-      const hasContacto =
-        data.contacto_emergencia &&
-        Object.values(data.contacto_emergencia).some((value) => value !== undefined);
-      const hasDatosRol =
-        data.datosRolEspecifico &&
-        Object.values(data.datosRolEspecifico).some((value) => value !== undefined);
-      const hasPassword = data.password !== undefined;
+      const {
+        username, email, password, direccion_completa, distrito,
+        ciudad, referencia, contacto_emergencia, datosRolEspecifico
+      } = data;
 
-      if (!hasPassword && !hasDireccion && !hasContacto && !hasDatosRol) {
+      const fieldsToUpdate = [
+        username, email, password, direccion_completa, distrito,
+        ciudad, referencia, contacto_emergencia, datosRolEspecifico
+      ];
+
+      const hasAnyField = fieldsToUpdate.some((value) => value !== undefined);
+
+      if (!hasAnyField) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: [],
@@ -229,12 +244,9 @@ export const usuarioSchema = {
         });
       }
 
-      if (data.contacto_emergencia) {
-        const { nombre_completo, telefono, relacion } = data.contacto_emergencia;
-        const anyProvided = [nombre_completo, telefono, relacion].some(
-          (value) => value !== undefined
-        );
-        if (anyProvided) {
+      if (contacto_emergencia) {
+        const { nombre_completo, telefono } = contacto_emergencia;
+        if (Object.values(contacto_emergencia).some(v => v !== undefined)) {
           if (!nombre_completo) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,

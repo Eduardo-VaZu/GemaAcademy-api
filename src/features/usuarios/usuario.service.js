@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database.config.js';
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../shared/utils/error.util.js';
-import { VALID_ROLES, ROLE_REQUIRED_FIELDS } from '../../constants/roles.constants.js';
+import { VALID_ROLES } from '../../constants/roles.constants.js';
 import { sendCredentialsEmail } from '../../shared/utils/mailer.js';
 
 export const usuarioService = {
@@ -9,6 +9,7 @@ export const usuarioService = {
     const {
       email,
       password,
+      username: providedUsername,
       tipo_documento_id,
       numero_documento,
       rol_id,
@@ -19,122 +20,68 @@ export const usuarioService = {
     } = userData;
 
     const fechaConvertida = fecha_nacimiento ? new Date(fecha_nacimiento) : null;
-
-    if (fechaConvertida && isNaN(fechaConvertida.getTime())) {
-      throw new ApiError('Formato de fecha de nacimiento inválido', 400);
-    }
-
     const rolNombre = providedRolNombre || rol_id || VALID_ROLES.ALUMNO;
-
-    const emailExistente = await prisma.usuarios.findUnique({
-      where: {
-        email,
-      },
-    });
-
-    if (emailExistente) {
-      throw new ApiError('El email ya esta registrado');
-    }
-
-    if (typeof rolNombre === 'string' && !Object.values(VALID_ROLES).includes(rolNombre)) {
-      throw new ApiError(
-        `El rol '${rolNombre}' no es válido`,
-        400,
-        `Los roles permitidos son: ${Object.values(VALID_ROLES).join(', ')}`
-      );
-    }
 
     let rol;
     if (typeof rolNombre === 'string') {
-      const rolNombreNormalizado =
-        rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
-
-      rol = await prisma.roles.findUnique({
-        where: {
-          nombre: rolNombreNormalizado,
-        },
-      });
+      const rolNombreNormalizado = rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
+      rol = await prisma.roles.findUnique({ where: { nombre: rolNombreNormalizado } });
     } else {
-      rol = await prisma.roles.findUnique({
-        where: {
-          id: rolNombre,
+      rol = await prisma.roles.findUnique({ where: { id: rolNombre } });
+    }
+    if (!rol) throw new ApiError(`El rol '${rolNombre}' no existe`, 400);
+
+    const user = await prisma.$transaction(async (tx) => {
+      const nuevoUsuario = await tx.usuarios.create({
+        data: {
+          username: `temp_${Date.now()}`,
+          email: email || null,
+          rol_id: rol.id,
+          tipo_documento_id: tipo_documento_id || null,
+          numero_documento: numero_documento || null,
+          fecha_nacimiento: fechaConvertida,
+          ...otrosdatos,
+          activo: true,
         },
       });
-    }
 
-    if (!rol) {
-      throw new ApiError(`El rol '${rolNombre}' no existe en la base de datos`, 400);
-    }
+      const primerNombre = otrosdatos.nombres.split(' ')[0].toLowerCase();
+      const primerApellido = otrosdatos.apellidos.split(' ')[0].toLowerCase();
+      const finalUsername = providedUsername || `${primerNombre}.${primerApellido}${nuevoUsuario.id}`;
 
-    const resolvedRoleName = rol.nombre.toLowerCase();
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(finalUsername, saltRounds);
 
-    const requiredFields = ROLE_REQUIRED_FIELDS[resolvedRoleName] || [];
-    const missingFields = requiredFields.filter((field) => !datosRolEspecifico[field]);
+      const usuarioActualizado = await tx.usuarios.update({
+        where: { id: nuevoUsuario.id },
+        data: { username: finalUsername },
+      });
 
-    if (missingFields.length > 0) {
-      throw new ApiError(
-        `Campos obligatorios faltantes para el rol ${resolvedRoleName}: ${missingFields.join(', ')}`,
-        400
-      );
-    }
+      await tx.credenciales_usuario.create({
+        data: {
+          usuario_id: nuevoUsuario.id,
+          hash_contrasena: hashedPassword,
+        },
+      });
 
-    const passwordToUse = password || numero_documento;
+      const rolNombreStr = rol.nombre.toLowerCase();
+      await createRoleSpecificData(tx, rolNombreStr, nuevoUsuario.id, datosRolEspecifico);
 
-    if (!passwordToUse) {
-      throw new ApiError('Es necesario un número de documento para generar la contraseña');
-    }
+      return usuarioActualizado;
+    });
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(passwordToUse, saltRounds);
-
-    const user = await prisma.$transaction(
-      async (tx) => {
-        const nuevoUsuario = await tx.usuarios.create({
-          data: {
-            email,
-            rol_id: rol.id,
-            tipo_documento_id: tipo_documento_id || null,
-            numero_documento: numero_documento || null,
-            fecha_nacimiento: fechaConvertida,
-            ...otrosdatos,
-            activo: true,
-          },
-        });
-
-        await tx.credenciales_usuario.create({
-          data: {
-            usuario_id: nuevoUsuario.id,
-            hash_contrasena: hashedPassword,
-          },
-        });
-
-        const rolNombre = rol.nombre.toLowerCase();
-        await createRoleSpecificData(tx, rolNombre, nuevoUsuario.id, datosRolEspecifico);
-
-        return nuevoUsuario;
-      },
-      {
-        maxWait: 5000,
-        timeout: 10000,
-      }
-    );
-
-    try {
-      // Solo enviamos el correo si es un Alumno, según el diseño de tu mailer
-      if (resolvedRoleName === VALID_ROLES.ALUMNO) {
-        await sendCredentialsEmail(user.email, user.nombres, passwordToUse);
-      }
-    } catch (error) {
-      console.error('Error enviando el correo:', error);
+    if (user.email && rol.nombre.toLowerCase() === VALID_ROLES.ALUMNO) {
+      try {
+        await sendCredentialsEmail(user.email, user.nombres, user.username);
+      } catch (e) { console.error('Error email:', e); }
     }
 
     return {
       id: user.id,
+      username: user.username,
       email: user.email,
       nombres: user.nombres,
-      apellidos: user.apellidos,
       rol: rol.nombre,
-      mensaje: 'Usuario creado exitosamente',
     };
   },
 
@@ -158,9 +105,9 @@ export const usuarioService = {
     });
   },
 
-  getUserByEmail: async (email) => {
+  getUserByUsername: async (username) => {
     return await prisma.usuarios.findUnique({
-      where: { email },
+      where: { username },
       include: {
         alumnos: true,
         roles: true,
@@ -210,9 +157,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-      distrito !== undefined ||
-      ciudad !== undefined ||
-      referencia !== undefined
+        distrito !== undefined ||
+        ciudad !== undefined ||
+        referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 
