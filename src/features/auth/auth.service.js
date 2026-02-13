@@ -15,7 +15,7 @@ export const authService = {
     const { username, password } = loginData;
 
     const usuario = await prisma.usuarios.findUnique({
-      where: { username }, 
+      where: { username },
       include: {
         credenciales_usuario: true,
         roles: true,
@@ -253,5 +253,22 @@ export const authService = {
     });
 
     return usuario;
+  },
+
+  findUserByUsername: async (username) => {
+    return await prisma.usuario.findUnique({
+      where: { username },
+      select: { id: true, email: true, nombres: true, username: true }
+    });
+  },
+
+  updatePassword: async (userId, newPassword) => {
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    return await prisma.usuario.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+      }
+    });
   }
 };

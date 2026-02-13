@@ -45,7 +45,7 @@ export const sendCredentialsEmail = async (email, nombres, username) => {
           </div>
 
           <div style="text-align: center; margin-top: 35px;">
-            <a href="https://tu-web.com/login" style="background-color: #f97316; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3);">
+            <a href="${process.env.FRONTEND_URL}/login" style="background-color: #f97316; color: #ffffff; padding: 16px 32px; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(249, 115, 22, 0.3);">
               Ingresar a la Plataforma
             </a>
           </div>
@@ -60,6 +60,30 @@ export const sendCredentialsEmail = async (email, nombres, username) => {
             &copy; 2026 Academia Gema. Todos los derechos reservados.
           </p>
         </div>
+      </div>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
+};
+
+export const sendPasswordRecoveryEmail = async (email, nombres, token) => {
+  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+
+  const mailOptions = {
+    from: `"Academia Gema" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Recuperación de Contraseña - Academia Gema',
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #e2e8f0; border-radius: 16px; padding: 30px;">
+        <h2 style="color: #1e3a8a;">Hola, ${nombres}</h2>
+        <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente botón para continuar:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="background-color: #f97316; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">
+            Restablecer Contraseña
+          </a>
+        </div>
+        <p style="font-size: 12px; color: #64748b;">Este enlace expirará en 15 minutos.</p>
       </div>
     `,
   };

@@ -3,6 +3,7 @@ import { authService } from './auth.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { ApiError } from '../../shared/utils/error.util.js';
+import { sendPasswordRecoveryEmail } from '../../shared/utils/mailer.js';
 
 export const authController = {
   login: catchAsync(async (req, res) => {
@@ -89,5 +90,35 @@ export const authController = {
     return apiResponse.success(res, 'Email actualizado correctamente', {
       user: usuarioActualizado
     });
+  }),
+
+  forgotPassword: catchAsync(async (req, res) => {
+    const { username } = req.body;
+    const user = await authService.findUserByUsername(username);
+
+    if (!user || !user.email) {
+      throw new ApiError('Usuario no encontrado o no tiene correo asociado', 404);
+    }
+
+    const resetToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '15m' });
+
+    await sendPasswordRecoveryEmail(user.email, user.nombres, resetToken);
+
+    return apiResponse.success(res, {
+      message: 'Enlace enviado al correo registrado del usuario'
+    });
+  }),
+
+  resetPassword: catchAsync(async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      await authService.updatePassword(decoded.id, newPassword);
+
+      return apiResponse.success(res, { message: 'Contraseña actualizada con éxito' });
+    } catch (error) {
+      throw new ApiError('El enlace es inválido o ha expirado', 400);
+    }
   }),
 };
