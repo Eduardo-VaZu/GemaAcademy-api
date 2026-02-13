@@ -14,18 +14,11 @@ export const authService = {
   login: async (loginData) => {
     const { username, password } = loginData;
 
-    if (!username) {
-      throw new ApiError('Username es requerido', 400);
-    }
-
-    const usuario = await prisma.usuarios.findFirst({
-      where: {
-        username: username || undefined
-      },
+    const usuario = await prisma.usuarios.findUnique({
+      where: { username }, 
       include: {
         credenciales_usuario: true,
         roles: true,
-        alumnos: true,
       },
     });
 

@@ -34,7 +34,7 @@ export const usuarioService = {
     const user = await prisma.$transaction(async (tx) => {
       const nuevoUsuario = await tx.usuarios.create({
         data: {
-          username: `temp_${Date.now()}`,
+          username: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
           email: email || null,
           rol_id: rol.id,
           tipo_documento_id: tipo_documento_id || null,
@@ -64,17 +64,10 @@ export const usuarioService = {
         },
       });
 
-      const rolNombreStr = rol.nombre.toLowerCase();
-      await createRoleSpecificData(tx, rolNombreStr, nuevoUsuario.id, datosRolEspecifico);
+      await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, datosRolEspecifico);
 
       return usuarioActualizado;
     });
-
-    if (user.email && rol.nombre.toLowerCase() === VALID_ROLES.ALUMNO) {
-      try {
-        await sendCredentialsEmail(user.email, user.nombres, user.username);
-      } catch (e) { console.error('Error email:', e); }
-    }
 
     return {
       id: user.id,

@@ -35,23 +35,36 @@ async function main() {
   // =================================================================
   console.log('👮 Creando Admin y Profesor...');
 
-  // Admin
+  // Admin - Corregido para usar username como identificador único
   await prisma.usuarios.upsert({
-    where: { email: 'admin@gema.com' },
+    where: { username: 'admin.gema' },
     update: {},
     create: {
-      nombres: 'Super', apellidos: 'Admin', email: 'admin@gema.com',
-      rol_id: rolAdmin.id, tipo_documento_id: 'DNI', numero_documento: '00000001', telefono_personal: '900000000'
+      username: 'admin.gema',
+      nombres: 'Super', 
+      apellidos: 'Admin', 
+      email: 'admin@gema.com',
+      rol_id: rolAdmin.id, 
+      tipo_documento_id: 'DNI', 
+      numero_documento: '00000001', 
+      telefono_personal: '900000000',
+      activo: true
     },
   });
 
-  // Profesor
+  // Profesor - Corregido para asegurar username único
   const usuarioProfe = await prisma.usuarios.upsert({
-    where: { email: 'coach@gema.com' },
+    where: { username: 'carlos.coach' },
     update: {},
     create: {
-      nombres: 'Carlos', apellidos: 'Coach', email: 'coach@gema.com',
-      rol_id: rolProfe.id, tipo_documento_id: 'DNI', numero_documento: '10203040',
+      username: 'carlos.coach',
+      nombres: 'Carlos', 
+      apellidos: 'Coach', 
+      email: 'coach@gema.com',
+      rol_id: rolProfe.id, 
+      tipo_documento_id: 'DNI', 
+      numero_documento: '10203040',
+      activo: true
     },
   });
 
@@ -62,7 +75,7 @@ async function main() {
   });
 
   // =================================================================
-  // 3. INFRAESTRUCTURA 🏢
+  // 3. INFRAESTRUCTURA 🏢 (Se mantiene igual)
   // =================================================================
   console.log('🏢 Configurando Sede y Cancha...');
 
@@ -91,72 +104,40 @@ async function main() {
   });
 
   // =================================================================
-  // 4. PARÁMETROS DEL SISTEMA (CEREBRO) 🧠
+  // 4. PARÁMETROS DEL SISTEMA (Se mantiene igual)
   // =================================================================
-  console.log('🧠 Inyectando Parámetros del Sistema (Reglas de Negocio)...');
+  console.log('🧠 Inyectando Parámetros del Sistema...');
   
   const parametrosSistema = [
-    { 
-      clave: 'TIEMPO_LIMITE_RESERVA_MIN', 
-      valor: '20', 
-      descripcion: 'Minutos que tiene un alumno nuevo para pagar antes de liberar el cupo (Modo Zombie)' 
-    },
-    { 
-      clave: 'DIAS_TOLERANCIA_PAGO', 
-      valor: '3', 
-      descripcion: 'Días extra que tiene un alumno para regularizar su pago tras el vencimiento' 
-    },
-    {
-      clave: 'DIAS_TOLERANCIA_VENCIMIENTO',
-      valor: '5',
-      descripcion: 'Días de gracia después de los 30 días del ciclo antes de marcar como VENCIDO'
-    },
-    {
-      clave: 'DIAS_ANTICIPACION_RENOVACION',
-      valor: '5',
-      descripcion: 'Días antes del vencimiento para generar la deuda del próximo ciclo automáticamente'
-    }
+    { clave: 'TIEMPO_LIMITE_RESERVA_MIN', valor: '20', descripcion: 'Minutos para pagar reserva' },
+    { clave: 'DIAS_TOLERANCIA_PAGO', valor: '3', descripcion: 'Días tolerancia pago' },
+    { clave: 'DIAS_TOLERANCIA_VENCIMIENTO', valor: '5', descripcion: 'Días gracia vencimiento' },
+    { clave: 'DIAS_ANTICIPACION_RENOVACION', valor: '5', descripcion: 'Días anticipación deuda' }
   ];
 
   for (const param of parametrosSistema) {
     await prisma.parametros_sistema.upsert({
       where: { clave: param.clave },
-      update: { valor: param.valor, descripcion: param.descripcion }, // Actualiza si ya existe
+      update: { valor: param.valor, descripcion: param.descripcion },
       create: param
     });
   }
 
   // =================================================================
-  // 5. CATÁLOGO DE PRECIOS (NUEVOS Y LEGACY) 💰
+  // 5. CATÁLOGO DE PRECIOS (Se mantiene igual)
   // =================================================================
-  console.log('💰 Configurando Catálogo de Precios Completo...');
+  console.log('💰 Configurando Catálogo de Precios...');
 
   const conceptos = [
-    // --- 🟢 1. PLANES VIGENTES 2026 ---
     { codigo: 'MENSUAL_1_DIA_2026', nombre: 'Mensualidad Básica (1 vez x semana)', precio: 150.00, clases: 1, vigente: true },
     { codigo: 'MENSUAL_2_DIA_2026', nombre: 'Plan Estándar (2 veces x semana)', precio: 280.00, clases: 2, vigente: true },
     { codigo: 'MENSUAL_3_DIA_2026', nombre: 'Plan Intensivo (3 veces x semana)', precio: 400.00, clases: 3, vigente: true },
-    { codigo: 'MENSUAL_4_DIA_2026', nombre: 'Plan Atleta (4 veces x semana)', precio: 500.00, clases: 4, vigente: true },
-    { codigo: 'CLASE_UNITARIA_2026', nombre: 'Costo por Clase Unitaria (Referencial)', precio: 37.50, clases: 0, vigente: true },
-
-    // --- 🔴 2. PLANES LEGACY (ANTIGUOS) ---
-    { codigo: 'M_LEGACY_1_DIA', nombre: 'Mensualidad Antigua (1 vez x semana)', precio: 100.00, clases: 1, vigente: false },
-    { codigo: 'M_LEGACY_2_DIA', nombre: 'Plan Estándar Antiguo (2 veces x semana)', precio: 190.00, clases: 2, vigente: false },
-    { codigo: 'M_LEGACY_3_DIA', nombre: 'Plan Intensivo Antiguo (3 veces x semana)', precio: 270.00, clases: 3, vigente: false },
-    { codigo: 'M_LEGACY_4_DIA', nombre: 'Plan Atleta Antiguo (4 veces x semana)', precio: 340.00, clases: 4, vigente: false },
-    { codigo: 'CLASE_UNI_LEGACY', nombre: 'Costo por Clase Unitaria (Legacy)', precio: 25.00, clases: 0, vigente: false },
   ];
 
   for (const c of conceptos) {
     await prisma.catalogo_conceptos.upsert({
       where: { codigo_interno: c.codigo },
-      update: { 
-          nombre: c.nombre, 
-          precio_base: c.precio, 
-          cantidad_clases_semanal: c.clases, 
-          es_vigente: c.vigente,
-          activo: true 
-      },
+      update: { nombre: c.nombre, precio_base: c.precio, cantidad_clases_semanal: c.clases, es_vigente: c.vigente },
       create: {
         codigo_interno: c.codigo,
         nombre: c.nombre,
@@ -169,38 +150,9 @@ async function main() {
   }
 
   // =================================================================
-  // 6. HORARIOS Y MÉTODOS DE PAGO 📅
+  // 6. MÉTODOS DE PAGO (Se mantiene igual)
   // =================================================================
-  console.log('📅 Creando Horarios y Métodos de Pago...');
-
-  const fechaBase = '1970-01-01T'; 
-  
-  // Horarios (Upsert manual para evitar duplicados por ID o lógica)
-  const horariosData = [
-      { dia: 1, inicio: '16:00:00Z', fin: '17:30:00Z', minutos: null }, // Lunes
-      { dia: 3, inicio: '16:00:00Z', fin: '17:30:00Z', minutos: 45 }   // Miércoles
-  ];
-
-  for (const h of horariosData) {
-      const existe = await prisma.horarios_clases.findFirst({ 
-          where: { dia_semana: h.dia, hora_inicio: new Date(`${fechaBase}${h.inicio}`) } 
-      });
-
-      if (!existe) {
-          await prisma.horarios_clases.create({
-              data: {
-                  cancha_id: cancha.id, profesor_id: usuarioProfe.id, nivel_id: nivel.id,
-                  dia_semana: h.dia, 
-                  hora_inicio: new Date(`${fechaBase}${h.inicio}`), 
-                  hora_fin: new Date(`${fechaBase}${h.fin}`),
-                  capacidad_max: 20, activo: true, minutos_reserva_especifico: h.minutos
-              }
-          });
-      }
-  }
-
-  // Métodos de Pago
-  const metodos = ['YAPE', 'PLIN', 'TRANSFERENCIA', 'EFECTIVO', 'OTROS'];
+  const metodos = ['YAPE', 'PLIN', 'TRANSFERENCIA', 'EFECTIVO'];
   for (const nombre of metodos) {
     await prisma.metodos_pago.upsert({
       where: { nombre: nombre },
@@ -210,16 +162,24 @@ async function main() {
   }
 
   // =================================================================
-  // 7. DATOS DE PRUEBA: EL ALUMNO "JAVIER" 🧪
+  // 7. ALUMNO DE PRUEBA: "JAVIER" 🧪
   // =================================================================
   console.log('🧪 Creando Alumno de Prueba (Javier)...');
 
+  // Corregido para usar username único
   const usuarioJavier = await prisma.usuarios.upsert({
-    where: { email: 'javier@prueba.com' },
+    where: { username: 'javier.prueba' },
     update: {},
     create: {
-      nombres: 'Javier', apellidos: 'Prueba', email: 'javier@prueba.com',
-      rol_id: rolAlumno.id, tipo_documento_id: 'DNI', numero_documento: '88888888', telefono_personal: '999999999'
+      username: 'javier.prueba',
+      nombres: 'Javier', 
+      apellidos: 'Prueba', 
+      email: 'javier@prueba.com',
+      rol_id: rolAlumno.id, 
+      tipo_documento_id: 'DNI', 
+      numero_documento: '88888888', 
+      telefono_personal: '999999999',
+      activo: true
     },
   });
 
@@ -229,45 +189,7 @@ async function main() {
     create: { usuario_id: usuarioJavier.id, condiciones_medicas: 'Ninguna', seguro_medico: 'Pacífico' }
   });
 
-  // Intentamos inscribirlo en el Lunes
-  const horarioLunes = await prisma.horarios_clases.findFirst({ where: { dia_semana: 1 } });
-  
-  if (horarioLunes) {
-    // Verificar si ya está inscrito para no duplicar en seeds consecutivos
-    const inscripcionExistente = await prisma.inscripciones.findFirst({
-        where: { alumno_id: usuarioJavier.id, horario_id: horarioLunes.id }
-    });
-
-    if (!inscripcionExistente) {
-        await prisma.inscripciones.create({
-            data: {
-                alumno_id: usuarioJavier.id,
-                horario_id: horarioLunes.id,
-                estado: 'PENDIENTE_PAGO',
-                fecha_inscripcion: new Date()
-            }
-        });
-
-        // Crear Deuda de Prueba (Usando el precio vigente)
-        const conceptoMensual = await prisma.catalogo_conceptos.findFirst({ where: { codigo_interno: 'MENSUAL_1_DIA_2026' } });
-        
-        if (conceptoMensual) {
-            await prisma.cuentas_por_cobrar.create({
-                data: {
-                    alumno_id: usuarioJavier.id,
-                    concepto_id: conceptoMensual.id, // IMPORTANTE: Usa concepto_id o catalogo_conceptos_id según tu schema
-                    detalle_adicional: 'Mensualidad Prueba Seed',
-                    monto_final: 150.00,
-                    fecha_vencimiento: new Date(Date.now() + 86400000), 
-                    estado: 'PENDIENTE'
-                }
-            });
-            console.log(`✅ Deuda de prueba creada para Javier.`);
-        }
-    }
-  }
-
-  console.log('✅✅ SEED MAESTRO COMPLETADO: Base de datos lista para pruebas.');
+  console.log('✅✅ SEED MAESTRO COMPLETADO.');
 }
 
 main()

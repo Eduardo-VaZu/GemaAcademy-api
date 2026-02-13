@@ -6,17 +6,13 @@ import { ApiError } from '../../shared/utils/error.util.js';
 
 export const authController = {
   login: catchAsync(async (req, res) => {
-    const { email, numero_documento, password } = req.body;
+    const { username, password } = req.body;
 
-    const result = await authService.login({ email, numero_documento, password });
-
-    setAuthCookies(res, result);
+    const result = await authService.login({ username, password });
 
     return apiResponse.success(res, {
       message: 'Login exitoso',
-      data: {
-        user: result.user
-      }
+      data: result,
     });
   }),
 
