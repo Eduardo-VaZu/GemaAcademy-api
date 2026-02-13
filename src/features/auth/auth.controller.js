@@ -10,6 +10,8 @@ export const authController = {
 
     const result = await authService.login({ username, password });
 
+    setAuthCookies(res, result);
+
     return apiResponse.success(res, {
       message: 'Login exitoso',
       data: result,
