@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configuración del transporte con Gmail
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -12,7 +11,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendCredentialsEmail = async (email, nombres, password) => {
+export const sendCredentialsEmail = async (email, nombres, username) => {
   const mailOptions = {
     from: `"Academia Gema" <${process.env.EMAIL_USER}>`,
     to: email,
@@ -35,13 +34,13 @@ export const sendCredentialsEmail = async (email, nombres, password) => {
 
           <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 25px; margin: 30px 0; text-align: center;">
             <div style="margin-bottom: 15px;">
-              <span style="display: block; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Usuario (Correo)</span>
-              <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${email}</span>
+              <span style="display: block; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Nombre de usuario</span>
+              <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${username}</span>
             </div>
             <div>
               <span style="display: block; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Contraseña inicial</span>
-              <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${password}</span>
-              <small style="display: block; color: #f97316; font-size: 11px; margin-top: 4px;">(Corresponde a tu número de documento)</small>
+              <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${username}</span>
+              <small style="display: block; color: #f97316; font-size: 11px; margin-top: 4px;">(Corresponde a tu nombre de usuario autogenerado)</small>
             </div>
           </div>
 

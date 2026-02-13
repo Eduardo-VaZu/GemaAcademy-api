@@ -69,6 +69,14 @@ export const usuarioService = {
       return usuarioActualizado;
     });
 
+    if (user.email) {
+      try {
+        await sendCredentialsEmail(user.email, user.nombres, user.username);
+      } catch (error) {
+        console.error("DETALLE DEL ERROR DE NODEMAILER:", error); 
+      }
+    }
+
     return {
       id: user.id,
       username: user.username,
