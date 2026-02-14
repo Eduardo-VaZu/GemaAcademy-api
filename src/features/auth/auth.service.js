@@ -19,6 +19,7 @@ export const authService = {
       include: {
         credenciales_usuario: true,
         roles: true,
+        alumnos: true,
       },
     });
 
