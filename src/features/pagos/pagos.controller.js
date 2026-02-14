@@ -4,6 +4,9 @@ export const pagosController = {
   // 1. REPORTAR PAGO (Con soporte para subida de imagen a Cloudinary)
   reportarPago: async (req, res) => {
     try {
+      console.log('📝 [DEBUG] Datos recibidos en reportarPago:', req.body);
+      console.log('📁 [DEBUG] Archivo recibido:', req.file ? req.file.originalname : 'Ninguno');
+
       // Pasar tanto los datos del body como el archivo (si existe)
       const resultado = await pagosService.registrarPago({
         ...req.body,
