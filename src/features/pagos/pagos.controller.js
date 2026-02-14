@@ -1,22 +1,24 @@
 import { pagosService } from './pagos.service.js';
 
 export const pagosController = {
-  
-  // 1. REPORTAR PAGO (Lógica original intacta ✅)
+  // 1. REPORTAR PAGO (Con soporte para subida de imagen a Cloudinary)
   reportarPago: async (req, res) => {
     try {
-      const resultado = await pagosService.registrarPago(req.body);
-      
+      // Pasar tanto los datos del body como el archivo (si existe)
+      const resultado = await pagosService.registrarPago({
+        ...req.body,
+        voucherFile: req.file, // El archivo subido desde el frontend
+      });
+
       res.status(201).json({
         status: 'success',
         message: '¡Pago reportado! Tus cupos están en validación por el administrador.',
         data: resultado,
       });
-
     } catch (error) {
       // Diferenciamos errores de "no encontrado" vs errores de lógica
-      const statusCode = error.message.includes("no existe") ? 404 : 400;
-      
+      const statusCode = error.message.includes('no existe') ? 404 : 400;
+
       res.status(statusCode).json({
         status: 'error',
         message: error.message,
@@ -32,33 +34,32 @@ export const pagosController = {
       const { pago_id, accion, notas, usuario_admin_id, monto_real_confirmado } = req.body;
 
       if (!usuario_admin_id) {
-        throw new Error("Se requiere el ID del administrador (usuario_admin_id).");
+        throw new Error('Se requiere el ID del administrador (usuario_admin_id).');
       }
 
       // Preparamos el objeto completo para el servicio
-      const data = { 
-        pago_id, 
-        accion, 
-        notas, 
+      const data = {
+        pago_id,
+        accion,
+        notas,
         usuario_admin_id,
-        monto_real_confirmado // <--- Aquí pasamos el dato nuevo
+        monto_real_confirmado, // <--- Aquí pasamos el dato nuevo
       };
 
       const resultado = await pagosService.validarPago(data);
-      
+
       res.status(200).json({
         status: 'success',
         message: resultado.resultado,
-        data: resultado
+        data: resultado,
       });
-
     } catch (error) {
       res.status(400).json({
         status: 'error',
-        message: error.message
+        message: error.message,
       });
     }
-  }, 
+  },
   // 3. LISTAR PAGOS
   listarPagos: async (req, res) => {
     try {
@@ -87,5 +88,5 @@ export const pagosController = {
     } catch (error) {
       res.status(400).json({ status: 'error', message: error.message });
     }
-  }
+  },
 };

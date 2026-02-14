@@ -1,10 +1,28 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { pagosController } from './pagos.controller.js';
 
 const router = Router();
 
+// Configuración de Multer para manejar archivos en memoria
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('¡Solo se permiten imágenes!'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+});
+
 // POST http://localhost:3000/api/pagos/reportar
-router.post('/reportar', pagosController.reportarPago);
+// Ahora acepta tanto datos JSON como archivo de imagen
+router.post('/reportar', upload.single('voucher'), pagosController.reportarPago);
 router.post('/validar', pagosController.validarPagoAdmin);
 // GET: Listar todos los pagos (Para la tabla de Admin)
 router.get('/', pagosController.listarPagos);
