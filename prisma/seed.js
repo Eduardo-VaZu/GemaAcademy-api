@@ -6,24 +6,20 @@ async function main() {
   console.log('🌱 Iniciando seed maestro de la Academia GEMA...');
 
   // =================================================================
-  // 1. ROLES Y DOCUMENTOS (CIMIENTOS) 🏗️
+  // 1. ROLES Y DOCUMENTOS 🏗️
   // =================================================================
   console.log('📝 Configurando Roles y Documentos...');
   
-  // Roles
-  await Promise.all([
+  const roles = await Promise.all([
     prisma.roles.upsert({ where: { nombre: 'Alumno' }, update: {}, create: { nombre: 'Alumno', descripcion: 'Estudiante' } }),
     prisma.roles.upsert({ where: { nombre: 'Profesor' }, update: {}, create: { nombre: 'Profesor', descripcion: 'Instructor' } }),
     prisma.roles.upsert({ where: { nombre: 'Administrador' }, update: {}, create: { nombre: 'Administrador', descripcion: 'Admin total' } }),
   ]);
 
-  const rolProfe = await prisma.roles.findUnique({ where: { nombre: 'Profesor' } });
-  const rolAlumno = await prisma.roles.findUnique({ where: { nombre: 'Alumno' } });
-  const rolAdmin = await prisma.roles.findUnique({ where: { nombre: 'Administrador' } });
+  const rolAlumno = roles.find(r => r.nombre === 'Alumno');
+  const rolProfe = roles.find(r => r.nombre === 'Profesor');
+  const rolAdmin = roles.find(r => r.nombre === 'Administrador');
 
-  if (!rolProfe || !rolAlumno || !rolAdmin) throw new Error("❌ Error: No se encontraron los roles.");
-
-  // Documentos
   await Promise.all([
     prisma.tipos_documento.upsert({ where: { id: 'DNI' }, update: {}, create: { id: 'DNI', descripcion: 'Documento Nacional de Identidad' } }),
     prisma.tipos_documento.upsert({ where: { id: 'CE' }, update: {}, create: { id: 'CE', descripcion: 'Carnet de Extranjería' } }),
@@ -31,12 +27,11 @@ async function main() {
   ]);
 
   // =================================================================
-  // 2. USUARIOS ADMINISTRATIVOS 👮
+  // 2. USUARIOS ADMINISTRATIVOS (Admin y Profesor) 👮
   // =================================================================
   console.log('👮 Creando Admin y Profesor...');
 
-  // Admin - Corregido para usar username como identificador único
-  await prisma.usuarios.upsert({
+  const admin = await prisma.usuarios.upsert({
     where: { username: 'admin.gema' },
     update: {},
     create: {
@@ -47,12 +42,16 @@ async function main() {
       rol_id: rolAdmin.id, 
       tipo_documento_id: 'DNI', 
       numero_documento: '00000001', 
-      telefono_personal: '900000000',
       activo: true
     },
   });
 
-  // Profesor - Corregido para asegurar username único
+  await prisma.administrador.upsert({
+    where: { usuario_id: admin.id },
+    update: {},
+    create: { usuario_id: admin.id, cargo: 'Director General', area: 'Administración' }
+  });
+
   const usuarioProfe = await prisma.usuarios.upsert({
     where: { username: 'carlos.coach' },
     update: {},
@@ -68,51 +67,46 @@ async function main() {
     },
   });
 
-  await prisma.profesores.upsert({
+  const profe = await prisma.profesores.upsert({
     where: { usuario_id: usuarioProfe.id },
     update: {},
     create: { usuario_id: usuarioProfe.id, especializacion: 'Voley Alto Rendimiento' },
   });
 
   // =================================================================
-  // 3. INFRAESTRUCTURA 🏢 (Se mantiene igual)
+  // 3. INFRAESTRUCTURA 🏢
   // =================================================================
-  console.log('🏢 Configurando Sede y Cancha...');
+  console.log('🏢 Configurando Sede, Cancha y Niveles...');
 
-  const direccion = await prisma.direcciones.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { direccion_completa: 'Av. del Deporte 123', distrito: 'San Borja', ciudad: 'Lima' },
+  // Usamos create porque las sedes y canchas suelen ser registros únicos en esta etapa
+  const direccion = await prisma.direcciones.create({
+    data: { direccion_completa: 'Av. del Deporte 123', distrito: 'San Borja', ciudad: 'Lima' }
   });
 
-  const sede = await prisma.sedes.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { nombre: 'Sede Central', direccion_id: direccion.id, tipo_instalacion: 'Coliseo' },
+  const sede = await prisma.sedes.create({
+    data: { nombre: 'Sede Central Gema', direccion_id: direccion.id, tipo_instalacion: 'Coliseo' },
   });
 
-  const cancha = await prisma.canchas.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { sede_id: sede.id, nombre: 'Cancha A (Principal)', descripcion: 'Piso flotante' },
+  const cancha = await prisma.canchas.create({
+    data: { sede_id: sede.id, nombre: 'Cancha A (Principal)', descripcion: 'Piso flotante profesional' },
   });
 
   const nivel = await prisma.niveles_entrenamiento.upsert({
     where: { id: 1 },
     update: {},
-    create: { nombre: 'Formativo', precio_referencial: 0 }, 
+    create: { nombre: 'Formativo', precio_referencial: 150.00 }, 
   });
 
   // =================================================================
-  // 4. PARÁMETROS DEL SISTEMA (Se mantiene igual)
+  // 4. PARÁMETROS DEL SISTEMA (SEGÚN DBEAVER) 🧠
   // =================================================================
   console.log('🧠 Inyectando Parámetros del Sistema...');
-  
+
   const parametrosSistema = [
-    { clave: 'TIEMPO_LIMITE_RESERVA_MIN', valor: '20', descripcion: 'Minutos para pagar reserva' },
-    { clave: 'DIAS_TOLERANCIA_PAGO', valor: '3', descripcion: 'Días tolerancia pago' },
-    { clave: 'DIAS_TOLERANCIA_VENCIMIENTO', valor: '5', descripcion: 'Días gracia vencimiento' },
-    { clave: 'DIAS_ANTICIPACION_RENOVACION', valor: '5', descripcion: 'Días anticipación deuda' }
+    { clave: 'DIAS_TOLERANCIA_PAGO', valor: '3', descripcion: 'Días extra que tiene un alumno para regularizar su pago antes de suspender' },
+    { clave: 'DIAS_TOLERANCIA_VENCIMIENTO', valor: '5', descripcion: 'Días de gracia después de los 30 días del ciclo para el vencimiento de la deuda' },
+    { clave: 'DIAS_ANTICIPACION_RENOVACION', valor: '5', descripcion: 'Días antes del vencimiento para generar la nueva cuenta por cobrar' },
+    { clave: 'TIEMPO_LIMITE_RESERVA_MIN', valor: '20', descripcion: 'Minutos que tiene un alumno nuevo para pagar su reserva antes de liberarse' }
   ];
 
   for (const param of parametrosSistema) {
@@ -124,20 +118,36 @@ async function main() {
   }
 
   // =================================================================
-  // 5. CATÁLOGO DE PRECIOS (Se mantiene igual)
+  // 5. CATÁLOGO DE PRECIOS (NUEVOS Y LEGACY) 💰
   // =================================================================
   console.log('💰 Configurando Catálogo de Precios...');
 
   const conceptos = [
+    // PLANES ACTUALES 2026 (Vigentes)
     { codigo: 'MENSUAL_1_DIA_2026', nombre: 'Mensualidad Básica (1 vez x semana)', precio: 150.00, clases: 1, vigente: true },
     { codigo: 'MENSUAL_2_DIA_2026', nombre: 'Plan Estándar (2 veces x semana)', precio: 280.00, clases: 2, vigente: true },
     { codigo: 'MENSUAL_3_DIA_2026', nombre: 'Plan Intensivo (3 veces x semana)', precio: 400.00, clases: 3, vigente: true },
+    { codigo: 'MENSUAL_4_DIA_2026', nombre: 'Plan Atleta (4 veces x semana)', precio: 500.00, clases: 4, vigente: true },
+    { codigo: 'CLASE_UNITARIA_2026', nombre: 'Costo por Clase Unitaria (Referencial)', precio: 37.50, clases: 0, vigente: true },
+
+    // PLANES LEGACY (No vigentes)
+    { codigo: 'M_LEGACY_1_DIA', nombre: 'Mensualidad Antigua (1 vez x semana)', precio: 100.00, clases: 1, vigente: false },
+    { codigo: 'M_LEGACY_2_DIA', nombre: 'Plan Estándar Antiguo (2 veces x semana)', precio: 190.00, clases: 2, vigente: false },
+    { codigo: 'M_LEGACY_3_DIA', nombre: 'Plan Intensivo Antiguo (3 veces x semana)', precio: 270.00, clases: 3, vigente: false },
+    { codigo: 'M_LEGACY_4_DIA', nombre: 'Plan Atleta Antiguo (4 veces x semana)', precio: 340.00, clases: 4, vigente: false },
+    { codigo: 'CLASE_UNI_LEGACY', nombre: 'Costo por Clase Unitaria (Legacy)', precio: 25.00, clases: 0, vigente: false },
   ];
 
   for (const c of conceptos) {
     await prisma.catalogo_conceptos.upsert({
       where: { codigo_interno: c.codigo },
-      update: { nombre: c.nombre, precio_base: c.precio, cantidad_clases_semanal: c.clases, es_vigente: c.vigente },
+      update: { 
+        nombre: c.nombre, 
+        precio_base: c.precio, 
+        cantidad_clases_semanal: c.clases, 
+        es_vigente: c.vigente,
+        activo: true 
+      },
       create: {
         codigo_interno: c.codigo,
         nombre: c.nombre,
@@ -149,24 +159,30 @@ async function main() {
     });
   }
 
-  // =================================================================
-  // 6. MÉTODOS DE PAGO (Se mantiene igual)
-  // =================================================================
-  const metodos = ['YAPE', 'PLIN', 'TRANSFERENCIA', 'EFECTIVO'];
-  for (const nombre of metodos) {
-    await prisma.metodos_pago.upsert({
-      where: { nombre: nombre },
-      update: {},
-      create: { nombre: nombre, activo: true }
-    });
+  // Métodos de pago base
+  for (const m of ['YAPE', 'PLIN', 'TRANSFERENCIA', 'EFECTIVO']) {
+    await prisma.metodos_pago.upsert({ where: { nombre: m }, update: {}, create: { nombre: m, activo: true } });
   }
 
   // =================================================================
-  // 7. ALUMNO DE PRUEBA: "JAVIER" 🧪
+  // 6. ALUMNO DE PRUEBA Y HORARIO 🧪
   // =================================================================
-  console.log('🧪 Creando Alumno de Prueba (Javier)...');
+  console.log('🧪 Creando Alumno e Inscripción de prueba...');
 
-  // Corregido para usar username único
+  const horario1 = await prisma.horarios_clases.upsert({
+    where: { id: 1 },
+    update: {},
+    create: {
+        cancha_id: cancha.id,
+        profesor_id: profe.usuario_id,
+        nivel_id: nivel.id,
+        dia_semana: 1, // Lunes
+        hora_inicio: new Date(2026, 1, 1, 16, 0), // 16:00
+        hora_fin: new Date(2026, 1, 1, 18, 0),
+        capacidad_max: 20
+    }
+  });
+
   const usuarioJavier = await prisma.usuarios.upsert({
     where: { username: 'javier.prueba' },
     update: {},
@@ -177,16 +193,23 @@ async function main() {
       email: 'javier@prueba.com',
       rol_id: rolAlumno.id, 
       tipo_documento_id: 'DNI', 
-      numero_documento: '88888888', 
-      telefono_personal: '999999999',
+      numero_documento: '88888888',
       activo: true
     },
   });
 
-  await prisma.alumnos.upsert({
+  const alumno = await prisma.alumnos.upsert({
     where: { usuario_id: usuarioJavier.id },
     update: {},
-    create: { usuario_id: usuarioJavier.id, condiciones_medicas: 'Ninguna', seguro_medico: 'Pacífico' }
+    create: { usuario_id: usuarioJavier.id, condiciones_medicas: 'Ninguna' }
+  });
+
+  await prisma.inscripciones.create({
+    data: {
+        alumno_id: alumno.usuario_id,
+        horario_id: horario1.id,
+        estado: 'ACTIVO'
+    }
   });
 
   console.log('✅✅ SEED MAESTRO COMPLETADO.');

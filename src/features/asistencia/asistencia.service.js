@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database.config.js';
+import {recuperacionService} from '../recuperaciones/recuperacion.service.js'
 
 /**
  * Función auxiliar para calcular fechas DENTRO DE UN RANGO (Dinámico) 📅
@@ -106,15 +107,26 @@ export const asistenciaService = {
   },
 
   // 📋 Funciones extra (sin cambios)
-  marcarAsistencia: async (asistenciaId, estado, comentario) => {
-    return await prisma.registros_asistencia.update({
+ marcarAsistencia: async (asistenciaId, estado, comentario) => {
+    const asistenciaRegistrada = await prisma.registros_asistencia.update({
       where: { id: asistenciaId },
-      data: { 
-        estado, 
+      data: {
+        estado,
         comentario,
         actualizado_en: new Date()
+      },
+      include: {
+        inscripciones: true
       }
     });
+
+    // Crea un registro en la tabla recuperaciones con estado PENDIENTE en caso la asistencia sea registrada como FALTA.
+    if (asistenciaRegistrada.estado === "FALTA") {
+      const idAlumnoInscripcion = asistenciaRegistrada.inscripciones.alumno_id;
+      await recuperacionService.registrarFaltaPendiente(idAlumnoInscripcion, asistenciaRegistrada.fecha)
+    }
+
+    return asistenciaRegistrada
   },
 
   obtenerHistorial: async (inscripcionId) => {
@@ -124,24 +136,38 @@ export const asistenciaService = {
     });
   },
   obtenerPorAlumno: async (alumnoId) => {
-    return await prisma.registros_asistencia.findMany({
-      where: {
-        inscripciones: {
-          alumno_id: parseInt(alumnoId)
-        }
-      },
-      include: {
-        inscripciones: {
-          include: {
-            horarios_clases: {
-              include: { canchas: { include: { sedes: true } } }
+  return await prisma.registros_asistencia.findMany({
+    where: {
+      inscripciones: {
+        alumno_id: parseInt(alumnoId)
+      }
+    },
+    include: {
+      inscripciones: {
+        include: {
+          horarios_clases: {
+            include: { 
+              canchas: { include: { sedes: true } },
+              // 🔥 ESTO ES LO QUE DEBES AGREGAR:
+              profesores: {
+                include: {
+                  usuarios: {
+                    select: {
+                      nombres: true,
+                      apellidos: true
+                    }
+                  }
+                }
+              },
+              niveles_entrenamiento: true
             }
           }
         }
-      },
-      orderBy: { fecha: 'desc' }
-    });
-  },
+      }
+    },
+    orderBy: { fecha: 'asc' } // Recomendado 'asc' para ver cronológicamente
+  });
+},
 
   /**
    * 🆕 Obtener todas las asistencias (Vista Admin)

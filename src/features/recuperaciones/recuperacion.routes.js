@@ -10,14 +10,14 @@ router.use(authenticate);
 // POST /api/recuperaciones/validar-elegibilidad
 router.post(
     '/validar-elegibilidad',
-    authorize('alumno', 'administrador'),
+    authorize('Alumno', 'Administrador'),
     recuperacionController.validarElegibilidad
 );
 
 // POST /api/recuperaciones
 router.post(
     '/agendar-recuperacion',
-    authorize('alumno', 'administrador'),
+    authorize('Alumno', 'Administrador'),
     recuperacionController.agendarRecuperacion
 );
 
