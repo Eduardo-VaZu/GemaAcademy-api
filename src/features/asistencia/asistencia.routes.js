@@ -16,28 +16,28 @@ router.get('/alumno/:alumnoId', asistenciaController.listarPorAlumno);
 router.get('/', asistenciaController.listarTodas);
 
 // ✅ Corrección en asistencia.routes.js
-router.use(authenticate); 
+router.use(authenticate);
 
 router.get(
-    '/agenda/hoy', 
+    '/agenda/hoy',
     authorize('Profesor'), // Sin corchetes
     asistenciaController.listarClasesHoy
 );
 router.get(
     '/agenda', // Quitamos el '/hoy' para que sea una ruta de agenda general
-    authorize('Profesor'), 
+    authorize('Profesor'),
     asistenciaController.listarAgenda
 );
 router.post(
-    '/masiva', 
-    authorize('Profesor'), 
+    '/masiva',
+    authorize('Profesor'),
     asistenciaController.marcarAsistenciaMasiva
 );
 
-router.patch(
-    '/:id',
-    authorize('Profesor', 'Administrador'), // Sin corchetes
-    asistenciaController.marcarAsistencia
-);
+// router.patch(
+//     '/:id',
+//     authorize('Profesor', 'Administrador'), // Sin corchetes
+//     asistenciaController.marcarAsistencia
+// );
 
 export default router;

@@ -1,9 +1,9 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
-const registrarFaltaPendiente = async (alumnoId, fechaFalta) => {
+const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
   // 1. Evitar duplicados
-  const yaExiste = await prisma.recuperaciones.findFirst({
+  const yaExiste = await tx.recuperaciones.findFirst({
     where: {
       alumno_id: Number.parseInt(alumnoId),
       fecha_falta: new Date(fechaFalta),
@@ -16,7 +16,7 @@ const registrarFaltaPendiente = async (alumnoId, fechaFalta) => {
   }
 
   // 2. Crear el registro pendiente
-  const nuevaFalta = await prisma.recuperaciones.create({
+  const nuevaFalta = await tx.recuperaciones.create({
     data: {
       alumno_id: Number.parseInt(alumnoId),
       fecha_falta: new Date(fechaFalta),
