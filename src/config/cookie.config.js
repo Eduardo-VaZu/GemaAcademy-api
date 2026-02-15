@@ -17,7 +17,7 @@ export const getCookieOptions = () => {
   return {
     httpOnly: true,
     secure: NODE_ENV === 'production',
-    sameSite: NODE_ENV === 'production' ? 'strict' : 'lax',
+    sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
   };
 };
