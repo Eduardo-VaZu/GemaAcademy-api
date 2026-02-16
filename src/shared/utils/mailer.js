@@ -4,16 +4,22 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const transporter = nodemailer.createTransport({
-  host: '74.125.202.108',
-  port: 465,
-  secure: true, 
-  connectionTimeout: 30000, 
-  greetingTimeout: 30000,
-  socketTimeout: 30000,
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+transporter.verify(function (error, success) {
+  if (error) {
+    console.log("Error en la configuración de correo:", error);
+  } else {
+    console.log("El servidor de correo está listo para enviar mensajes");
+  }
 });
 
 export const sendCredentialsEmail = async (email, nombres, username) => {
