@@ -32,6 +32,9 @@ const app = express();
 app.set('trust proxy', 1);
 const morganFormat = ':method :url :status :response-time ms';
 
+// Trust proxy configuration (required for X-Forwarded-For headers)
+app.set('trust proxy', true);
+
 // Middlewares
 const corsOriginList = Array.isArray(CORS_ORIGIN) ? CORS_ORIGIN : [CORS_ORIGIN].filter(Boolean);
 const normalizeOrigin = (origin) => origin.replace(/\/$/, '');
