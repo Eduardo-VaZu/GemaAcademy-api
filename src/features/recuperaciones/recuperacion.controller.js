@@ -3,6 +3,12 @@ import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
+const obtenerPendientes = catchAsync(async (req, res) => {
+    const { id: alumnoId } = req.user; // Asumiendo que el ID viene del token JWT
+    const pendientes = await recuperacionService.obtenerPendientes(alumnoId);
+    return apiResponse.success(res, { data: pendientes, message: 'Recuperaciones pendientes obtenidas.' });
+});
+
 const validarElegibilidad = catchAsync(async (req, res) => {
     const { id: usuarioId } = req.user;
     const { fechaFalta, fechaProgramada } = req.body;
@@ -40,6 +46,7 @@ const agendarRecuperacion = catchAsync(async (req, res) => {
 });
 
 export const recuperacionController = {
+    obtenerPendientes,
     validarElegibilidad,
     agendarRecuperacion
 };

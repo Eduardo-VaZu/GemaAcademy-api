@@ -7,6 +7,13 @@ const router = Router();
 
 router.use(authenticate);
 
+// GET /api/recuperaciones/pendientes
+router.get(
+    '/pendientes',
+    authorize('Alumno'),
+    recuperacionController.obtenerPendientes
+);
+
 // POST /api/recuperaciones/validar-elegibilidad
 router.post(
     '/validar-elegibilidad',

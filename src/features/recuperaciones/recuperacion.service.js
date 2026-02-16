@@ -2,6 +2,18 @@ import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
 const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
+
+  const cantidadInscripciones = await tx.inscripciones.count({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: 'ACTIVO',
+    },
+  });
+
+  // Si tiene menos de 2 inscripciones, entonces no se crea una recuperacion pendiente.
+  if (cantidadInscripciones < 2) {
+    return null; // Retornamos null para indicar que no se creó nada.
+  }
   // 1. Evitar duplicados
   const yaExiste = await tx.recuperaciones.findFirst({
     where: {
@@ -27,6 +39,71 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
   return nuevaFalta;
 };
 
+const obtenerPendientes = async (alumnoId) => {
+  const pendientes = await prisma.recuperaciones.findMany({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: 'PENDIENTE',
+    },
+    orderBy: {
+      fecha_falta: 'asc', // Las más antiguas primero para que las recupere pronto
+    },
+  });
+
+  const inscripcion = await prisma.inscripciones.findFirst({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: 'ACTIVO',
+    },
+    orderBy: {
+      fecha_inscripcion: 'asc',
+    },
+  });
+
+  // Si no hay inscripción activa, devolvemos los tickets tal cual
+  if (!inscripcion) {
+    return pendientes.map(p => ({ ...p, fecha_caducidad: null }));
+  }
+
+  const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
+
+  // Inyectamos en cada ticket sin lesión la fecha límite
+  const pendientesConFechaLimite = pendientes.map((ticket) => {
+
+    if (ticket.es_por_lesion) {
+      return {
+        ...ticket,
+        fecha_caducidad: null
+      };
+    }
+
+    const fechaFaltaDate = new Date(ticket.fecha_falta);
+
+    const diffFalta = fechaFaltaDate - inicioInscripcion;
+    const diasTranscurridosFalta = Math.floor(diffFalta / (1000 * 60 * 60 * 24));
+
+    // Protección por si la fecha de falta es anterior a la inscripción (Para casos aislados de migración)
+    if (diasTranscurridosFalta < 0) {
+      return { ...ticket, fecha_caducidad: null };
+    }
+
+    const numeroBloqueFalta = Math.floor(diasTranscurridosFalta / 30);
+
+    const finCicloFalta = new Date(inicioInscripcion);
+    finCicloFalta.setUTCDate(inicioInscripcion.getUTCDate() + (numeroBloqueFalta + 1) * 30);
+
+    const fechaLimiteValida = new Date(finCicloFalta);
+    fechaLimiteValida.setUTCDate(finCicloFalta.getUTCDate() + 30);
+
+    return {
+      ...ticket,
+      fecha_caducidad: fechaLimiteValida
+    };
+  });
+
+  return pendientesConFechaLimite;
+};
+
 /**
  * Valida TODAS las reglas de negocio antes de permitir una recuperación.
  */
@@ -47,6 +124,23 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
       'No se encontró una falta pendiente para esta fecha. Puede que ya haya sido recuperada o no se haya registrado la inasistencia aún.',
       404
     );
+  }
+
+  if (faltaPendiente.es_por_lesion) {
+
+    const inscripcionActiva = await prisma.inscripciones.findFirst({
+      where: { alumno_id: parseInt(alumnoId), estado: 'ACTIVO' }
+    });
+
+    if (!inscripcionActiva) {
+      throw new ApiError('Debes tener una inscripción activa para agendar.', 403);
+    }
+
+    if (fechaProgramadaDate < new Date()) {
+      throw new ApiError('La fecha programada debe ser futura.', 400);
+    }
+
+    return true;
   }
 
   const inscripcion = await prisma.inscripciones.findFirst({
@@ -108,7 +202,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
   fechaLimiteValida.setUTCDate(finCicloFalta.getUTCDate() + 30);
 
   if (fechaProgramadaDate > fechaLimiteValida) {
-    throw new ApiError('La vigencia para recuperar esta falta ha expirado.', 400);
+    throw new ApiError('La vigencia para recuperar esta falta ha expirado o sobrepasa la fecha límite.', 400);
   }
 
   // ---------------------------------------------------------
@@ -122,7 +216,7 @@ const validarElegibilidad = async (alumnoId, fechaFalta, fechaProgramada) => {
         gte: inicioCicloFalta,
         lt: finCicloFalta,
       },
-      estado: { not: 'PENDIENTE' },
+      estado: { in: ['PROGRAMADA', 'COMPLETADA'] },
     },
   });
 
@@ -202,7 +296,6 @@ const agendarRecuperacion = async ({ alumnoId, fechaFalta, horarioDestinoId, fec
     data: {
       horario_destino_id: Number.parseInt(horarioDestinoId),
       fecha_programada: new Date(fechaProgramada),
-      es_por_lesion: false,
       estado: 'PROGRAMADA',
     },
   });
@@ -212,6 +305,7 @@ const agendarRecuperacion = async ({ alumnoId, fechaFalta, horarioDestinoId, fec
 
 // Exportamos el objeto con las funciones
 export const recuperacionService = {
+  obtenerPendientes,
   validarElegibilidad,
   agendarRecuperacion,
   registrarFaltaPendiente,
