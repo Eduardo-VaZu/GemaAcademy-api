@@ -14,15 +14,37 @@ export const authService = {
   login: async (loginData) => {
     const { username, password } = loginData;
 
+    // Optimización 1: Select específico en lugar de include completo
     const usuario = await prisma.usuarios.findUnique({
       where: { username },
-      include: {
-        credenciales_usuario: true,
-        roles: true,
-        alumnos: true,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        activo: true,
+        rol_id: true,
+        credenciales_usuario: {
+          select: {
+            hash_contrasena: true,
+            bloqueado: true,
+            usuario_id: true,
+          },
+        },
+        roles: {
+          select: {
+            nombre: true,
+          },
+        },
+        // Optimización 4: Lazy loading - solo contar alumnos
+        _count: {
+          select: { alumnos: true },
+        },
       },
     });
 
+    // Optimización 3: Mensaje genérico para mayor seguridad
     if (!usuario) {
       throw new ApiError('Credenciales inválidas', 401);
     }
@@ -44,14 +66,10 @@ export const authService = {
       usuario.credenciales_usuario.hash_contrasena
     );
 
+    // Optimización 3: Mismo mensaje genérico para contraseña incorrecta
     if (!passwordValida) {
       throw new ApiError('Credenciales inválidas', 401);
     }
-
-    await prisma.credenciales_usuario.update({
-      where: { usuario_id: usuario.id },
-      data: { ultimo_login: new Date() },
-    });
 
     const accessToken = jwt.sign(
       {
@@ -67,13 +85,20 @@ export const authService = {
     const refreshToken = tokenUtils.generateRefreshToken();
     const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
 
-    await prisma.refresh_tokens.create({
-      data: {
-        usuario_id: usuario.id,
-        token: refreshToken,
-        expires_at: expiresAt,
-      },
-    });
+    // Optimización 2: Combinar operaciones de DB en una transacción
+    await prisma.$transaction([
+      prisma.credenciales_usuario.update({
+        where: { usuario_id: usuario.id },
+        data: { ultimo_login: new Date() },
+      }),
+      prisma.refresh_tokens.create({
+        data: {
+          usuario_id: usuario.id,
+          token: refreshToken,
+          expires_at: expiresAt,
+        },
+      }),
+    ]);
 
     return {
       accessToken,
@@ -85,7 +110,7 @@ export const authService = {
         nombres: usuario.nombres,
         apellidos: usuario.apellidos,
         rol: usuario.roles.nombre,
-        alumnos: usuario.alumnos,
+        cantidadAlumnos: usuario._count.alumnos, // Cambio: solo cantidad en lugar de todos los datos
         debeCompletarEmail: !usuario.email,
       },
     };
@@ -249,8 +274,8 @@ export const authService = {
         username: true,
         email: true,
         nombres: true,
-        apellidos: true
-      }
+        apellidos: true,
+      },
     });
 
     return usuario;
@@ -259,7 +284,7 @@ export const authService = {
   findUserByUsername: async (username) => {
     return await prisma.usuarios.findUnique({
       where: { username },
-      select: { id: true, email: true, nombres: true, username: true }
+      select: { id: true, email: true, nombres: true, username: true },
     });
   },
 
@@ -267,12 +292,12 @@ export const authService = {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     return await prisma.credenciales_usuario.update({
       where: {
-        usuario_id: userId 
+        usuario_id: userId,
       },
       data: {
         hash_contrasena: hashedPassword,
-        bloqueado: false 
-      }
+        bloqueado: false,
+      },
     });
-  }
+  },
 };
