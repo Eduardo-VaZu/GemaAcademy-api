@@ -29,6 +29,7 @@ import parametrosRoutes from './features/parametros_sistema/parametros.routes.js
 import cloudinaryRoutes from './features/cloudinaryImg/cloudinary.routes.js';
 
 const app = express();
+app.set('trust proxy', 1);
 const morganFormat = ':method :url :status :response-time ms';
 
 // Trust proxy configuration (required for X-Forwarded-For headers)
