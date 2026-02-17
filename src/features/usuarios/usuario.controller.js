@@ -8,6 +8,7 @@ export const usuarioController = {
   register: catchAsync(async (req, res) => {
     const { rol_id, datosRolEspecifico } = req.body;
 
+    // 1. Validación de datos específicos según el rol
     if (datosRolEspecifico && typeof rol_id === 'string') {
       const validationResult = validateRoleSpecificData(rol_id, datosRolEspecifico);
 
@@ -16,16 +17,17 @@ export const usuarioController = {
       }
     }
 
+    // 2. Creación del usuario
     const usuario = await usuarioService.createUser(req.body);
 
+    // 3. Respuesta estructurada para el Alumno
     return apiResponse.created(res, {
-      message: 'Usuario creado exitosamente',
+      message: '¡Inscripción exitosa! Los detalles de tu cuenta han sido enviados a tu correo electrónico.',
       data: {
         id: usuario.id,
         username: usuario.username,
-        email: usuario.email, 
+        email: usuario.email,
         nombres: usuario.nombres,
-        apellidos: usuario.apellidos,
         rol: usuario.rol,
       },
     });

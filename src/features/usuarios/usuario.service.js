@@ -15,7 +15,8 @@ export const usuarioService = {
       rol_id,
       fecha_nacimiento,
       rolNombre: providedRolNombre,
-      datosRolEspecifico = {},
+      contacto_emergencia,
+      parentesco,
       ...otrosdatos
     } = userData;
 
@@ -27,14 +28,16 @@ export const usuarioService = {
       const rolNombreNormalizado = rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
       rol = await prisma.roles.findUnique({ where: { nombre: rolNombreNormalizado } });
     } else {
-      rol = await prisma.roles.findUnique({ where: { id: rolNombre } });
+      rol = await prisma.roles.findUnique({ where: { id: parseInt(rolNombre) } });
     }
+
     if (!rol) throw new ApiError(`El rol '${rolNombre}' no existe`, 400);
 
     const user = await prisma.$transaction(async (tx) => {
+      // 1. Crear usuario con username temporal
       const nuevoUsuario = await tx.usuarios.create({
         data: {
-          username: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          username: `temp_${Date.now()}`,
           email: email || null,
           rol_id: rol.id,
           tipo_documento_id: tipo_documento_id || null,
@@ -45,13 +48,17 @@ export const usuarioService = {
         },
       });
 
+      // 2. Generar Username Final
       const primerNombre = otrosdatos.nombres.split(' ')[0].toLowerCase();
       const primerApellido = otrosdatos.apellidos.split(' ')[0].toLowerCase();
       const finalUsername = providedUsername || `${primerNombre}.${primerApellido}${nuevoUsuario.id}`;
 
+      // 3. Hashear Password (priorizar la del form, sino usar username)
+      const passwordToHash = password || finalUsername;
       const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(finalUsername, saltRounds);
+      const hashedPassword = await bcrypt.hash(passwordToHash, saltRounds);
 
+      // 4. Actualizar Username y crear credenciales
       const usuarioActualizado = await tx.usuarios.update({
         where: { id: nuevoUsuario.id },
         data: { username: finalUsername },
@@ -64,19 +71,40 @@ export const usuarioService = {
         },
       });
 
-      await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, datosRolEspecifico);
+      // 5. Datos específicos de Alumno (Incluyendo emergencia)
+      if (rol.nombre.toLowerCase() === 'alumno') {
+        await tx.alumnos.create({
+          data: { usuario_id: nuevoUsuario.id }
+        });
+
+        if (contacto_emergencia) {
+          const nombreEmergencia = `Emergencia ${otrosdatos.nombres}`;
+
+          const contactoExistente = await tx.alumnos_contactos.findFirst({
+            where: {
+              alumno_id: nuevoUsuario.id,
+              telefono: contacto_emergencia
+            }
+          });
+
+          if (!contactoExistente) {
+            await tx.alumnos_contactos.create({
+              data: {
+                alumno_id: nuevoUsuario.id,
+                nombre_completo: nombreEmergencia,
+                telefono: contacto_emergencia,
+                relacion: parentesco,
+                es_principal: true
+              }
+            });
+          }
+        }
+      } else {
+        await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, {});
+      }
 
       return usuarioActualizado;
     });
-
-    /*
-    if (user.email) {
-      try {
-        await sendCredentialsEmail(user.email, user.nombres, user.username);
-      } catch (error) {
-        console.error("DETALLE DEL ERROR DE NODEMAILER:", error); 
-      }
-    }*/
 
     return {
       id: user.id,
