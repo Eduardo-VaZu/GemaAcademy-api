@@ -83,6 +83,28 @@ export const pagosController = {
     }
   },
 
+  obtenerPagosPorAlumno: async (req, res) => {
+    try {
+      const { alumno_id } = req.params;
+
+      if (!alumno_id) {
+        throw new Error('Se requiere el ID del alumno.');
+      }
+
+      const pagos = await pagosService.obtenerPorAlumno(alumno_id);
+
+      res.status(200).json({
+        status: 'success',
+        data: pagos,
+      });
+    } catch (error) {
+      res.status(400).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
+
   // 5. ELIMINAR PAGO
   eliminarPago: async (req, res) => {
     try {

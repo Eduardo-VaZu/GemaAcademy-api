@@ -203,6 +203,30 @@ export const pagosService = {
     return pago;
   },
 
+  obtenerPorAlumno: async (alumnoId) => {
+    return await prisma.pagos.findMany({
+      where: {
+        cuentas_por_cobrar: {
+          alumno_id: Number.parseInt(alumnoId),
+        },
+      },
+      include: {
+        cuentas_por_cobrar: {
+          include: { 
+            alumnos: { 
+              include: { usuarios: true } 
+            } 
+          }
+        },
+        metodos_pago: true,
+        administrador: { 
+          include: { usuarios: true } 
+        },
+      },
+      orderBy: { fecha_pago: 'desc' },
+    });
+  },
+
   // 5. ELIMINAR REGISTRO DE PAGO (Uso delicado)
   eliminarPago: async (id) => {
     return await prisma.pagos.delete({

@@ -20,6 +20,11 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
+// GET: Pagos de un alumno específico (Vista de Dashboard Estudiante)
+// Esta es la ruta que acabamos de crear: http://localhost:3000/api/pagos/alumno/12
+router.get('/alumno/:alumno_id', pagosController.obtenerPagosPorAlumno);
+
+
 // POST http://localhost:3000/api/pagos/reportar
 // Ahora acepta tanto datos JSON como archivo de imagen
 router.post('/reportar', upload.single('voucher'), pagosController.reportarPago);
