@@ -28,4 +28,18 @@ router.post(
     recuperacionController.agendarRecuperacion
 );
 
+// POST /api/recuperaciones/cancelar-recuperacion
+router.post(
+    '/cancelar-recuperacion/:recuperacionId',
+    authorize('Alumno', 'Administrador'),
+    recuperacionController.cancelarRecuperacion
+);
+
+// GET /api/recuperaciones/historial
+router.get(
+    '/historial',
+    authorize('Alumno'),
+    recuperacionController.obtenerHistorial
+);
+
 export default router;

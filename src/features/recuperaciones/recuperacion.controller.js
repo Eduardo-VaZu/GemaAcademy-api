@@ -45,8 +45,27 @@ const agendarRecuperacion = catchAsync(async (req, res) => {
     return apiResponse.created(res, { data: recuperacionActualizada, message: 'Recuperación agendada con éxito.' });
 });
 
+const cancelarRecuperacion = catchAsync(async (req, res) => {
+    const { id: usuarioId } = req.user;
+    const { recuperacionId } = req.params;
+    if (!recuperacionId) {
+        throw new ApiError('Falta el ID de la recuperación a cancelar.', 400);
+    }
+
+    await recuperacionService.cancelarRecuperacion(usuarioId, recuperacionId);
+    return apiResponse.success(res, { message: 'Recuperación cancelada exitosamente.' });
+});
+
+const obtenerHistorial = catchAsync(async (req, res) => {
+    const { id: usuarioId } = req.user;
+    const historial = await recuperacionService.obtenerHistorial(usuarioId);
+    return apiResponse.success(res, { data: historial, message: 'Historial de recuperaciones obtenido.' });
+});
+
 export const recuperacionController = {
     obtenerPendientes,
     validarElegibilidad,
-    agendarRecuperacion
+    agendarRecuperacion,
+    cancelarRecuperacion,
+    obtenerHistorial,
 };

@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
+// Crear registro de recuperacion pendiente en caso sea marcado como FALTA.
 const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
 
   const cantidadInscripciones = await tx.inscripciones.count({
@@ -27,7 +28,56 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
     return yaExiste;
   }
 
-  // 2. Crear el registro pendiente
+  // Obtenemos su inscripción para calcular su ciclo
+  const inscripcion = await tx.inscripciones.findFirst({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: 'ACTIVO',
+    },
+    orderBy: {
+      fecha_inscripcion: 'asc',
+    },
+  });
+
+  if (inscripcion) {
+    const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
+    const fechaFaltaDate = new Date(fechaFalta);
+
+    const diffFalta = fechaFaltaDate - inicioInscripcion;
+    const diasTranscurridosFalta = Math.floor(diffFalta / (1000 * 60 * 60 * 24));
+
+    if (diasTranscurridosFalta >= 0) {
+      const numeroBloqueFalta = Math.floor(diasTranscurridosFalta / 30);
+
+      const inicioCicloFalta = new Date(inicioInscripcion);
+      inicioCicloFalta.setUTCDate(inicioInscripcion.getUTCDate() + numeroBloqueFalta * 30);
+
+      const finCicloFalta = new Date(inicioInscripcion);
+      finCicloFalta.setUTCDate(inicioInscripcion.getUTCDate() + (numeroBloqueFalta + 1) * 30);
+
+      const ticketsEnCiclo = await tx.recuperaciones.count({
+        where: {
+          alumno_id: Number.parseInt(alumnoId),
+          es_por_lesion: false, // No contamos los tickets VIP
+          fecha_falta: {
+            gte: inicioCicloFalta,
+            lt: finCicloFalta,
+          }
+        },
+      });
+
+      // Definir su límite según su plan
+      const limitePermitido = cantidadInscripciones >= 4 ? 4 : 2;
+
+      // Si ya llegó al tope, abortamos la creación del ticket
+      if (ticketsEnCiclo >= limitePermitido) {
+        console.log(`El alumno ${alumnoId} alcanzó su límite de ${limitePermitido} faltas normales para su ciclo actual.`);
+        return null;
+      }
+    }
+  }
+
+  // 3. Crear el registro pendiente si pasa validación de límite
   const nuevaFalta = await tx.recuperaciones.create({
     data: {
       alumno_id: Number.parseInt(alumnoId),
@@ -38,6 +88,102 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
 
   return nuevaFalta;
 };
+
+// Función para manejar el estado FALTA/PRESENTE en marcar asistencia y eliminar el registro creado en recuperaciones.
+const anularFaltaPendiente = async (tx, alumnoId, fechaFalta) => {
+  await tx.recuperaciones.deleteMany({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      fecha_falta: new Date(fechaFalta),
+      estado: 'PENDIENTE',
+      es_por_lesion: false
+    }
+  });
+};
+
+// Permite al alumno poder cancelar una recuperación agendada con 12 horas de anticipación.
+const cancelarRecuperacion = async (alumnoId, recuperacionId) => {
+  // 1. Buscamos el ticket y traemos la información del horario para saber a qué hora era la clase
+  const ticket = await prisma.recuperaciones.findUnique({
+    where: {
+      id: Number.parseInt(recuperacionId)
+    },
+    include: {
+      horarios_clases: true
+    }
+  });
+
+  // 2. Validaciones
+  if (!ticket) {
+    throw new ApiError('El ticket de recuperación no existe.', 404);
+  }
+
+  if (ticket.alumno_id !== Number.parseInt(alumnoId)) {
+    throw new ApiError('No tienes permiso para cancelar esta recuperación.', 403);
+  }
+
+  if (ticket.estado !== 'PROGRAMADA') {
+    throw new ApiError('Solo puedes cancelar recuperaciones que estén programadas.', 400);
+  }
+
+  // 3. Lógica del Reloj (Validación de 12 horas)
+  const ahora = new Date();
+
+  // Armamos la fecha y hora exacta de la clase
+  const fechaClase = new Date(ticket.fecha_programada);
+  const horaInicio = new Date(ticket.horarios_clases.hora_inicio);
+
+  fechaClase.setHours(horaInicio.getHours(), horaInicio.getMinutes(), 0, 0);
+
+  // Calculamos la diferencia en milisegundos y la pasamos a horas
+  const diferenciaMilisegundos = fechaClase.getTime() - ahora.getTime();
+  const horasFaltantes = diferenciaMilisegundos / (1000 * 60 * 60);
+
+  // Si faltan menos de 12 horas o ya pasó la clase, no se puede cancelar.
+  if (horasFaltantes < 12) {
+    throw new ApiError(
+      'Ya no puedes cancelar esta clase. Debes hacerlo con al menos 12 horas de anticipación.',
+      400
+    );
+  }
+
+  // 4. Devolvemos el ticket cancelado con estado PENDIENTE y sin programar.
+  const ticketCancelado = await prisma.recuperaciones.update({
+    where: {
+      id: ticket.id
+    },
+    data: {
+      estado: 'PENDIENTE',
+      horario_destino_id: null,
+      fecha_programada: null
+    }
+  });
+
+  return ticketCancelado;
+};
+
+const obtenerHistorial = async (alumnoId) => {
+  const historial = await prisma.recuperaciones.findMany({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: { in: ['PROGRAMADA', 'COMPLETADA', 'CANCELADA', 'VENCIDA', 'COMPLETADA_FALTA', 'COMPLETADA_PRESENTE'] },
+    },
+    include: {
+      horarios_clases: {
+        include: {
+          canchas: {
+            include: { sedes: true }
+          }
+        }
+      }
+    },
+    orderBy: {
+      fecha_falta: 'desc',
+    },
+  });
+
+  return historial;
+}
 
 const obtenerPendientes = async (alumnoId) => {
   const pendientes = await prisma.recuperaciones.findMany({
@@ -309,4 +455,7 @@ export const recuperacionService = {
   validarElegibilidad,
   agendarRecuperacion,
   registrarFaltaPendiente,
+  anularFaltaPendiente,
+  cancelarRecuperacion,
+  obtenerHistorial,
 };

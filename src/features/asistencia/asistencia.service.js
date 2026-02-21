@@ -262,8 +262,62 @@ export const asistenciaService = {
       orderBy: { hora_inicio: 'asc' }
     });
 
+    //Lógica para sumar a los alumnos que recuperarán clases ese dia.
+    for (let horario of horarios) {
+      //if (fecha) {
+      const alumnosRecuperadores = await prisma.recuperaciones.findMany({
+        where: {
+          horario_destino_id: horario.id,
+          //fecha_programada: new Date(fecha),
+          estado: { in: ['PROGRAMADA', 'COMPLETADA_PRESENTE', 'COMPLETADA_FALTA'] }
+        },
+        include: {
+          alumnos: {
+            include: {
+              usuarios: {
+                select: { id: true, nombres: true, apellidos: true, numero_documento: true }
+              }
+            }
+          }
+        }
+      });
+      //}
+
+      // Damos format a los alumnos para el front
+      const recuperadoresFormat = alumnosRecuperadores.map(rec => {
+        let estadoFormat = 'PROGRAMADA';
+        if (rec.estado === 'COMPLETADA_PRESENTE') estadoFormat = 'PRESENTE';
+        else if (rec.estado === 'COMPLETADA_FALTA') estadoFormat = 'FALTA';
+
+        return {
+          id: `insc-recu-${rec.id}`,
+          estado: 'RECUPERACION',
+          alumnos: rec.alumnos,
+          registros_asistencia: [{
+            id: `reg-asis-recu-${rec.id}`,
+            fecha: rec.fecha_programada,
+            estado: estadoFormat,
+            comentario: 'Alumno en clase de recuperación'
+          }]
+        };
+      });
+
+      // Combinamos las inscripciones fijas del horario con los alumnos que recuperan clase ese día
+      horario.inscripciones = [...horario.inscripciones, ...recuperadoresFormat];
+
+    }
+
     // TRANSFORMACIÓN: Limpiamos la data para el Frontend
     return horarios.map(h => {
+      // Filtramos los registros "Fantasma" de las inscripciones regulares
+      h.inscripciones.forEach(insc => {
+        if (insc.estado !== 'RECUPERACION') {
+          insc.registros_asistencia = insc.registros_asistencia.filter(
+            reg => !reg.comentario?.includes('[RECUPERACION]')
+          );
+        }
+      });
+
       // Función interna para extraer solo HH:mm y evitar el bug de 1970
       const formatTime = (timeField) => {
         if (!timeField) return '--:--';
@@ -284,7 +338,65 @@ export const asistenciaService = {
 
       for (const a of asistencias) {
 
-        // 1️⃣ Actualizamos asistencia
+        // Por si el alumno es de recuperación
+        if (typeof a.id === 'string' && a.id.startsWith('reg-asis-recu-')) {
+          const recuperacionId = parseInt(a.id.split('-')[3]);
+
+          // Marcar el ticket de recuperación
+          const recu = await tx.recuperaciones.update({
+            where: { id: recuperacionId },
+            data: {
+              estado: a.estado === 'FALTA' ? 'COMPLETADA_FALTA' : 'COMPLETADA_PRESENTE'
+            }
+          });
+
+          const inscActiva = await tx.inscripciones.findFirst({
+            where: { alumno_id: recu.alumno_id, estado: 'ACTIVO' }
+          });
+
+          if (inscActiva) {
+            // Obtenemos el registro si en caso existiera para manejarlo por posible error humano (marcar PRESENTE a un alumno que nunca llegó)
+            const registroFisicoExistente = await tx.registros_asistencia.findFirst({
+              where: {
+                inscripcion_id: inscActiva.id,
+                fecha: recu.fecha_programada,
+                comentario: { contains: '[RECUPERACION]' } // Usamos la etiqueta para encontrarlo
+              }
+            });
+
+            if (a.estado === 'FALTA') {
+              // Si se corrigió el registro como FALTA, lo borramos
+              if (registroFisicoExistente) {
+                await tx.registros_asistencia.delete({
+                  where: { id: registroFisicoExistente.id }
+                });
+              }
+            } else {
+              if (registroFisicoExistente) {
+                // Si es marcado como PRESENTE y el registro ya existia, solo se actualiza el estado.
+                await tx.registros_asistencia.update({
+                  where: { id: registroFisicoExistente.id },
+                  data: {
+                    estado: a.estado
+                  }
+                });
+              } else {
+                // Si no existe, lo creamos 
+                await tx.registros_asistencia.create({
+                  data: {
+                    inscripcion_id: inscActiva.id,
+                    fecha: recu.fecha_programada,
+                    estado: a.estado,
+                    comentario: `[RECUPERACION] ${a.comentario || ''}`
+                  }
+                });
+              }
+            }
+          }
+          continue;
+        }
+
+        // Si es un alumno fijo, simplemente se actualiza la asistencia
         const asistenciaRegistrada = await tx.registros_asistencia.update({
           where: { id: Number(a.id) },
           data: {
@@ -296,10 +408,16 @@ export const asistenciaService = {
             inscripciones: true
           }
         });
+
+        const idAlumnoInscripcion = asistenciaRegistrada.inscripciones.alumno_id;
+        const fechaClase = asistenciaRegistrada.fecha;
+
         // Crea un registro en la tabla recuperaciones con estado PENDIENTE en caso la asistencia sea registrada como FALTA.
         if (asistenciaRegistrada.estado === "FALTA") {
-          const idAlumnoInscripcion = asistenciaRegistrada.inscripciones.alumno_id;
-          await recuperacionService.registrarFaltaPendiente(tx, idAlumnoInscripcion, asistenciaRegistrada.fecha)
+          await recuperacionService.registrarFaltaPendiente(tx, idAlumnoInscripcion, fechaClase)
+        } else if (asistenciaRegistrada.estado === "PRESENTE") {
+          // En caso el alumno llegue tarde, se elimina la recuperación generada.
+          await recuperacionService.anularFaltaPendiente(tx, idAlumnoInscripcion, fechaClase);
         }
       }
     });

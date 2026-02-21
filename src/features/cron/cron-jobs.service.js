@@ -3,6 +3,7 @@ import { prisma } from '../../config/database.config.js';
 
 // ✅ CORRECCIÓN: Importamos con llaves { } y en SINGULAR (tal como está en tu servicio)
 import { inscripcionService } from '../inscripciones/inscripcion.service.js';
+import { recuperacionService } from '../recuperaciones/recuperacion.service.js';
 
 export const iniciarCronJobs = () => {
   console.log('🕰️ Cron Jobs iniciados: El sistema está vigilando...');
@@ -43,6 +44,17 @@ export const iniciarCronJobs = () => {
       await ejecutarProfetaRenovaciones();
     } catch (error) {
       console.error('❌ [CRON ERROR] Falló el Profeta:', error);
+    }
+  });
+
+
+  // Expirar (VENCIDA) las recuperaciones que pasaron sus 30 días después del fin de inscripción.
+  cron.schedule('0 1 * * *', async () => {
+    console.log(`[CRON] Limpiando tickets vencidos...`);
+    try {
+      await ejecutarLimpiezaTickets();
+    } catch (error) {
+      console.error('❌ [CRON ERROR] Falló la limpieza de tickets:', error);
     }
   });
 };
@@ -162,5 +174,66 @@ const ejecutarProfetaRenovaciones = async () => {
     console.log(
       `🔮 [PROFETA] Se generaron ${renovacionesGeneradas} deudas de renovación anticipada.`
     );
+  }
+
+
+};
+
+// =====================================================================
+// 🧠 LÓGICA 4: LIMPIEZA DE TICKETS DE RECUPERACIÓN
+// =====================================================================
+const ejecutarLimpiezaTickets = async () => {
+  // Traer TODOS los tickets pendientes normales (los de lesión no caducan)
+  const pendientes = await prisma.recuperaciones.findMany({
+    where: {
+      estado: 'PENDIENTE',
+      es_por_lesion: false
+    }
+  });
+
+  if (pendientes.length === 0) return;
+
+  const hoy = new Date();
+  let expiradosCount = 0;
+
+  // Revisar uno por uno
+  for (const ticket of pendientes) {
+    const inscripcion = await prisma.inscripciones.findFirst({
+      where: {
+        alumno_id: ticket.alumno_id,
+        estado: 'ACTIVO'
+      },
+      orderBy: { fecha_inscripcion: 'asc' }
+    });
+
+    if (!inscripcion) continue; // Si no hay inscripción, lo saltamos por seguridad
+
+    const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
+    const fechaFaltaDate = new Date(ticket.fecha_falta);
+
+    const diffFalta = fechaFaltaDate - inicioInscripcion;
+    const diasTranscurridosFalta = Math.floor(diffFalta / (1000 * 60 * 60 * 24));
+
+    if (diasTranscurridosFalta < 0) continue;
+
+    const numeroBloqueFalta = Math.floor(diasTranscurridosFalta / 30);
+    const finCicloFalta = new Date(inicioInscripcion);
+    finCicloFalta.setUTCDate(inicioInscripcion.getUTCDate() + (numeroBloqueFalta + 1) * 30);
+
+    const fechaLimiteValida = new Date(finCicloFalta);
+    fechaLimiteValida.setUTCDate(finCicloFalta.getUTCDate() + 30);
+
+    // Si a dia de hoy, la fecha ya pasó, entonces el ticket se marca como VENCIDA
+    if (hoy > fechaLimiteValida) {
+      await prisma.recuperaciones.update({
+        where: { id: ticket.id },
+        data: { estado: 'VENCIDA' }
+      });
+      expiradosCount++;
+    }
+  }
+
+  if (expiradosCount > 0) {
+    console.log(`Se marcaron ${expiradosCount} tickets como VENCIDOS.`);
   }
 };
