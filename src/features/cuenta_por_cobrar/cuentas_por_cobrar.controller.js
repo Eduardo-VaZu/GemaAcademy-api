@@ -36,6 +36,19 @@ export const CuentasPorCobrarController = {
       res.status(400).json({ ok: false, error: error.message });
     }
   },
+ async obtenerHistorialAlumno(req, res) {
+    try {
+      const { alumnoId } = req.params;
+      const result = await CuentasPorCobrarService.obtenerTodoPorAlumno(alumnoId);
+      res.json({ 
+        ok: true, 
+        total_registros: result.length,
+        data: result 
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: "Error al recuperar el historial del alumno" });
+    }
+  },
 
   async eliminar(req, res) {
     try {

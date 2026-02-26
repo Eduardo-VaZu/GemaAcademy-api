@@ -18,47 +18,59 @@ export const resolverMetodoPagoId = async (tx, metodo_pago) => {
 
   return metodoEncontrado.id;
 };
+
 /**
- * Suma abonos anteriores y determina si la deuda se salda.
+ * Suma TODOS los abonos aprobados históricamente para esta cuenta
+ * y determina si con el pago actual se llega al total.
  */
 export const calcularSaldosAlcancía = async (tx, pagoActual) => {
+  // Buscamos la suma de todos los pagos que YA estaban aprobados antes de este
   const pagosAnteriores = await tx.pagos.aggregate({
     where: {
       cuenta_id: pagoActual.cuenta_id,
       estado_validacion: 'APROBADO',
-      id: { not: pagoActual.id },
+      id: { not: pagoActual.id }, // Evitamos contar el pago que estamos procesando ahora
     },
     _sum: { monto_pagado: true },
   });
 
-  const totalPrevio = pagosAnteriores._sum.monto_pagado || 0;
+  const totalPrevio = Number(pagosAnteriores._sum.monto_pagado || 0);
   const totalConEstePago = totalPrevio + Number(pagoActual.monto_pagado);
   const deudaTotal = Number(pagoActual.cuentas_por_cobrar.monto_final);
 
+  // El saldo real que queda después de esta aprobación
   const saldoRestante = Math.max(0, deudaTotal - totalConEstePago);
-  const esPagoCompleto = saldoRestante <= 0.1; // Margen para evitar problemas de redondeo
+  
+  // Solo marcamos como completo si el saldo es prácticamente 0 (margen de 1 céntimo)
+  const esPagoCompleto = saldoRestante <= 0.01; 
 
   return { saldoRestante, esPagoCompleto };
 };
 
 /**
  * Define los nuevos estados de la Deuda e Inscripción.
+ * REGLA: El alumno SOLO se activa si la deuda está pagada al 100%.
  */
 export const definirEvolucionDeEstados = async (tx, pago, esAprobado, esPagoCompleto) => {
   if (!esAprobado) {
-    // Si rechazo, veo si antes ya había pagado algo para dejarlo en PARCIAL o PENDIENTE
+    // Si el admin rechaza el pago, verificamos si ya tenía abonos previos aprobados
     const aprobados = await tx.pagos.count({
       where: { cuenta_id: pago.cuenta_id, estado_validacion: 'APROBADO' },
     });
     
     return {
       nuevoEstadoDeuda: aprobados > 0 ? 'PARCIAL' : 'PENDIENTE',
-      activarAlumno: false
+      activarAlumno: false // Si se rechaza un pago, no hay activación de nada
     };
   }
 
+  // SI SE APRUEBA EL PAGO:
   return {
+    // La deuda pasa a PAGADA solo si esPagoCompleto es true, sino se queda/pasa a PARCIAL
     nuevoEstadoDeuda: esPagoCompleto ? 'PAGADA' : 'PARCIAL',
-    activarAlumno: true
+    
+    // CAMBIO CRÍTICO: El alumno SOLO se activa si terminó de pagar todo.
+    // Si solo abonó una parte, sus inscripciones siguen en espera.
+    activarAlumno: esPagoCompleto 
   };
 };

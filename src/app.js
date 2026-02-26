@@ -29,6 +29,7 @@ import parametrosRoutes from './features/parametros_sistema/parametros.routes.js
 import cloudinaryRoutes from './features/cloudinaryImg/cloudinary.routes.js';
 import lesionRoutes from './features/lesiones/lesion.routes.js'
 import tipoDocumentosRoutes from './features/tipo_documento/tipo_documento.routers.js';
+import beneficioPendiente from './features/beneficios_pendientes/beneficios-pendientes.routes.js'
 
 const app = express();
 app.set('trust proxy', 1);
@@ -98,6 +99,7 @@ app.use('/api/parametros', parametrosRoutes);
 app.use('/api/cloudinary', cloudinaryRoutes);
 app.use('/api/lesiones', lesionRoutes);
 app.use('/api/tipos-documento', tipoDocumentosRoutes);
+app.use('/api/beneficioPendiente', beneficioPendiente)
 
 app.use(errorHandler);
 
