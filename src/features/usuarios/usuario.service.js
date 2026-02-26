@@ -14,11 +14,30 @@ export const usuarioService = {
       numero_documento,
       rol_id,
       fecha_nacimiento,
+      especializacion,
+      sede_id,
+      cargo,
+      area,
+      direccion_id,
+      condiciones_medicas,
+      seguro_medico,
+      grupo_sanguineo,
       rolNombre: providedRolNombre,
       contacto_emergencia,
       parentesco,
       ...otrosdatos
     } = userData;
+
+    const datosRol = {
+      especializacion,
+      sede_id,
+      cargo,
+      area,
+      direccion_id,
+      condiciones_medicas,
+      seguro_medico,
+      grupo_sanguineo
+    };
 
     const fechaConvertida = fecha_nacimiento ? new Date(fecha_nacimiento) : null;
     const rolNombre = providedRolNombre || rol_id || VALID_ROLES.ALUMNO;
@@ -100,7 +119,7 @@ export const usuarioService = {
           }
         }
       } else {
-        await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, {});
+        await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, datosRol);
       }
 
       return usuarioActualizado;

@@ -6,7 +6,7 @@ import { validateRoleSpecificData } from '../../shared/utils/roleValidation.util
 
 export const usuarioController = {
   register: catchAsync(async (req, res) => {
-    const { rol_id, datosRolEspecifico } = req.body;
+    const { rol_id, datosRolEspecifico = {}, ...userData } = req.body;
 
     // 1. Validación de datos específicos según el rol
     if (datosRolEspecifico && typeof rol_id === 'string') {
@@ -17,8 +17,15 @@ export const usuarioController = {
       }
     }
 
+    // Se copian las props de datosRolEspecifico para manejarlas en el servicio
+    const payload = {
+      ...userData,
+      rol_id,
+      ...datosRolEspecifico
+    };
+
     // 2. Creación del usuario
-    const usuario = await usuarioService.createUser(req.body);
+    const usuario = await usuarioService.createUser(payload);
 
     // 3. Respuesta estructurada para el Alumno
     return apiResponse.created(res, {
