@@ -264,7 +264,7 @@ const ejecutarLimpiezaTickets = async () => {
     fechaLimiteValida.setUTCDate(finCicloFalta.getUTCDate() + 30);
 
     // Si a dia de hoy, la fecha ya pasó, entonces el ticket se marca como VENCIDA
-    if (hoy > fechaLimiteValida) {
+    if (hoy >= fechaLimiteValida) {
       await prisma.recuperaciones.update({
         where: { id: ticket.id },
         data: { estado: 'VENCIDA' }

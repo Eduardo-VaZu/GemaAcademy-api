@@ -396,6 +396,14 @@ export const asistenciaService = {
           continue;
         }
 
+        // Si el estado de la asistencia es JUSTIFICADO_LESION, se salta al siguiente alumno.
+        const asistencia = await tx.registros_asistencia.findUnique({
+          where: { id: Number(a.id) }
+        });
+        if (!asistencia || asistencia.estado === 'JUSTIFICADO_LESION') {
+          continue;
+        }
+
         // Si es un alumno fijo, simplemente se actualiza la asistencia
         const asistenciaRegistrada = await tx.registros_asistencia.update({
           where: { id: Number(a.id) },

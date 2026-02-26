@@ -174,7 +174,8 @@ const evaluarSolicitud = async ({
             if (recuperacionCualquiera) {
 
                 // ESCENARIO 1: Recuperación completada
-                if (recuperacionCualquiera.estado === 'COMPLETADA') {
+                const estadosCompletada = ['COMPLETADA_FALTA', 'COMPLETADA_PRESENTE'];
+                if (estadosCompletada.includes(recuperacionCualquiera.estado)) {
                     console.log(`La falta del ${clase.fecha} ya fue recuperada.`);
                     continue;
                 }
@@ -185,7 +186,10 @@ const evaluarSolicitud = async ({
                     data: {
                         motivo_falta: 'LESION_JUSTIFICADA',
                         es_por_lesion: true,
-                        solicitud_lesion_id: solicitud.id
+                        solicitud_lesion_id: solicitud.id,
+                        estado: 'PENDIENTE', // Se reinicia a pendiente por si estaba "PROGRAMADA" o "VENCIDA"
+                        horario_destino_id: null,
+                        fecha_programada: null
                     }
                 });
                 recuperacionesProcesadas.push(recuActualizada);
