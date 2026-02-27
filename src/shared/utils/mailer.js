@@ -10,15 +10,15 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
   tls: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+  },
 });
 
-transporter.verify(function (error, success) {
+transporter.verify(function (error) {
   if (error) {
-    console.log("Error en la configuración de correo:", error);
+    console.log('Error en la configuración de correo:', error);
   } else {
-    console.log("El servidor de correo está listo para enviar mensajes");
+    console.log('El servidor de correo está listo para enviar mensajes');
   }
 });
 
