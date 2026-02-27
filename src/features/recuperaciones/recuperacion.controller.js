@@ -11,16 +11,17 @@ const obtenerPendientes = catchAsync(async (req, res) => {
 
 const validarElegibilidad = catchAsync(async (req, res) => {
     const { id: usuarioId } = req.user;
-    const { fechaFalta, fechaProgramada } = req.body;
+    const { recuperacionId, fechaProgramada, horarioDestinoId } = req.body;
 
-    if (!fechaFalta || !fechaProgramada) {
-        throw new ApiError('Faltan datos requeridos: fechaFalta y fechaProgramada.', 400);
+    if (!recuperacionId || !fechaProgramada || !horarioDestinoId) {
+        throw new ApiError('Faltan datos requeridos: recuperacionId, fechaProgramada y horarioDestinoId.', 400);
     }
 
     await recuperacionService.validarElegibilidad(
         usuarioId,
-        fechaFalta,
-        fechaProgramada
+        recuperacionId,
+        fechaProgramada,
+        horarioDestinoId
     );
 
     //elegible en true para poder permitir al front mostrar algun button que permita le recuperacion de una falta.
@@ -29,15 +30,15 @@ const validarElegibilidad = catchAsync(async (req, res) => {
 
 const agendarRecuperacion = catchAsync(async (req, res) => {
     const { id: usuarioId } = req.user;
-    const { fechaFalta, horarioDestinoId, fechaProgramada } = req.body;
+    const { recuperacionId, horarioDestinoId, fechaProgramada } = req.body;
 
-    if (!fechaFalta || !horarioDestinoId || !fechaProgramada) {
-        throw new ApiError('Faltan datos obligatorios (fechaFalta, horarioDestinoId, fechaProgramada)', 400);
+    if (!recuperacionId || !horarioDestinoId || !fechaProgramada) {
+        throw new ApiError('Faltan datos obligatorios (recuperacionId, horarioDestinoId, fechaProgramada)', 400);
     }
 
     const recuperacionActualizada = await recuperacionService.agendarRecuperacion({
         alumnoId: usuarioId,
-        fechaFalta,
+        recuperacionId,
         horarioDestinoId,
         fechaProgramada
     });

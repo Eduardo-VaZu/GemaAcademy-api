@@ -422,10 +422,10 @@ export const asistenciaService = {
 
         // Crea un registro en la tabla recuperaciones con estado PENDIENTE en caso la asistencia sea registrada como FALTA.
         if (asistenciaRegistrada.estado === "FALTA") {
-          await recuperacionService.registrarFaltaPendiente(tx, idAlumnoInscripcion, fechaClase)
+          await recuperacionService.registrarFaltaPendiente(tx, idAlumnoInscripcion, fechaClase, asistencia.id)
         } else if (asistenciaRegistrada.estado === "PRESENTE") {
           // En caso el alumno llegue tarde, se elimina la recuperación generada.
-          await recuperacionService.anularFaltaPendiente(tx, idAlumnoInscripcion, fechaClase);
+          await recuperacionService.anularFaltaPendiente(tx, idAlumnoInscripcion, asistencia.id);
         }
       }
     });

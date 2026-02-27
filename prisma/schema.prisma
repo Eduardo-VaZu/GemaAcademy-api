@@ -198,6 +198,7 @@ model recuperaciones {
   fecha_falta         DateTime            @db.Date
   motivo_falta        String?             @default("PERSONAL") @db.VarChar(50)
   horario_destino_id  Int?
+  registro_asistencia_id      Int?        
   fecha_programada    DateTime?            @db.Date
   es_por_lesion       Boolean?            @default(false)
   solicitud_lesion_id Int?

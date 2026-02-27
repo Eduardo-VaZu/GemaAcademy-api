@@ -167,7 +167,7 @@ const evaluarSolicitud = async ({
             const recuperacionCualquiera = await tx.recuperaciones.findFirst({
                 where: {
                     alumno_id: solicitud.alumno_id,
-                    fecha_falta: clase.fecha
+                    registro_asistencia_id: clase.id
                 }
             });
 
@@ -176,7 +176,15 @@ const evaluarSolicitud = async ({
                 // ESCENARIO 1: Recuperación completada
                 const estadosCompletada = ['COMPLETADA_FALTA', 'COMPLETADA_PRESENTE'];
                 if (estadosCompletada.includes(recuperacionCualquiera.estado)) {
-                    console.log(`La falta del ${clase.fecha} ya fue recuperada.`);
+                    const recuActualizada = await tx.recuperaciones.update({
+                        where: { id: recuperacionCualquiera.id },
+                        data: {
+                            es_por_lesion: true,
+                            solicitud_lesion_id: solicitud.id,
+                            motivo_falta: 'LESION_JUSTIFICADA'
+                        }
+                    });
+                    recuperacionesProcesadas.push(recuActualizada);
                     continue;
                 }
 
@@ -203,7 +211,8 @@ const evaluarSolicitud = async ({
                         motivo_falta: 'LESION_JUSTIFICADA',
                         es_por_lesion: true,
                         estado: 'PENDIENTE',
-                        solicitud_lesion_id: solicitud.id
+                        solicitud_lesion_id: solicitud.id,
+                        registro_asistencia_id: clase.id
                     }
                 });
                 recuperacionesProcesadas.push(nuevaRecu);
