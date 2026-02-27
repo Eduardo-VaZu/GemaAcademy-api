@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "npx prisma generate && npx prisma migrate deploy && node src/index.js",
+    "start": "npx prisma generate && npx prisma migrate deploy; node src/index.js",
     "build": "npx prisma generate",
     "db:push": "prisma db push",
     "dev": "node --watch src/index.js",
