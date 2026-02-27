@@ -35,7 +35,7 @@ export const authService = {
           select: { hash_contrasena: true, bloqueado: true },
         },
         roles: { select: { nombre: true } },
-        alumnos: { select: { id: true } },
+        alumnos: { select: { usuario_id: true } },
       },
     });
 
