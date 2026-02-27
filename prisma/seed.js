@@ -208,8 +208,7 @@ async function main() {
     data: {
       alumno_id: alumno.usuario_id,
       horario_id: horario1.id,
-      estado: 'ACTIVO',
-      creado_en: new Date()
+      estado: 'ACTIVO'
     }
   });
 
