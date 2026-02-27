@@ -8,24 +8,29 @@ import { loginLimiter } from '../../shared/middlewares/rateLimit.middleware.js';
 
 const router = Router();
 
-// Rutas públicas (no requieren autenticación)
 router.post('/login', loginLimiter, validate(schemas.authSchema.loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 
-// Rutas protegidas (requieren autenticación) -> obtener el perfil del usuario
 router.get('/profile', authenticate, authController.getProfile);
-// Rutas protegidas (requieren autenticación) -> cerrar todas las sesiones del usuario activas
 router.post('/logout-all', authenticate, authController.revokeAllSessions);
 
 router.post(
-    '/completar-email',
-    authenticate,
-    validate(schemas.authSchema.completarEmailSchema),
-    authController.completarEmail
+  '/completar-email',
+  authenticate,
+  validate(schemas.authSchema.completarEmailSchema),
+  authController.completarEmail
 );
 
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
+router.post(
+  '/forgot-password',
+  validate(schemas.authSchema.forgotPasswordSchema),
+  authController.forgotPassword
+);
+router.post(
+  '/reset-password',
+  validate(schemas.authSchema.resetPasswordSchema),
+  authController.resetPassword
+);
 
 export default router;

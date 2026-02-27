@@ -1,16 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../../config/secret.config.js';
 import { prisma } from '../../config/database.config.js';
+import { apiResponse } from '../utils/response.util.js';
 
 export const authenticate = async (req, res, next) => {
   try {
     const token = req.cookies.accessToken;
 
     if (!token) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'No se proporcionó token de autenticación',
-      });
+      return apiResponse.error(res, 'No se proporcionó token de autenticación', 401);
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -31,27 +29,15 @@ export const authenticate = async (req, res, next) => {
     });
 
     if (!usuario) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Usuario no encontrado',
-        code: 'USER_NOT_FOUND',
-      });
+      return apiResponse.error(res, 'Usuario no encontrado', 401);
     }
 
     if (!usuario.activo) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Usuario inactivo',
-        code: 'USER_INACTIVE',
-      });
+      return apiResponse.error(res, 'Usuario inactivo', 401);
     }
 
     if (usuario.credenciales_usuario?.bloqueado) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'Cuenta bloqueada. Contacta al administrador.',
-        code: 'ACCOUNT_BLOCKED',
-      });
+      return apiResponse.error(res, 'Cuenta bloqueada. Contacta al administrador.', 403);
     }
 
     req.user = {
@@ -64,24 +50,14 @@ export const authenticate = async (req, res, next) => {
     next();
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Token inválido',
-      });
+      return apiResponse.error(res, 'Token inválido', 401);
     }
 
     if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Token expirado',
-      });
+      return apiResponse.error(res, 'Token expirado', 401);
     }
 
-    return res.status(500).json({
-      status: 'error',
-      message: 'Error al verificar token',
-      detail: error.message,
-    });
+    return apiResponse.error(res, 'Error al verificar token', 500);
   }
 };
 

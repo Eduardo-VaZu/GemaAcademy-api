@@ -3,11 +3,12 @@ import { authService } from './auth.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { ApiError } from '../../shared/utils/error.util.js';
-//import { sendPasswordRecoveryEmail } from '../../shared/utils/mailer.js';
-import jwt from 'jsonwebtoken'; 
-import { JWT_SECRET } from '../../config/secret.config.js';
+import { logger } from '../../shared/utils/logger.util.js';
 
 export const authController = {
+  /**
+   * Inicia sesión validando credenciales y estableciendo cookies.
+   */
   login: catchAsync(async (req, res) => {
     const { username, password } = req.body;
 
@@ -15,12 +16,16 @@ export const authController = {
 
     setAuthCookies(res, result);
 
+    logger.info(`Usuario '${username}' inició sesión desde la IP: ${req.ip}`);
+
     return apiResponse.success(res, {
       message: 'Login exitoso',
       data: result,
     });
   }),
-
+  /**
+   * Obtiene el perfil completo del usuario autenticado.
+   */
   getProfile: catchAsync(async (req, res) => {
     const profile = await authService.getProfile(req.user.id);
 
@@ -29,15 +34,19 @@ export const authController = {
       data: profile,
     });
   }),
-
+  /**
+   * Renueva el Access Token utilizando el Refresh Token almacenado en cookies.
+   */
   refresh: catchAsync(async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
 
     if (!refreshToken) {
+      logger.warn(`Intento de refresh sin token desde la IP: ${req.ip}`);
       throw new ApiError('Refresh token es requerido', 401);
     }
 
     if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
+      logger.warn(`Intento de refresh con token malformado IP: ${req.ip}`);
       throw new ApiError('Refresh token inválido', 401);
     }
 
@@ -50,7 +59,9 @@ export const authController = {
       data: result.user,
     });
   }),
-
+  /**
+   * Cierra la sesión activa del dispositivo actual e invalida el token.
+   */
   logout: catchAsync(async (req, res) => {
     const refreshToken = req.cookies.refreshToken;
 
@@ -67,22 +78,31 @@ export const authController = {
     res.clearCookie('accessToken', { path: '/' });
     res.clearCookie('refreshToken', { path: '/' });
 
+    // Auditoría (Si queremos saber si el ID está en el payload o solo es general)
+    logger.info(`Sesión cerrada desde IP: ${req.ip}`);
+
     return apiResponse.success(res, {
       message: 'Sesión cerrada exitosamente',
     });
   }),
-
+  /**
+   * Revoca todas las sesiones activas del usuario en todos los dispositivos.
+   */
   revokeAllSessions: catchAsync(async (req, res) => {
     await authService.revokeAllTokens(req.user.id);
 
     res.clearCookie('accessToken', { path: '/' });
     res.clearCookie('refreshToken', { path: '/' });
 
+    logger.info(`Usuario ID '${req.user.id}' ha revocado globalmente todas sus sesiones.`);
+
     return apiResponse.success(res, {
       message: 'Todas las sesiones cerradas exitosamente',
     });
   }),
-
+  /**
+   * Permite actualizar el email de un usuario tras su primer inicio de sesión.
+   */
   completarEmail: catchAsync(async (req, res) => {
     const { email } = req.body;
     const usuarioId = req.user.id;
@@ -90,38 +110,33 @@ export const authController = {
     const usuarioActualizado = await authService.actualizarEmailPrimerLogin(usuarioId, email);
 
     return apiResponse.success(res, 'Email actualizado correctamente', {
-      user: usuarioActualizado
+      user: usuarioActualizado,
     });
   }),
-
+  /**
+   * Solicita el envío de un correo de recuperación de contraseña.
+   */
   forgotPassword: catchAsync(async (req, res) => {
     const { username } = req.body;
-    const user = await authService.findUserByUsername(username);
 
-    if (!user || !user.email) {
-      throw new ApiError('Usuario no encontrado o no tiene correo asociado', 404);
-    }
+    await authService.forgotPassword(username);
 
-    const resetToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1h' });
-
-    //await sendPasswordRecoveryEmail(user.email, user.nombres, resetToken);
+    logger.info(`Solicitud temporal de reseteo de clave generada para username: '${username}'`);
 
     return apiResponse.success(res, {
-      message: 'Enlace enviado al correo registrado del usuario'
+      message: 'Enlace enviado al correo registrado del usuario',
     });
   }),
-
+  /**
+   * Restablece la contraseña utilizando el token temporal enviado por correo.
+   */
   resetPassword: catchAsync(async (req, res) => {
     const { token, newPassword } = req.body;
 
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      await authService.updatePassword(decoded.id, newPassword);
+    await authService.resetPassword(token, newPassword);
 
-      return apiResponse.success(res, { message: 'Contraseña actualizada con éxito' });
-    } catch (error) {
-      console.error("DETALLE ERROR RESET:", error.message);
-      throw new ApiError('El enlace es inválido o ha expirado', 400);
-    }
+    logger.info(`Contraseña actualizada exitosamente vía token de recuperación.`);
+
+    return apiResponse.success(res, { message: 'Contraseña actualizada con éxito' });
   }),
 };

@@ -1,4 +1,5 @@
 import { prisma } from '../../../config/database.config.js';
+import { logger } from '../../../shared/utils/logger.util.js';
 
 export const cleanupExpiredTokens = async () => {
   try {
@@ -19,21 +20,25 @@ export const cleanupExpiredTokens = async () => {
         ],
       },
     });
-    console.log(`Tokens expirados eliminados: ${expiredTokens.count}`);
+    logger.info(`Tokens expirados eliminados: ${expiredTokens.count}`);
   } catch (error) {
-    console.error('Error al limpiar tokens expirados:', error);
+    logger.error('Error al limpiar tokens expirados:', error);
   }
 };
 
 export const scheduleTokenCleanup = () => {
-  console.log('☢️  Sistema de limpieza de tokens activado... 🛡️');
-
-  setInterval(
-    async () => {
-      await cleanupExpiredTokens();
-    },
-    24 * 60 * 60 * 1000
-  );
+  logger.info('Cron interno de limpieza de tokens activado...');
 
   cleanupExpiredTokens();
+
+  const intervaloDiaMs = 24 * 60 * 60 * 1000; // 24 horas en milisegundos
+
+  const runSchedule = () => {
+    setTimeout(async () => {
+      await cleanupExpiredTokens();
+      runSchedule();
+    }, intervaloDiaMs);
+  };
+
+  runSchedule();
 };

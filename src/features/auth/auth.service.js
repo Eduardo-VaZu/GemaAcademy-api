@@ -2,7 +2,6 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { tokenUtils } from './utils/tokenUtils.js';
 import { prisma } from '../../config/database.config.js';
-import { usuarioService } from '../usuarios/usuario.service.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 import {
   JWT_SECRET,
@@ -11,15 +10,32 @@ import {
 } from '../../config/secret.config.js';
 
 export const authService = {
+  /**
+   * Autentica a un usuario verificando sus credenciales y genera tokens de acceso.
+   * @param {Object} loginData - Datos de inicio de sesión.
+   * @param {string} loginData.username - Nombre de usuario.
+   * @param {string} loginData.password - Contraseña en texto plano.
+   * @returns {Promise<{accessToken: string, refreshToken: string, user: Object}>} Tokens y datos básicos del usuario.
+   * @throws {ApiError} 401 si las credenciales son inválidas, 403 si el usuario está inactivo, bloqueado o sin credenciales.
+   */
   login: async (loginData) => {
     const { username, password } = loginData;
 
     const usuario = await prisma.usuarios.findUnique({
       where: { username },
-      include: {
-        credenciales_usuario: true,
-        roles: true,
-        alumnos: true,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        activo: true,
+        rol_id: true,
+        credenciales_usuario: {
+          select: { hash_contrasena: true, bloqueado: true },
+        },
+        roles: { select: { nombre: true } },
+        alumnos: { select: { id: true } },
       },
     });
 
@@ -48,11 +64,6 @@ export const authService = {
       throw new ApiError('Credenciales inválidas', 401);
     }
 
-    await prisma.credenciales_usuario.update({
-      where: { usuario_id: usuario.id },
-      data: { ultimo_login: new Date() },
-    });
-
     const accessToken = jwt.sign(
       {
         id: usuario.id,
@@ -67,13 +78,19 @@ export const authService = {
     const refreshToken = tokenUtils.generateRefreshToken();
     const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
 
-    await prisma.refresh_tokens.create({
-      data: {
-        usuario_id: usuario.id,
-        token: refreshToken,
-        expires_at: expiresAt,
-      },
-    });
+    await Promise.all([
+      prisma.credenciales_usuario.update({
+        where: { usuario_id: usuario.id },
+        data: { ultimo_login: new Date() },
+      }),
+      prisma.refresh_tokens.create({
+        data: {
+          usuario_id: usuario.id,
+          token: refreshToken,
+          expires_at: expiresAt,
+        },
+      }),
+    ]);
 
     return {
       accessToken,
@@ -91,8 +108,47 @@ export const authService = {
     };
   },
 
+  /**
+   * Obtiene el perfil completo de un usuario con información específica de su rol (alumno, profesor, admin).
+   * @param {number} userId - ID del usuario.
+   * @returns {Promise<Object>} Datos estructurados del perfil del usuario.
+   * @throws {ApiError} 404 si el usuario no existe.
+   */
   getProfile: async (userId) => {
-    const usuario = await usuarioService.getUserById(userId);
+    const usuario = await prisma.usuarios.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        telefono_personal: true,
+        fecha_nacimiento: true,
+        genero: true,
+        roles: { select: { nombre: true } },
+        alumnos: {
+          select: {
+            condiciones_medicas: true,
+            seguro_medico: true,
+            grupo_sanguineo: true,
+          },
+        },
+        profesores: {
+          select: {
+            especializacion: true,
+            tarifa_hora: true,
+          },
+        },
+        administrador: {
+          select: {
+            cargo: true,
+            area: true,
+            sedes: { select: { nombre: true } },
+          },
+        },
+      },
+    });
+
     if (!usuario) {
       throw new ApiError('Usuario no encontrado', 404);
     }
@@ -105,7 +161,7 @@ export const authService = {
       telefono_personal: usuario.telefono_personal,
       fecha_nacimiento: usuario.fecha_nacimiento,
       genero: usuario.genero,
-      rol: usuario.roles.nombre,
+      rol: usuario.roles?.nombre,
     };
 
     if (usuario.alumnos) {
@@ -134,14 +190,30 @@ export const authService = {
     return baseData;
   },
 
+  /**
+   * Renueva el accessToken utilizando un refreshToken válido y rota los tokens por seguridad.
+   * @param {string} refreshToken - Token de refresco actual enviado por el cliente.
+   * @returns {Promise<{accessToken: string, refreshToken: string, user: Object}>} Nuevos tokens y datos básicos del usuario.
+   * @throws {ApiError} 401 si el token es inválido o expiró, 403 si el usuario/token está revocado, inactivo o bloqueado.
+   */
   refreshAccessToken: async (refreshToken) => {
     const tokenRecord = await prisma.refresh_tokens.findUnique({
       where: { token: refreshToken },
-      include: {
+      select: {
+        token: true,
+        revoked: true,
+        expires_at: true,
+        usuario_id: true,
         usuarios: {
-          include: {
-            roles: true,
-            credenciales_usuario: true,
+          select: {
+            id: true,
+            email: true,
+            nombres: true,
+            apellidos: true,
+            activo: true,
+            rol_id: true,
+            roles: { select: { nombre: true } },
+            credenciales_usuario: { select: { bloqueado: true } },
           },
         },
       },
@@ -156,42 +228,46 @@ export const authService = {
         where: { usuario_id: tokenRecord.usuario_id },
         data: { revoked: true },
       });
-      throw new ApiError('Refresh token revocado detected - Reuse Attempt', 403);
+      throw new ApiError('Intento de reuso de sesión detectado. Sesiones revocadas.', 403);
     }
+
     if (tokenUtils.isTokenExpired(tokenRecord.expires_at)) {
       throw new ApiError('Refresh token expirado', 401);
     }
 
-    if (!tokenRecord.usuarios.activo) {
+    const { usuarios: usuario } = tokenRecord;
+
+    if (!usuario.activo) {
       throw new ApiError('Usuario inactivo', 403);
     }
 
-    if (tokenRecord.usuarios.credenciales_usuario?.bloqueado) {
+    if (usuario.credenciales_usuario?.bloqueado) {
       throw new ApiError('Cuenta bloqueada. Contacte al administrador', 403);
     }
-
-    await prisma.refresh_tokens.update({
-      where: { token: refreshToken },
-      data: { revoked: true },
-    });
 
     const newRefreshToken = tokenUtils.generateRefreshToken();
     const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
 
-    await prisma.refresh_tokens.create({
-      data: {
-        usuario_id: tokenRecord.usuarios.id,
-        token: newRefreshToken,
-        expires_at: expiresAt,
-      },
-    });
+    await prisma.$transaction([
+      prisma.refresh_tokens.update({
+        where: { token: refreshToken },
+        data: { revoked: true },
+      }),
+      prisma.refresh_tokens.create({
+        data: {
+          usuario_id: usuario.id,
+          token: newRefreshToken,
+          expires_at: expiresAt,
+        },
+      }),
+    ]);
 
     const accessToken = jwt.sign(
       {
-        id: tokenRecord.usuarios.id,
-        email: tokenRecord.usuarios.email,
-        rol_id: tokenRecord.usuarios.rol_id,
-        rol_nombre: tokenRecord.usuarios.roles.nombre,
+        id: usuario.id,
+        email: usuario.email,
+        rol_id: usuario.rol_id,
+        rol_nombre: usuario.roles.nombre,
       },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
@@ -201,33 +277,42 @@ export const authService = {
       accessToken,
       refreshToken: newRefreshToken,
       user: {
-        id: tokenRecord.usuarios.id,
-        email: tokenRecord.usuarios.email,
-        nombres: tokenRecord.usuarios.nombres,
-        apellidos: tokenRecord.usuarios.apellidos,
-        rol: tokenRecord.usuarios.roles.nombre,
-        alumnos: tokenRecord.usuarios.alumnos,
+        id: usuario.id,
+        email: usuario.email,
+        nombres: usuario.nombres,
+        apellidos: usuario.apellidos,
+        rol: usuario.roles.nombre,
       },
     };
   },
 
+  /**
+   * Cierra la sesión activa de un usuario invalidando su refreshToken actual.
+   * @param {string} refreshToken - Token de refresco de la sesión a cerrar.
+   * @returns {Promise<{message: string}>} Mensaje de éxito.
+   * @throws {ApiError} 404 si el token no se encuentra en la base de datos.
+   */
   logout: async (refreshToken) => {
-    const tokenRecord = await prisma.refresh_tokens.findUnique({
-      where: { token: refreshToken },
-    });
-
-    if (!tokenRecord) {
-      throw new ApiError('Refresh token no encontrado', 404);
+    try {
+      await prisma.refresh_tokens.update({
+        where: { token: refreshToken },
+        data: { revoked: true },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new ApiError('Refresh token no encontrado', 404);
+      }
+      throw error;
     }
-
-    await prisma.refresh_tokens.update({
-      where: { token: refreshToken },
-      data: { revoked: true },
-    });
 
     return { message: 'Sesión cerrada exitosamente' };
   },
 
+  /**
+   * Invalida de forma masiva todas las sesiones (refresh tokens activos) de un usuario.
+   * @param {number} userId - ID del usuario a desconectar en todos sus dispositivos.
+   * @returns {Promise<{message: string}>} Mensaje de éxito.
+   */
   revokeAllTokens: async (userId) => {
     await prisma.refresh_tokens.updateMany({
       where: {
@@ -240,6 +325,13 @@ export const authService = {
     return { message: 'Todas las sesiones han sido cerradas' };
   },
 
+  /**
+   * Actualiza el correo electrónico de un usuario, generalmente requerido en el primer inicio de sesión
+   * para cuentas creadas de forma masiva sin e-mail.
+   * @param {number} usuarioId - ID del usuario.
+   * @param {string} nuevoEmail - Nuevo correo electrónico a asociar.
+   * @returns {Promise<Object>} Datos básicos del usuario con su e-mail actualizado.
+   */
   actualizarEmailPrimerLogin: async (usuarioId, nuevoEmail) => {
     const usuario = await prisma.usuarios.update({
       where: { id: usuarioId },
@@ -256,23 +348,68 @@ export const authService = {
     return usuario;
   },
 
-  findUserByUsername: async (username) => {
-    return await prisma.usuarios.findUnique({
+  /**
+   * Inicia el flujo de recuperación de contraseña generando un token temporal.
+   * @param {string} username - Nombre de usuario que solicita recuperar la contraseña.
+   * @returns {Promise<void>}
+   * @throws {ApiError} 404 si el usuario no existe o no tiene correo electrónico asociado.
+   */
+  forgotPassword: async (username) => {
+    const user = await prisma.usuarios.findUnique({
       where: { username },
-      select: { id: true, email: true, nombres: true, username: true },
+      select: { id: true, email: true, nombres: true },
     });
+
+    if (!user || !user.email) {
+      throw new ApiError('Usuario no encontrado o no tiene correo asociado', 404);
+    }
+
+    const resetToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1h' });
+
+    const timeoutMsg = 'El envío del correo tardó demasiado, por favor intente de nuevo más tarde';
+    const emailPromise = async () => {
+      // await sendPasswordRecoveryEmail(user.email, user.nombres, resetToken);
+      return Promise.resolve(true);
+    };
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new ApiError(timeoutMsg, 504)), 5000)
+    );
+
+    await Promise.race([emailPromise(), timeoutPromise]);
   },
 
-  updatePassword: async (userId, newPassword) => {
+  /**
+   * Finaliza el flujo de recuperación validando el token temporal y estableciendo la nueva contraseña segura.
+   * Esta función también desbloquea la cuenta del usuario si previamente estaba bloqueada.
+   * @param {string} token - Token JWT temporal recibido en el enlace de recuperación (enviado por email).
+   * @param {string} newPassword - Nueva contraseña en texto plano provista por el usuario.
+   * @returns {Promise<void>}
+   * @throws {ApiError} 400 si el token de recuperación es inválido, manipulado o ya expiró.
+   */
+  resetPassword: async (token, newPassword) => {
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch {
+      throw new ApiError('El enlace es inválido o ha expirado', 400);
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    return await prisma.credenciales_usuario.update({
-      where: {
-        usuario_id: userId,
-      },
-      data: {
-        hash_contrasena: hashedPassword,
-        bloqueado: false,
-      },
-    });
+
+    try {
+      await prisma.credenciales_usuario.update({
+        where: { usuario_id: decoded.id },
+        data: {
+          hash_contrasena: hashedPassword,
+          bloqueado: false,
+        },
+      });
+    } catch (error) {
+      if (error.code === 'P2025') {
+        throw new ApiError('El usuario ya no existe', 404);
+      }
+      throw error;
+    }
   },
 };

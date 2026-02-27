@@ -1,19 +1,17 @@
+import { apiResponse } from '../utils/response.util.js';
+
 export const authorize = (...rolesPermitidos) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Usuario no autenticado',
-      });
+      return apiResponse.error(res, 'Usuario no autenticado', 401);
     }
 
     if (!rolesPermitidos.includes(req.user.rol_nombre)) {
-      return res.status(403).json({
-        status: 'error',
-        message: 'No tienes permisos para acceder a este recurso',
-        requiredRoles: rolesPermitidos,
-        yourRole: req.user.rol_nombre,
-      });
+      return apiResponse.error(
+        res,
+        `No tienes permisos para acceder a este recurso. Requiere: ${rolesPermitidos.join(', ')}`,
+        403
+      );
     }
 
     next();

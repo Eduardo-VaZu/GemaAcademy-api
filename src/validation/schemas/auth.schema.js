@@ -2,7 +2,8 @@ import z from 'zod';
 
 export const authSchema = {
   loginSchema: z.object({
-    username: z.string()
+    username: z
+      .string()
       .trim()
       .toLowerCase()
       .min(3, 'El nombre de usuario debe tener al menos 3 caracteres')
@@ -17,9 +18,15 @@ export const authSchema = {
   refreshSchema: z.object({}).passthrough(),
 
   completarEmailSchema: z.object({
-    email: z.string()
-      .trim()
-      .toLowerCase()
-      .email('Email inválido')
+    email: z.string().trim().toLowerCase().email('Email inválido'),
+  }),
+
+  forgotPasswordSchema: z.object({
+    username: z.string().trim().toLowerCase().min(3).max(50),
+  }),
+
+  resetPasswordSchema: z.object({
+    token: z.string().min(1, 'El token es obligatorio'),
+    newPassword: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   }),
 };
