@@ -9,7 +9,7 @@ async function main() {
   // 1. ROLES Y DOCUMENTOS 🏗️
   // =================================================================
   console.log('📝 Configurando Roles y Documentos...');
-  
+
   const roles = await Promise.all([
     prisma.roles.upsert({ where: { nombre: 'Alumno' }, update: {}, create: { nombre: 'Alumno', descripcion: 'Estudiante' } }),
     prisma.roles.upsert({ where: { nombre: 'Profesor' }, update: {}, create: { nombre: 'Profesor', descripcion: 'Instructor' } }),
@@ -36,12 +36,12 @@ async function main() {
     update: {},
     create: {
       username: 'admin.gema',
-      nombres: 'Super', 
-      apellidos: 'Admin', 
+      nombres: 'Super',
+      apellidos: 'Admin',
       email: 'admin@gema.com',
-      rol_id: rolAdmin.id, 
-      tipo_documento_id: 'DNI', 
-      numero_documento: '00000001', 
+      rol_id: rolAdmin.id,
+      tipo_documento_id: 'DNI',
+      numero_documento: '00000001',
       activo: true
     },
   });
@@ -57,11 +57,11 @@ async function main() {
     update: {},
     create: {
       username: 'carlos.coach',
-      nombres: 'Carlos', 
-      apellidos: 'Coach', 
+      nombres: 'Carlos',
+      apellidos: 'Coach',
       email: 'coach@gema.com',
-      rol_id: rolProfe.id, 
-      tipo_documento_id: 'DNI', 
+      rol_id: rolProfe.id,
+      tipo_documento_id: 'DNI',
       numero_documento: '10203040',
       activo: true
     },
@@ -94,7 +94,7 @@ async function main() {
   const nivel = await prisma.niveles_entrenamiento.upsert({
     where: { id: 1 },
     update: {},
-    create: { nombre: 'Formativo', precio_referencial: 150.00 }, 
+    create: { nombre: 'Formativo', precio_referencial: 150.00 },
   });
 
   // =================================================================
@@ -141,12 +141,12 @@ async function main() {
   for (const c of conceptos) {
     await prisma.catalogo_conceptos.upsert({
       where: { codigo_interno: c.codigo },
-      update: { 
-        nombre: c.nombre, 
-        precio_base: c.precio, 
-        cantidad_clases_semanal: c.clases, 
+      update: {
+        nombre: c.nombre,
+        precio_base: c.precio,
+        cantidad_clases_semanal: c.clases,
         es_vigente: c.vigente,
-        activo: true 
+        activo: true
       },
       create: {
         codigo_interno: c.codigo,
@@ -173,13 +173,13 @@ async function main() {
     where: { id: 1 },
     update: {},
     create: {
-        cancha_id: cancha.id,
-        profesor_id: profe.usuario_id,
-        nivel_id: nivel.id,
-        dia_semana: 1, // Lunes
-        hora_inicio: new Date(2026, 1, 1, 16, 0), // 16:00
-        hora_fin: new Date(2026, 1, 1, 18, 0),
-        capacidad_max: 20
+      cancha_id: cancha.id,
+      profesor_id: profe.usuario_id,
+      nivel_id: nivel.id,
+      dia_semana: 1, // Lunes
+      hora_inicio: new Date(2026, 1, 1, 16, 0), // 16:00
+      hora_fin: new Date(2026, 1, 1, 18, 0),
+      capacidad_max: 20
     }
   });
 
@@ -188,11 +188,11 @@ async function main() {
     update: {},
     create: {
       username: 'javier.prueba',
-      nombres: 'Javier', 
-      apellidos: 'Prueba', 
+      nombres: 'Javier',
+      apellidos: 'Prueba',
       email: 'javier@prueba.com',
-      rol_id: rolAlumno.id, 
-      tipo_documento_id: 'DNI', 
+      rol_id: rolAlumno.id,
+      tipo_documento_id: 'DNI',
       numero_documento: '88888888',
       activo: true
     },
@@ -206,9 +206,9 @@ async function main() {
 
   await prisma.inscripciones.create({
     data: {
-        alumno_id: alumno.usuario_id,
-        horario_id: horario1.id,
-        estado: 'ACTIVO'
+      alumno_id: alumno.usuario_id,
+      horario_id: horario1.id,
+      estado: 'ACTIVO'
     }
   });
 
