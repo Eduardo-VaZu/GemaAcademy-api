@@ -1,13 +1,18 @@
 import cron from 'node-cron';
 import { prisma } from '../../config/database.config.js';
-import { CuentasPorCobrarService } from '../cuenta_por_cobrar/cuentas_por_cobrar.service.js'
+import { CuentasPorCobrarService } from '../cuenta_por_cobrar/cuentas_por_cobrar.service.js';
 
 // ✅ CORRECCIÓN: Importamos con llaves { } y en SINGULAR (tal como está en tu servicio)
 import { inscripcionService } from '../inscripciones/inscripcion.service.js';
 import { recuperacionService } from '../recuperaciones/recuperacion.service.js';
 
+import { iniciarCronCumpleanos } from '../notificaciones/cron/cumpleanos.cron.js';
+
 export const iniciarCronJobs = () => {
   console.log('🕰️ Cron Jobs iniciados: El sistema está vigilando...');
+
+  // Iniciar Cron de Cumpleaños
+  iniciarCronCumpleanos();
 
   // ------------------------------------------------------------------
   // TAREA 1: EL FRANCOTIRADOR (Cada minuto) 🧟‍♂️🔫
@@ -47,7 +52,6 @@ export const iniciarCronJobs = () => {
       console.error('❌ [CRON ERROR] Falló el Profeta:', error);
     }
   });
-
 
   // Expirar (VENCIDA) las recuperaciones que pasaron sus 30 días después del fin de inscripción.
   cron.schedule('0 1 * * *', async () => {
@@ -95,14 +99,14 @@ const limpiarReservasZombies = async () => {
               lte: new Date(zombie.fecha_inscripcion.getTime() + 30000),
             },
           },
-          include: { descuentos_aplicados: true }
+          include: { descuentos_aplicados: true },
         });
 
         if (deuda) {
           // PASO A: Eliminar Descuentos Aplicados (Hijo de la deuda)
           // Esto rompe la primera restricción de FK.
           await tx.descuentos_aplicados.deleteMany({
-            where: { cuenta_id: deuda.id }
+            where: { cuenta_id: deuda.id },
           });
 
           // PASO B: Restaurar Beneficios Pendientes (Lógica de negocio)
@@ -113,21 +117,21 @@ const limpiarReservasZombies = async () => {
                 where: {
                   alumno_id: zombie.alumno_id,
                   tipo_beneficio_id: desc.tipo_beneficio_id,
-                  usado: true
+                  usado: true,
                 },
-                data: { usado: false }
+                data: { usado: false },
               });
             }
           }
 
           // PASO C: Eliminar Pagos (Si existieran intentos huérfanos)
           await tx.pagos.deleteMany({
-            where: { cuenta_id: deuda.id }
+            where: { cuenta_id: deuda.id },
           });
 
           // PASO D: Eliminar la Cuenta por Cobrar (Padre financiero)
           await tx.cuentas_por_cobrar.delete({
-            where: { id: deuda.id }
+            where: { id: deuda.id },
           });
         }
 
@@ -215,8 +219,6 @@ const ejecutarProfetaRenovaciones = async () => {
       `🔮 [PROFETA] Se generaron ${renovacionesGeneradas} deudas de renovación anticipada.`
     );
   }
-
-
 };
 
 // =====================================================================
@@ -227,8 +229,8 @@ const ejecutarLimpiezaTickets = async () => {
   const pendientes = await prisma.recuperaciones.findMany({
     where: {
       estado: 'PENDIENTE',
-      es_por_lesion: false
-    }
+      es_por_lesion: false,
+    },
   });
 
   if (pendientes.length === 0) return;
@@ -241,9 +243,9 @@ const ejecutarLimpiezaTickets = async () => {
     const inscripcion = await prisma.inscripciones.findFirst({
       where: {
         alumno_id: ticket.alumno_id,
-        estado: 'ACTIVO'
+        estado: 'ACTIVO',
       },
-      orderBy: { fecha_inscripcion: 'asc' }
+      orderBy: { fecha_inscripcion: 'asc' },
     });
 
     if (!inscripcion) continue; // Si no hay inscripción, lo saltamos por seguridad
@@ -267,7 +269,7 @@ const ejecutarLimpiezaTickets = async () => {
     if (hoy >= fechaLimiteValida) {
       await prisma.recuperaciones.update({
         where: { id: ticket.id },
-        data: { estado: 'VENCIDA' }
+        data: { estado: 'VENCIDA' },
       });
       expiradosCount++;
     }
