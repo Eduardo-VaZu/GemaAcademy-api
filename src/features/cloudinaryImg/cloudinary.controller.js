@@ -6,7 +6,7 @@ export const uploadFile = async (req, res) => {
       return res.status(400).json({ error: 'No se ha subido ningún archivo.' });
     }
 
-    const cloudinaryResponse = await uploadToCloudinary(req.file);
+    const cloudinaryResponse = await uploadToCloudinary(req.file, req.body.folderName);
 
     res.status(200).json({
       message: 'Imagen subida exitosamente',

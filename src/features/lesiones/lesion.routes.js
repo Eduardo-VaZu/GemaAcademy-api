@@ -1,9 +1,26 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { lesionController } from './lesion.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { authorize } from '../../shared/middlewares/authorize.middleware.js';
 
 const router = Router();
+
+// Configuración de Multer para manejar archivos en memoria
+const storage = multer.memoryStorage();
+
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('¡Solo se permiten imágenes!'), false);
+    }
+};
+
+const upload = multer({
+    storage: storage,
+    fileFilter: fileFilter,
+});
 
 // Todas las rutas requieren autenticación (token válido)
 router.use(authenticate);
@@ -17,6 +34,7 @@ router.use(authenticate);
 router.post(
     '/',
     authorize('Alumno'),
+    upload.single('evidencia'),
     lesionController.crearSolicitud
 );
 

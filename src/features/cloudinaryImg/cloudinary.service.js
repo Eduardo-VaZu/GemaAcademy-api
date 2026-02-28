@@ -11,12 +11,15 @@ if (config.cloudinary.cloud_name && config.cloudinary.api_key && config.cloudina
   console.log('✅ Cloudinary configurado correctamente');
 }
 
-export const uploadToCloudinary = async (fileObject) => {
+export const uploadToCloudinary = async (fileObject, folderName) => {
+  if (!folderName) {
+    throw new Error('folderName es requerido.')
+  }
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         resource_type: 'image',
-        folder: 'yape',
+        folder: folderName,
         public_id: `${Date.now()}_${fileObject.originalname.replace(/\.[^/.]+$/, '')}`,
       },
       (error, result) => {

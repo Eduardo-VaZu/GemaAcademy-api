@@ -6,15 +6,16 @@ import { ApiError } from '../../shared/utils/error.util.js';
 // ALUMNO: Crear nueva solicitud
 const crearSolicitud = catchAsync(async (req, res) => {
     const { id: alumnoId } = req.user;
-    const { descripcion, urlEvidencia } = req.body;
+    const { descripcion } = req.body;
+    const evidenciaFile = req.file;
 
-    if (!descripcion || !urlEvidencia) {
+    if (!descripcion || !evidenciaFile) {
         throw new ApiError('Descripción y evidencia médica son obligatorias.', 400);
     }
 
     const solicitud = await lesionService.crearSolicitud(alumnoId, {
         descripcion,
-        urlEvidencia
+        evidenciaFile
     });
 
     return apiResponse.created(res, { data: solicitud, message: 'Solicitud de lesión enviada correctamente.' });

@@ -17,7 +17,7 @@ export const pagosService = {
 
     if (voucherFile) {
       try {
-        const cloudinaryResponse = await uploadToCloudinary(voucherFile);
+        const cloudinaryResponse = await uploadToCloudinary(voucherFile, 'yape');
         imageUrl = cloudinaryResponse.url;
       } catch (error) {
         throw new Error(`Error al subir la imagen a Cloudinary: ${error.message}`);
@@ -136,7 +136,7 @@ export const pagosService = {
 
       // 🎓 PASO 6: Gestión de Inscripciones y Asistencias
       if (activarAlumno) {
-        
+
         const esRenovacion = pago.cuentas_por_cobrar.detalle_adicional?.includes('Renovación Automática');
 
         if (esRenovacion) {
@@ -159,7 +159,7 @@ export const pagosService = {
             // 🕰️ Calcular fin del ciclo actual (Día 30)
             const finCicloActual = new Date(fechaMadre);
             finCicloActual.setDate(finCicloActual.getDate() + 30);
-            
+
             const hoy = new Date();
             let fechaInicioNuevoCiclo;
 
@@ -175,10 +175,10 @@ export const pagosService = {
             for (const inscripcion of inscripcionesActivas) {
               await tx.inscripciones.update({
                 where: { id: inscripcion.id },
-                data: { 
-                  fecha_inscripcion: fechaInicioNuevoCiclo, 
-                  estado: 'ACTIVO', 
-                  actualizado_en: hoy 
+                data: {
+                  fecha_inscripcion: fechaInicioNuevoCiclo,
+                  estado: 'ACTIVO',
+                  actualizado_en: hoy
                 },
               });
 
@@ -187,7 +187,7 @@ export const pagosService = {
                 dia_semana: inscripcion.horarios_clases.dia_semana,
                 usuario_admin_id: Number.parseInt(usuario_admin_id),
                 coordinador_id: inscripcion.horarios_clases.coordinador_id,
-                fecha_inicio: fechaInicioNuevoCiclo 
+                fecha_inicio: fechaInicioNuevoCiclo
               });
             }
           }
@@ -215,7 +215,7 @@ export const pagosService = {
               dia_semana: inscripcion.horarios_clases.dia_semana,
               usuario_admin_id: Number.parseInt(usuario_admin_id),
               coordinador_id: inscripcion.horarios_clases.coordinador_id,
-              fecha_inicio: new Date() 
+              fecha_inicio: new Date()
             });
           }
         }

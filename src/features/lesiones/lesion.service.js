@@ -1,7 +1,8 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
+import { uploadToCloudinary } from '../cloudinaryImg/cloudinary.service.js';
 
-const crearSolicitud = async (alumnoId, { descripcion, urlEvidencia }) => {
+const crearSolicitud = async (alumnoId, { descripcion, evidenciaFile }) => {
     // 1. Validar que no tenga ya una solicitud pendiente
     const existePendiente = await prisma.solicitudes_lesion.findFirst({
         where: {
@@ -14,12 +15,26 @@ const crearSolicitud = async (alumnoId, { descripcion, urlEvidencia }) => {
         throw new ApiError('Ya tienes una solicitud de lesión en proceso de revisión.', 400);
     }
 
+    let imageUrl = '';
+
+    // El alumno ya no usará drive, ahora subirá directamente una imagen a la nube (cloudinary)
+    if (evidenciaFile) {
+        try {
+            const cloudinaryResponse = await uploadToCloudinary(evidenciaFile, 'evidencias');
+            imageUrl = cloudinaryResponse.url;
+        } catch (error) {
+            throw new Error(`Error al subir la imagen a Cloudinary: ${error.message}`);
+        }
+    } else {
+        throw new Error('evidenciaFile no existe.')
+    }
+
     // 2. Crear la solicitud
     return await prisma.solicitudes_lesion.create({
         data: {
             alumno_id: parseInt(alumnoId),
             descripcion_lesion: descripcion,
-            url_evidencia_medica: urlEvidencia,
+            url_evidencia_medica: imageUrl,
             estado: 'PENDIENTE',
             fecha_solicitud: new Date()
         }
