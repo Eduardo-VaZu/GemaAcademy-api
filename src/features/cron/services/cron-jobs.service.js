@@ -79,7 +79,7 @@ export const iniciarCronJobs = () => {
   // TAREA 5: EL FESTEJERO (Todos los días a las 12:00 PM)
   // Objetivo: Enviar mensajes de Feliz Cumpleaños.
   // ------------------------------------------------------------------
-  cron.schedule('0 12 * * *', async () => {
+  cron.schedule('40 12 * * *', async () => {
     logger.info(`[CRON] Buscando cumpleañeros de hoy: ${new Date().toISOString()}`);
     try {
       await cumpleanosService.ejecutarSaludosCumpleanos();
