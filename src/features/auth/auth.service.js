@@ -8,6 +8,7 @@ import {
   JWT_EXPIRES_IN,
   REFRESH_TOKEN_EXPIRATION_DAYS,
 } from '../../config/secret.config.js';
+import { emailService } from '../../shared/services/email.service.js';
 
 export const authService = {
   /**
@@ -366,17 +367,15 @@ export const authService = {
 
     const resetToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '1h' });
 
-    const timeoutMsg = 'El envío del correo tardó demasiado, por favor intente de nuevo más tarde';
-    const emailPromise = async () => {
-      // await sendPasswordRecoveryEmail(user.email, user.nombres, resetToken);
-      return Promise.resolve(true);
-    };
-
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new ApiError(timeoutMsg, 504)), 5000)
+    const emailSent = await emailService.sendPasswordRecoveryEmail(
+      user.email,
+      user.nombres,
+      resetToken
     );
 
-    await Promise.race([emailPromise(), timeoutPromise]);
+    if (!emailSent) {
+      throw new ApiError('No se pudo enviar el correo de recuperación. Intente más tarde.', 500);
+    }
   },
 
   /**

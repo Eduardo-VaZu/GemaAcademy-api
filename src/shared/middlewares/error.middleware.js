@@ -2,7 +2,7 @@ import { apiResponse } from '../utils/response.util.js';
 import { logger } from '../utils/logger.util.js';
 
 export const errorHandler = (err, req, res, next) => {
-  logger.error(err);
+  logger.error(err.message || err);
   // Error personalizado
   if (err.statusCode) {
     return apiResponse.error(res, {
