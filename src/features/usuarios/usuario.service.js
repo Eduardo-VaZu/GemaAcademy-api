@@ -2,7 +2,7 @@ import { prisma } from '../../config/database.config.js';
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../shared/utils/error.util.js';
 import { VALID_ROLES } from '../../constants/roles.constants.js';
-//import { sendCredentialsEmail } from '../../shared/utils/mailer.js';
+import { emailService } from '../../shared/services/email.service.js';
 
 export const usuarioService = {
   createUser: async (userData) => {
@@ -25,9 +25,12 @@ export const usuarioService = {
       rolNombre: providedRolNombre,
       contacto_emergencia,
       parentesco,
+      datosRolEspecifico,
+      direccion,
       ...otrosdatos
     } = userData;
 
+    // Fusionamos los datos rol del primer nivel con los agrupados por zod en datosRolEspecifico
     const datosRol = {
       especializacion,
       sede_id,
@@ -36,7 +39,9 @@ export const usuarioService = {
       direccion_id,
       condiciones_medicas,
       seguro_medico,
-      grupo_sanguineo
+      grupo_sanguineo,
+      direccion,
+      ...datosRolEspecifico,
     };
 
     const fechaConvertida = fecha_nacimiento ? new Date(fecha_nacimiento) : null;
@@ -44,7 +49,8 @@ export const usuarioService = {
 
     let rol;
     if (typeof rolNombre === 'string') {
-      const rolNombreNormalizado = rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
+      const rolNombreNormalizado =
+        rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
       rol = await prisma.roles.findUnique({ where: { nombre: rolNombreNormalizado } });
     } else {
       rol = await prisma.roles.findUnique({ where: { id: parseInt(rolNombre) } });
@@ -70,7 +76,8 @@ export const usuarioService = {
       // 2. Generar Username Final
       const primerNombre = otrosdatos.nombres.split(' ')[0].toLowerCase();
       const primerApellido = otrosdatos.apellidos.split(' ')[0].toLowerCase();
-      const finalUsername = providedUsername || `${primerNombre}.${primerApellido}${nuevoUsuario.id}`;
+      const finalUsername =
+        providedUsername || `${primerNombre}.${primerApellido}${nuevoUsuario.id}`;
 
       // 3. Hashear Password (priorizar la del form, sino usar username)
       const passwordToHash = password || finalUsername;
@@ -90,40 +97,39 @@ export const usuarioService = {
         },
       });
 
-      // 5. Datos específicos de Alumno (Incluyendo emergencia)
-      if (rol.nombre.toLowerCase() === 'alumno') {
-        await tx.alumnos.create({
-          data: { usuario_id: nuevoUsuario.id }
+      // 5. Datos específicos de Roles
+      await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, datosRol);
+
+      // 6. Contacto de emergencia (Específico para alumnos)
+      if (rol.nombre.toLowerCase() === 'alumno' && contacto_emergencia) {
+        const nombreEmergencia = `Emergencia ${otrosdatos.nombres}`;
+
+        const contactoExistente = await tx.alumnos_contactos.findFirst({
+          where: {
+            alumno_id: nuevoUsuario.id,
+            telefono: contacto_emergencia,
+          },
         });
 
-        if (contacto_emergencia) {
-          const nombreEmergencia = `Emergencia ${otrosdatos.nombres}`;
-
-          const contactoExistente = await tx.alumnos_contactos.findFirst({
-            where: {
+        if (!contactoExistente) {
+          await tx.alumnos_contactos.create({
+            data: {
               alumno_id: nuevoUsuario.id,
-              telefono: contacto_emergencia
-            }
+              nombre_completo: nombreEmergencia,
+              telefono: contacto_emergencia,
+              relacion: parentesco,
+              es_principal: true,
+            },
           });
-
-          if (!contactoExistente) {
-            await tx.alumnos_contactos.create({
-              data: {
-                alumno_id: nuevoUsuario.id,
-                nombre_completo: nombreEmergencia,
-                telefono: contacto_emergencia,
-                relacion: parentesco,
-                es_principal: true
-              }
-            });
-          }
         }
-      } else {
-        await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, datosRol);
       }
 
       return usuarioActualizado;
     });
+
+    if (user.email) {
+      emailService.sendCredentialsEmail(user.email, user.nombres, user.username).catch(() => {});
+    }
 
     return {
       id: user.id,
@@ -206,9 +212,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-        distrito !== undefined ||
-        ciudad !== undefined ||
-        referencia !== undefined
+      distrito !== undefined ||
+      ciudad !== undefined ||
+      referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 
