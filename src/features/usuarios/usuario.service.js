@@ -30,7 +30,6 @@ export const usuarioService = {
       ...otrosdatos
     } = userData;
 
-    // Fusionamos los datos rol del primer nivel con los agrupados por zod en datosRolEspecifico
     const datosRol = {
       especializacion,
       sede_id,
@@ -59,7 +58,6 @@ export const usuarioService = {
     if (!rol) throw new ApiError(`El rol '${rolNombre}' no existe`, 400);
 
     const user = await prisma.$transaction(async (tx) => {
-      // 1. Crear usuario con username temporal
       const nuevoUsuario = await tx.usuarios.create({
         data: {
           username: `temp_${Date.now()}`,
@@ -73,18 +71,14 @@ export const usuarioService = {
         },
       });
 
-      // 2. Generar Username Final
       const primerNombre = otrosdatos.nombres.split(' ')[0].toLowerCase();
       const primerApellido = otrosdatos.apellidos.split(' ')[0].toLowerCase();
       const finalUsername =
         providedUsername || `${primerNombre}.${primerApellido}${nuevoUsuario.id}`;
 
-      // 3. Hashear Password (priorizar la del form, sino usar username)
       const passwordToHash = password || finalUsername;
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(passwordToHash, saltRounds);
-
-      // 4. Actualizar Username y crear credenciales
       const usuarioActualizado = await tx.usuarios.update({
         where: { id: nuevoUsuario.id },
         data: { username: finalUsername },
@@ -97,10 +91,8 @@ export const usuarioService = {
         },
       });
 
-      // 5. Datos específicos de Roles
       await createRoleSpecificData(tx, rol.nombre.toLowerCase(), nuevoUsuario.id, datosRol);
 
-      // 6. Contacto de emergencia (Específico para alumnos)
       if (rol.nombre.toLowerCase() === 'alumno' && contacto_emergencia) {
         const nombreEmergencia = `Emergencia ${otrosdatos.nombres}`;
 
@@ -128,7 +120,9 @@ export const usuarioService = {
     });
 
     if (user.email) {
-      emailService.sendCredentialsEmail(user.email, user.nombres, user.username).catch(() => {});
+      emailService
+        .sendCredentialsEmail(user.email, user.nombres, user.username, password)
+        .catch(() => {});
     }
 
     return {

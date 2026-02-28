@@ -125,7 +125,7 @@ export const emailService = {
    * @param {string} username - Nombre de usuario generado.
    * @returns {Promise<boolean>}
    */
-  async sendCredentialsEmail(email, nombres, username) {
+  async sendCredentialsEmail(email, nombres, username, password) {
     const frontUrl = FRONTEND_URL || 'http://localhost:3000';
     const loginLink = `${frontUrl}/login`;
 
@@ -152,7 +152,7 @@ export const emailService = {
             </div>
             <div>
               <span style="display: block; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: bold; margin-bottom: 4px;">Contraseña inicial</span>
-              <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${username}</span>
+              <span style="color: #1e3a8a; font-size: 18px; font-weight: bold;">${password ?? username}</span>
               <small style="display: block; color: #f97316; font-size: 11px; margin-top: 4px;">(Corresponde a tu nombre de usuario autogenerado)</small>
             </div>
           </div>
