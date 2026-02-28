@@ -156,7 +156,7 @@ export const pagosService = {
             inscripcion_id: inscripcion.id,
             dia_semana: inscripcion.horarios_clases.dia_semana,
             usuario_admin_id: Number.parseInt(usuario_admin_id),
-            profesor_id: inscripcion.horarios_clases.profesor_id,
+            coordinador_id: inscripcion.horarios_clases.coordinador_id,
           });
         }
       } else if (!esAprobado) {
@@ -204,28 +204,28 @@ export const pagosService = {
   },
 
   obtenerPorAlumno: async (alumnoId) => {
-    return await prisma.pagos.findMany({
-      where: {
-        cuentas_por_cobrar: {
-          alumno_id: Number.parseInt(alumnoId),
-        },
-      },
-      include: {
-        cuentas_por_cobrar: {
-          include: { 
-            alumnos: { 
-              include: { usuarios: true } 
-            } 
-          }
-        },
-        metodos_pago: true,
-        administrador: { 
-          include: { usuarios: true } 
-        },
-      },
-      orderBy: { fecha_pago: 'desc' },
-    });
-  },
+    return await prisma.pagos.findMany({
+      where: {
+        cuentas_por_cobrar: {
+          alumno_id: Number.parseInt(alumnoId),
+        },
+      },
+      include: {
+        cuentas_por_cobrar: {
+          include: {
+            alumnos: {
+              include: { usuarios: true }
+            }
+          }
+        },
+        metodos_pago: true,
+        administrador: {
+          include: { usuarios: true }
+        },
+      },
+      orderBy: { fecha_pago: 'desc' },
+    });
+  },
 
   // 5. ELIMINAR REGISTRO DE PAGO (Uso delicado)
   eliminarPago: async (id) => {

@@ -91,7 +91,7 @@ const user = {
     direccion: direccionSchema,
   }),
 
-  profesorSpecificSchema: z.object({
+  coordinadorSpecificSchema: z.object({
     especializacion: z
       .string()
       .min(3, 'Especialización debe tener al menos 3 caracteres')
@@ -162,8 +162,8 @@ export const usuarioSchema = {
             });
           });
         }
-      } else if (rol === 'profesor') {
-        const result = user.profesorSpecificSchema.safeParse(datos);
+      } else if (rol === 'coordinador') {
+        const result = user.coordinadorSpecificSchema.safeParse(datos);
         if (!result.success) {
           result.error.issues.forEach((issue) => {
             ctx.addIssue({

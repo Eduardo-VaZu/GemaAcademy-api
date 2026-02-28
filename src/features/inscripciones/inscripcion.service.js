@@ -8,7 +8,7 @@ export const inscripcionService = {
   // =================================================================
   // 📦 LÓGICA MAESTRA: INSCRIPCIÓN / UPGRADE (Con Switch Legacy/Nuevo)
   // =================================================================
-    inscribirPaquete: async (data) => {
+  inscribirPaquete: async (data) => {
     const { alumno_id, horario_ids } = data;
 
     // 1. Validación de entrada (desde utils)
@@ -30,9 +30,9 @@ export const inscripcionService = {
       // 👮‍♂️ PASO 3: Obtener Precio según Régimen (desde logic)
       const cantidadClases = horario_ids.length;
       const conceptoAplicar = await tx.catalogo_conceptos.findFirst({
-        where: { 
-          cantidad_clases_semanal: cantidadClases, 
-          activo: true, 
+        where: {
+          cantidad_clases_semanal: cantidadClases,
+          activo: true,
           es_vigente: !esAlumnoLegacy // El switch mágico
         }
       });
@@ -86,69 +86,69 @@ export const inscripcionService = {
       }
 
       // 💸 PASO 5: Generar la Deuda
-     if (totalCobrar > 0) {
-  const nuevaCuenta = await tx.cuentas_por_cobrar.create({
-    data: {
-      alumno_id: parseInt(alumno_id),
-      concepto_id: conceptoAplicar.id,
-      detalle_adicional: [...new Set(detalleCobro)].join(' | '),
-      monto_final: totalCobrar,
-      fecha_vencimiento: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-      estado: 'PENDIENTE'
-    }
-  });
+      if (totalCobrar > 0) {
+        const nuevaCuenta = await tx.cuentas_por_cobrar.create({
+          data: {
+            alumno_id: parseInt(alumno_id),
+            concepto_id: conceptoAplicar.id,
+            detalle_adicional: [...new Set(detalleCobro)].join(' | '),
+            monto_final: totalCobrar,
+            fecha_vencimiento: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+            estado: 'PENDIENTE'
+          }
+        });
 
-  // --- Lógica de Beneficios Pendientes ---
-  const beneficiosEnCola = await tx.beneficios_pendientes.findMany({
-    where: { alumno_id: parseInt(alumno_id), usado: false },
-    include: { tipos_beneficio: true }
-  });
+        // --- Lógica de Beneficios Pendientes ---
+        const beneficiosEnCola = await tx.beneficios_pendientes.findMany({
+          where: { alumno_id: parseInt(alumno_id), usado: false },
+          include: { tipos_beneficio: true }
+        });
 
-  for (const pendiente of beneficiosEnCola) {
-    const deudaActual = parseFloat(nuevaCuenta.monto_final);
-    const valorNominal = parseFloat(pendiente.tipos_beneficio.valor_por_defecto);
-    
-    let descuentoReal = pendiente.tipos_beneficio.es_porcentaje 
-      ? deudaActual * (valorNominal / 100) 
-      : valorNominal;
+        for (const pendiente of beneficiosEnCola) {
+          const deudaActual = parseFloat(nuevaCuenta.monto_final);
+          const valorNominal = parseFloat(pendiente.tipos_beneficio.valor_por_defecto);
 
-    const descuentoFinal = descuentoReal > deudaActual ? deudaActual : descuentoReal;
-    const nuevoMonto = deudaActual - descuentoFinal;
+          let descuentoReal = pendiente.tipos_beneficio.es_porcentaje
+            ? deudaActual * (valorNominal / 100)
+            : valorNominal;
 
-    // Registrar descuento
-    await tx.descuentos_aplicados.create({
-      data: {
-        cuenta_id: nuevaCuenta.id,
-        tipo_beneficio_id: pendiente.tipo_beneficio_id,
-        monto_nominal_aplicado: valorNominal,
-        monto_dinero_descontado: descuentoFinal,
-        motivo_detalle: pendiente.motivo || "Beneficio aplicado automáticamente en inscripción",
-        aplicado_por: pendiente.asignado_por,
-        fecha_aplicacion: new Date()
+          const descuentoFinal = descuentoReal > deudaActual ? deudaActual : descuentoReal;
+          const nuevoMonto = deudaActual - descuentoFinal;
+
+          // Registrar descuento
+          await tx.descuentos_aplicados.create({
+            data: {
+              cuenta_id: nuevaCuenta.id,
+              tipo_beneficio_id: pendiente.tipo_beneficio_id,
+              monto_nominal_aplicado: valorNominal,
+              monto_dinero_descontado: descuentoFinal,
+              motivo_detalle: pendiente.motivo || "Beneficio aplicado automáticamente en inscripción",
+              aplicado_por: pendiente.asignado_por,
+              fecha_aplicacion: new Date()
+            }
+          });
+
+          // Actualizar cuenta
+          await tx.cuentas_por_cobrar.update({
+            where: { id: nuevaCuenta.id },
+            data: {
+              monto_final: nuevoMonto,
+              estado: nuevoMonto <= 0.01 ? 'PAGADA' : nuevaCuenta.estado
+            }
+          });
+
+          // Quemar beneficio
+          await tx.beneficios_pendientes.update({
+            where: { id: pendiente.id },
+            data: { usado: true }
+          });
+        }
       }
-    });
 
-    // Actualizar cuenta
-    await tx.cuentas_por_cobrar.update({
-      where: { id: nuevaCuenta.id },
-      data: {
-        monto_final: nuevoMonto,
-        estado: nuevoMonto <= 0.01 ? 'PAGADA' : nuevaCuenta.estado
-      }
-    });
-
-    // Quemar beneficio
-    await tx.beneficios_pendientes.update({
-      where: { id: pendiente.id },
-      data: { usado: true }
-    });
-  }
-}
-
-const cuentaFinal = await tx.cuentas_por_cobrar.findFirst({
-      where: { alumno_id: parseInt(alumno_id) },
-      orderBy: { creado_en: 'desc' }
-    });
+      const cuentaFinal = await tx.cuentas_por_cobrar.findFirst({
+        where: { alumno_id: parseInt(alumno_id) },
+        orderBy: { creado_en: 'desc' }
+      });
 
       return {
         mensaje: esInscripcionAdicional ? 'Upgrade procesado.' : 'Inscripción creada.',
@@ -161,100 +161,100 @@ const cuentaFinal = await tx.cuentas_por_cobrar.findFirst({
   // =================================================================
   // 🔮 LA LÓGICA DEL PROFETA: Renovaciones Masivas (Herencia Estricta)
   // =================================================================
-generarRenovacionesMasivas: async (diasAnticipacion) => {
-  const { inicio, fin } = Utils.calcularRangoRenovacion(diasAnticipacion);
+  generarRenovacionesMasivas: async (diasAnticipacion) => {
+    const { inicio, fin } = Utils.calcularRangoRenovacion(diasAnticipacion);
 
-  return await prisma.$transaction(async (tx) => {
-    const candidatos = await tx.inscripciones.findMany({
-      where: {
-        estado: 'ACTIVO',
-        fecha_inscripcion: { gte: inicio, lte: fin },
-      },
-      distinct: ['alumno_id'],
-    });
-
-    let renovacionesCreadas = 0;
-
-    for (const candidato of candidatos) {
-      const alumnoId = candidato.alumno_id;
-
-      if (await Validators.existeRenovacionReciente(tx, alumnoId, inicio)) continue;
-
-      const planHeredado = await Logic.obtenerPlanParaRenovar(tx, alumnoId);
-      if (!planHeredado) continue;
-
-      const totalCursosActivos = await tx.inscripciones.count({
-        where: { alumno_id: alumnoId, estado: 'ACTIVO' },
+    return await prisma.$transaction(async (tx) => {
+      const candidatos = await tx.inscripciones.findMany({
+        where: {
+          estado: 'ACTIVO',
+          fecha_inscripcion: { gte: inicio, lte: fin },
+        },
+        distinct: ['alumno_id'],
       });
 
-      if (planHeredado.cantidad_clases_semanal === totalCursosActivos) {
-        // 1. Crear la Deuda Base
-        const nuevaCuenta = await tx.cuentas_por_cobrar.create({
-          data: {
-            alumno_id: alumnoId,
-            concepto_id: planHeredado.id,
-            monto_final: planHeredado.precio_base,
-            detalle_adicional: `Renovación Automática (Plan: ${planHeredado.nombre})`,
-            fecha_vencimiento: Utils.calcularFechaVencimiento(diasAnticipacion),
-            estado: 'PENDIENTE',
-          },
+      let renovacionesCreadas = 0;
+
+      for (const candidato of candidatos) {
+        const alumnoId = candidato.alumno_id;
+
+        if (await Validators.existeRenovacionReciente(tx, alumnoId, inicio)) continue;
+
+        const planHeredado = await Logic.obtenerPlanParaRenovar(tx, alumnoId);
+        if (!planHeredado) continue;
+
+        const totalCursosActivos = await tx.inscripciones.count({
+          where: { alumno_id: alumnoId, estado: 'ACTIVO' },
         });
 
-        // 2. ⚡ OPTIMIZACIÓN: Aplicación de Beneficios Pendientes
-        const beneficiosEnCola = await tx.beneficios_pendientes.findMany({
-          where: { alumno_id: alumnoId, usado: false },
-          include: { tipos_beneficio: true }
-        });
-
-        for (const pendiente of beneficiosEnCola) {
-          const deudaActual = parseFloat(nuevaCuenta.monto_final);
-          const valorNominal = parseFloat(pendiente.tipos_beneficio.valor_por_defecto);
-          
-          let descuentoReal = pendiente.tipos_beneficio.es_porcentaje 
-            ? deudaActual * (valorNominal / 100) 
-            : valorNominal;
-
-          const descuentoFinal = descuentoReal > deudaActual ? deudaActual : descuentoReal;
-          const nuevoMonto = deudaActual - descuentoFinal;
-
-          // A. Registrar el descuento aplicado
-          await tx.descuentos_aplicados.create({
+        if (planHeredado.cantidad_clases_semanal === totalCursosActivos) {
+          // 1. Crear la Deuda Base
+          const nuevaCuenta = await tx.cuentas_por_cobrar.create({
             data: {
-              cuenta_id: nuevaCuenta.id,
-              tipo_beneficio_id: pendiente.tipo_beneficio_id,
-              monto_nominal_aplicado: valorNominal,
-              monto_dinero_descontado: descuentoFinal,
-              motivo_detalle: pendiente.motivo || "Beneficio aplicado en renovación automática",
-              aplicado_por: pendiente.asignado_por,
-              fecha_aplicacion: new Date()
-            }
+              alumno_id: alumnoId,
+              concepto_id: planHeredado.id,
+              monto_final: planHeredado.precio_base,
+              detalle_adicional: `Renovación Automática (Plan: ${planHeredado.nombre})`,
+              fecha_vencimiento: Utils.calcularFechaVencimiento(diasAnticipacion),
+              estado: 'PENDIENTE',
+            },
           });
 
-          // B. Actualizar el saldo de la cuenta recién creada
-          await tx.cuentas_por_cobrar.update({
-            where: { id: nuevaCuenta.id },
-            data: {
-              monto_final: nuevoMonto,
-              estado: nuevoMonto <= 0.01 ? 'PAGADA' : 'PENDIENTE'
-            }
+          // 2. ⚡ OPTIMIZACIÓN: Aplicación de Beneficios Pendientes
+          const beneficiosEnCola = await tx.beneficios_pendientes.findMany({
+            where: { alumno_id: alumnoId, usado: false },
+            include: { tipos_beneficio: true }
           });
 
-          // C. Quemar el beneficio
-          await tx.beneficios_pendientes.update({
-            where: { id: pendiente.id },
-            data: { usado: true }
-          });
+          for (const pendiente of beneficiosEnCola) {
+            const deudaActual = parseFloat(nuevaCuenta.monto_final);
+            const valorNominal = parseFloat(pendiente.tipos_beneficio.valor_por_defecto);
 
-          // Actualizamos la referencia local para el siguiente beneficio en el loop
-          nuevaCuenta.monto_final = nuevoMonto;
+            let descuentoReal = pendiente.tipos_beneficio.es_porcentaje
+              ? deudaActual * (valorNominal / 100)
+              : valorNominal;
+
+            const descuentoFinal = descuentoReal > deudaActual ? deudaActual : descuentoReal;
+            const nuevoMonto = deudaActual - descuentoFinal;
+
+            // A. Registrar el descuento aplicado
+            await tx.descuentos_aplicados.create({
+              data: {
+                cuenta_id: nuevaCuenta.id,
+                tipo_beneficio_id: pendiente.tipo_beneficio_id,
+                monto_nominal_aplicado: valorNominal,
+                monto_dinero_descontado: descuentoFinal,
+                motivo_detalle: pendiente.motivo || "Beneficio aplicado en renovación automática",
+                aplicado_por: pendiente.asignado_por,
+                fecha_aplicacion: new Date()
+              }
+            });
+
+            // B. Actualizar el saldo de la cuenta recién creada
+            await tx.cuentas_por_cobrar.update({
+              where: { id: nuevaCuenta.id },
+              data: {
+                monto_final: nuevoMonto,
+                estado: nuevoMonto <= 0.01 ? 'PAGADA' : 'PENDIENTE'
+              }
+            });
+
+            // C. Quemar el beneficio
+            await tx.beneficios_pendientes.update({
+              where: { id: pendiente.id },
+              data: { usado: true }
+            });
+
+            // Actualizamos la referencia local para el siguiente beneficio en el loop
+            nuevaCuenta.monto_final = nuevoMonto;
+          }
+
+          renovacionesCreadas++;
         }
-        
-        renovacionesCreadas++;
       }
-    }
-    return renovacionesCreadas;
-  });
-},
+      return renovacionesCreadas;
+    });
+  },
 
   getAllInscripciones: async () => {
     return await prisma.inscripciones.findMany({
@@ -278,7 +278,7 @@ generarRenovacionesMasivas: async (diasAnticipacion) => {
           include: {
             canchas: true,
             niveles_entrenamiento: true,
-            profesores: { include: { usuarios: true } }
+            coordinadores: { include: { usuarios: true } }
           }
         }
       }
@@ -291,12 +291,12 @@ generarRenovacionesMasivas: async (diasAnticipacion) => {
         alumnos: {
           include: { usuarios: { select: { nombres: true, apellidos: true, email: true } } },
         },
-        horarios_clases: { 
-          include: { 
-            canchas: true, 
+        horarios_clases: {
+          include: {
+            canchas: true,
             niveles_entrenamiento: true,
-            profesores: { include: { usuarios: true } }
-          } 
+            coordinadores: { include: { usuarios: true } }
+          }
         },
       }
     });

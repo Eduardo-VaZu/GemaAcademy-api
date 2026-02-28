@@ -20,23 +20,23 @@ router.use(authenticate);
 
 router.get(
     '/agenda/hoy',
-    authorize('Profesor'), // Sin corchetes
+    authorize('Coordinador'), // Sin corchetes
     asistenciaController.listarClasesHoy
 );
 router.get(
     '/agenda', // Quitamos el '/hoy' para que sea una ruta de agenda general
-    authorize('Profesor'),
+    authorize('Coordinador'),
     asistenciaController.listarAgenda
 );
 router.post(
     '/masiva',
-    authorize('Profesor'),
+    authorize('Coordinador'),
     asistenciaController.marcarAsistenciaMasiva
 );
 
 // router.patch(
 //     '/:id',
-//     authorize('Profesor', 'Administrador'), // Sin corchetes
+//     authorize('Coordinador', 'Administrador'), // Sin corchetes
 //     asistenciaController.marcarAsistencia
 // );
 

@@ -20,7 +20,7 @@ router.post(
 // Obtener detalle de un horario (alumnos inscritos, info general)
 router.get(
   '/:horario_id/detalle',
-  authorize('Administrador', 'Profesor'),
+  authorize('Administrador', 'Coordinador'),
   claseController.obtenerDetalle
 );
 

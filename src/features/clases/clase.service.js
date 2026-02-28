@@ -222,7 +222,7 @@ export const claseService = {
 
   /**
    * Obtiene el detalle de una clase específica (horario)
-   * Incluye fecha, hora, día, profesor, nivel, cancha y alumnos inscritos.
+   * Incluye fecha, hora, día, coordinador, nivel, cancha y alumnos inscritos.
    */
   obtenerDetalleClase: async (horario_id) => {
     const horario = await prisma.horarios_clases.findUnique({
@@ -231,7 +231,7 @@ export const claseService = {
         canchas: {
           select: { nombre: true, sedes: { select: { nombre: true } } },
         },
-        profesores: {
+        coordinadores: {
           include: { usuarios: { select: { nombres: true, apellidos: true } } },
         },
         niveles_entrenamiento: { select: { nombre: true } },
@@ -256,7 +256,7 @@ export const claseService = {
       hora_inicio: horario.hora_inicio.toISOString().substring(11, 16),
       hora_fin: horario.hora_fin.toISOString().substring(11, 16),
       cancha: `${horario.canchas.nombre} - ${horario.canchas.sedes.nombre}`,
-      profesor: `${horario.profesores.usuarios.nombres} ${horario.profesores.usuarios.apellidos}`,
+      coordinador: `${horario.coordinadores.usuarios.nombres} ${horario.coordinadores.usuarios.apellidos}`,
       nivel: horario.niveles_entrenamiento.nombre,
       total_inscritos: horario.inscripciones.length,
       capacidad_maxima: horario.capacidad_max,

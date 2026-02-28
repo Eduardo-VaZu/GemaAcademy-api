@@ -62,13 +62,13 @@ const listarTodas = catchAsync(async (req, res) => {
 
 });
 const listarAgenda = catchAsync(async (req, res) => {
-    const profesorId = req.user.id;
+    const coordinadorId = req.user.id;
     const { fecha } = req.query;
 
-    // Si no viene fecha en el query, pasamos null para traer toda la data del profesor
+    // Si no viene fecha en el query, pasamos null para traer toda la data del coordinador
     const fechaConsulta = fecha ? new Date(fecha) : null;
 
-    const clases = await asistenciaService.obtenerAgendaProfesor(profesorId, fechaConsulta);
+    const clases = await asistenciaService.obtenerAgendaCoordinador(coordinadorId, fechaConsulta);
 
     return apiResponse.success(res, {
         message: 'Agenda de entrenamiento recuperada exitosamente.',
@@ -90,14 +90,14 @@ const marcarAsistenciaMasiva = catchAsync(async (req, res) => {
     });
 });
 const listarClasesHoy = catchAsync(async (req, res) => {
-    // Extraemos el ID del profesor desde el middleware authenticate
-    const profesorId = req.user.id;
+    // Extraemos el ID del coordinador desde el middleware authenticate
+    const coordinadorId = req.user.id;
 
     // Podemos permitir que envíen una fecha específica, o usar HOY por defecto
     const { fecha } = req.query;
     const fechaConsulta = fecha ? new Date(fecha) : new Date();
 
-    const clases = await asistenciaService.obtenerClasesDelDiaPorProfesor(profesorId, fechaConsulta);
+    const clases = await asistenciaService.obtenerClasesDelDiaPorCoordinador(coordinadorId, fechaConsulta);
 
     return apiResponse.success(res, {
         message: 'Agenda del día recuperada exitosamente.',

@@ -14,7 +14,7 @@ router.post('/validate-role', usuarioController.validateRole);
 router.get(
   '/:id',
   authenticate,
-  authorize('profesor', 'administrador', 'alumno'),
+  authorize('coordinador', 'administrador', 'alumno'),
   usuarioController.getUserProfile
 );
 

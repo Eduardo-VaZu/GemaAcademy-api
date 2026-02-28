@@ -17,9 +17,9 @@ async function main() {
       create: { nombre: 'Alumno', descripcion: 'Estudiante' },
     }),
     prisma.roles.upsert({
-      where: { nombre: 'Profesor' },
+      where: { nombre: 'Coordinador' },
       update: {},
-      create: { nombre: 'Profesor', descripcion: 'Instructor' },
+      create: { nombre: 'Coordinador', descripcion: 'Coordinador' },
     }),
     prisma.roles.upsert({
       where: { nombre: 'Administrador' },
@@ -29,7 +29,7 @@ async function main() {
   ]);
 
   const rolAlumno = roles.find((r) => r.nombre === 'Alumno');
-  const rolProfe = roles.find((r) => r.nombre === 'Profesor');
+  const rolCoordinador = roles.find((r) => r.nombre === 'Coordinador');
   const rolAdmin = roles.find((r) => r.nombre === 'Administrador');
 
   await Promise.all([
@@ -51,9 +51,9 @@ async function main() {
   ]);
 
   // =================================================================
-  // 2. USUARIOS ADMINISTRATIVOS (Admin y Profesor) 👮
+  // 2. USUARIOS ADMINISTRATIVOS (Admin y Coordinador) 👮
   // =================================================================
-  console.log('👮 Creando Admin y Profesor...');
+  console.log('👮 Creando Admin y Coordinador...');
 
   const admin = await prisma.usuarios.upsert({
     where: { username: 'admin.gema' },
@@ -76,25 +76,25 @@ async function main() {
     create: { usuario_id: admin.id, cargo: 'Director General', area: 'Administración' },
   });
 
-  const usuarioProfe = await prisma.usuarios.upsert({
-    where: { username: 'carlos.coach' },
+  const usuarioCoordinador = await prisma.usuarios.upsert({
+    where: { username: 'carlos.coordinator' },
     update: {},
     create: {
-      username: 'carlos.coach',
+      username: 'carlos.coordinator',
       nombres: 'Carlos',
-      apellidos: 'Coach',
-      email: 'coach@gema.com',
-      rol_id: rolProfe.id,
+      apellidos: 'Coordinator',
+      email: 'coordinator@gema.com',
+      rol_id: rolCoordinador.id,
       tipo_documento_id: 'DNI',
       numero_documento: '10203040',
       activo: true,
     },
   });
 
-  const profe = await prisma.profesores.upsert({
-    where: { usuario_id: usuarioProfe.id },
+  const coordinador = await prisma.coordinadores.upsert({
+    where: { usuario_id: usuarioCoordinador.id },
     update: {},
-    create: { usuario_id: usuarioProfe.id, especializacion: 'Voley Alto Rendimiento' },
+    create: { usuario_id: usuarioCoordinador.id, especializacion: 'Voley Alto Rendimiento' },
   });
 
   // =================================================================
@@ -283,7 +283,7 @@ async function main() {
     update: {},
     create: {
       cancha_id: cancha.id,
-      profesor_id: profe.usuario_id,
+      coordinador_id: coordinador.usuario_id,
       nivel_id: nivel.id,
       dia_semana: 1, // Lunes
       hora_inicio: new Date(2026, 1, 1, 16, 0), // 16:00

@@ -110,7 +110,7 @@ export const authService = {
   },
 
   /**
-   * Obtiene el perfil completo de un usuario con información específica de su rol (alumno, profesor, admin).
+   * Obtiene el perfil completo de un usuario con información específica de su rol (alumno, coordinador, admin).
    * @param {number} userId - ID del usuario.
    * @returns {Promise<Object>} Datos estructurados del perfil del usuario.
    * @throws {ApiError} 404 si el usuario no existe.
@@ -134,7 +134,7 @@ export const authService = {
             grupo_sanguineo: true,
           },
         },
-        profesores: {
+        coordinadores: {
           select: {
             especializacion: true,
             tarifa_hora: true,
@@ -173,10 +173,10 @@ export const authService = {
       };
     }
 
-    if (usuario.profesores) {
-      baseData.profesor = {
-        especializacion: usuario.profesores.especializacion,
-        tarifa_hora: usuario.profesores.tarifa_hora,
+    if (usuario.coordinadores) {
+      baseData.coordinador = {
+        especializacion: usuario.coordinadores.especializacion,
+        tarifa_hora: usuario.coordinadores.tarifa_hora,
       };
     }
 

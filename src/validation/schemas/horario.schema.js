@@ -6,9 +6,9 @@ export const horarioSchema = {
       z.number().int().positive('ID de cancha inválido'),
       z.string().regex(/^\d+$/, 'ID de cancha debe ser numérico').transform(Number)
     ]),
-    profesor_id: z.union([
-      z.number().int().positive('ID de profesor inválido'),
-      z.string().regex(/^\d+$/, 'ID de profesor debe ser numérico').transform(Number)
+    coordinador_id: z.union([
+      z.number().int().positive('ID de coordinador inválido'),
+      z.string().regex(/^\d+$/, 'ID de coordinador debe ser numérico').transform(Number)
     ]),
     nivel_id: z.union([
       z.number().int().positive('ID de nivel inválido'),

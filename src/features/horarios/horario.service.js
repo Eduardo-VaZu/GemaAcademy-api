@@ -11,7 +11,7 @@ export const horarioService = {
           },
         },
         niveles_entrenamiento: true,
-        profesores: {
+        coordinadores: {
           include: {
             usuarios: true,
           },
@@ -39,23 +39,23 @@ export const horarioService = {
         id: h.niveles_entrenamiento.id,
         nombre: h.niveles_entrenamiento.nombre,
       },
-      profesor: {
-        id: h.profesores.usuario_id,
-        nombre_completo: `${h.profesores.usuarios.nombres} ${h.profesores.usuarios.apellidos}`,
-        especializacion: h.profesores.especializacion,
+      coordinador: {
+        id: h.coordinadores.usuario_id,
+        nombre_completo: `${h.coordinadores.usuarios.nombres} ${h.coordinadores.usuarios.apellidos}`,
+        especializacion: h.coordinadores.especializacion,
       },
     }));
   },
 
   createHorario: async (data) => {
     const cancha_id = Number.parseInt(data.cancha_id);
-    const profesor_id = Number.parseInt(data.profesor_id);
+    const coordinador_id = Number.parseInt(data.coordinador_id);
     const nivel_id = Number.parseInt(data.nivel_id);
     const dia_semana = Number.parseInt(data.dia_semana);
 
-    const [canchaExistente, profesorExistente, nivelExistente] = await Promise.all([
+    const [canchaExistente, coordinadorExistente, nivelExistente] = await Promise.all([
       prisma.canchas.findUnique({ where: { id: cancha_id } }),
-      prisma.profesores.findUnique({ where: { usuario_id: profesor_id } }),
+      prisma.coordinadores.findUnique({ where: { usuario_id: coordinador_id } }),
       prisma.niveles_entrenamiento.findUnique({ where: { id: nivel_id } }),
     ]);
 
@@ -63,8 +63,8 @@ export const horarioService = {
       throw new ApiError('La cancha especificada no existe', 404);
     }
 
-    if (!profesorExistente) {
-      throw new ApiError('El profesor especificado no existe', 404);
+    if (!coordinadorExistente) {
+      throw new ApiError('El coordinador especificado no existe', 404);
     }
 
     if (!nivelExistente) {
@@ -111,9 +111,9 @@ export const horarioService = {
       throw new ApiError('Ya existe un horario que se solapa en esta cancha', 400);
     }
 
-    const solapamientoProfesor = await prisma.horarios_clases.findFirst({
+    const solapamientoCoordinador = await prisma.horarios_clases.findFirst({
       where: {
-        profesor_id,
+        coordinador_id,
         dia_semana,
         activo: true,
         OR: [
@@ -130,9 +130,9 @@ export const horarioService = {
       },
     });
 
-    if (solapamientoProfesor) {
+    if (solapamientoCoordinador) {
       throw new ApiError(
-        'El profesor ya tiene un horario asignado que se solapa con este rango',
+        'El coordinador ya tiene un horario asignado que se solapa con este rango',
         400
       );
     }
@@ -140,7 +140,7 @@ export const horarioService = {
     return await prisma.horarios_clases.create({
       data: {
         cancha_id,
-        profesor_id,
+        coordinador_id,
         nivel_id,
         dia_semana,
         hora_inicio: horaInicioDate,
@@ -166,13 +166,13 @@ export const horarioService = {
     }
 
     const cancha_id = Number.parseInt(data.cancha_id);
-    const profesor_id = Number.parseInt(data.profesor_id);
+    const coordinador_id = Number.parseInt(data.coordinador_id);
     const nivel_id = Number.parseInt(data.nivel_id);
     const dia_semana = Number.parseInt(data.dia_semana);
 
-    const [canchaExistente, profesorExistente, nivelExistente] = await Promise.all([
+    const [canchaExistente, coordinadorExistente, nivelExistente] = await Promise.all([
       prisma.canchas.findUnique({ where: { id: cancha_id } }),
-      prisma.profesores.findUnique({ where: { usuario_id: profesor_id } }),
+      prisma.coordinadores.findUnique({ where: { usuario_id: coordinador_id } }),
       prisma.niveles_entrenamiento.findUnique({ where: { id: nivel_id } }),
     ]);
 
@@ -180,8 +180,8 @@ export const horarioService = {
       throw new ApiError('La cancha especificada no existe', 404);
     }
 
-    if (!profesorExistente) {
-      throw new ApiError('El profesor especificado no existe', 404);
+    if (!coordinadorExistente) {
+      throw new ApiError('El coordinador especificado no existe', 404);
     }
 
     if (!nivelExistente) {
@@ -236,10 +236,10 @@ export const horarioService = {
         throw new ApiError('Ya existe un horario que se solapa en esta cancha', 400);
       }
 
-      const solapamientoProfesor = await prisma.horarios_clases.findFirst({
+      const solapamientoCoordinador = await prisma.horarios_clases.findFirst({
         where: {
           id: { not: horarioId },
-          profesor_id,
+          coordinador_id,
           dia_semana,
           activo: true,
           OR: [
@@ -256,9 +256,9 @@ export const horarioService = {
         },
       });
 
-      if (solapamientoProfesor) {
+      if (solapamientoCoordinador) {
         throw new ApiError(
-          'El profesor ya tiene un horario asignado que se solapa con este rango',
+          'El coordinador ya tiene un horario asignado que se solapa con este rango',
           400
         );
       }
@@ -297,7 +297,7 @@ export const horarioService = {
       where: { id: horarioId },
       data: {
         cancha_id,
-        profesor_id,
+        coordinador_id,
         nivel_id,
         dia_semana,
         hora_inicio: horaInicioDate,

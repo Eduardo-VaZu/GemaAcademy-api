@@ -38,7 +38,7 @@ export const asistenciaService = {
    */
   generarClasesFuturas: async (tx, params) => {
     // Desestructuramos los datos
-    const { inscripcion_id, dia_semana, usuario_admin_id, profesor_id } = params;
+    const { inscripcion_id, dia_semana, usuario_admin_id, coordinador_id } = params;
 
     // =================================================================
     // 🧠 CONFIGURACIÓN DE TIEMPO (Aquí definimos la regla de negocio)
@@ -89,7 +89,7 @@ export const asistenciaService = {
       inscripcion_id: inscripcion_id,
       fecha: fecha,
       estado: 'PROGRAMADA',
-      registrado_por: profesor_id,
+      registrado_por: coordinador_id,
       comentario: `Generado auto (Ciclo 30 días) - Admin ID: ${usuario_admin_id}`
     }));
 
@@ -149,7 +149,7 @@ export const asistenciaService = {
               include: {
                 canchas: { include: { sedes: true } },
                 // 🔥 ESTO ES LO QUE DEBES AGREGAR:
-                profesores: {
+                coordinadores: {
                   include: {
                     usuarios: {
                       select: {
@@ -185,14 +185,14 @@ export const asistenciaService = {
     });
   },
 
-  obtenerClasesDelDiaPorProfesor: async (profesorId, fecha) => {
+  obtenerClasesDelDiaPorCoordinador: async (coordinadorId, fecha) => {
     const fechaConsulta = new Date(fecha);
     fechaConsulta.setHours(0, 0, 0, 0);
     const diaSemana = fechaConsulta.getDay();
 
     return await prisma.horarios_clases.findMany({
       where: {
-        profesor_id: profesorId,
+        coordinador_id: coordinadorId,
         dia_semana: diaSemana,
         activo: true
       },
@@ -213,7 +213,7 @@ export const asistenciaService = {
             registros_asistencia: {
               where: { fecha: fechaConsulta },
               select: {
-                id: true,       // Este es el ID que usará el profesor para marcar
+                id: true,       // Este es el ID que usará el coordinador para marcar
                 estado: true,   // Saldrá "PROGRAMADA" inicialmente
                 comentario: true
               }
@@ -225,9 +225,9 @@ export const asistenciaService = {
     });
   },
   // En asistencia.service.js
-  obtenerAgendaProfesor: async (profesorId, fecha = null) => {
+  obtenerAgendaCoordinador: async (coordinadorId, fecha = null) => {
     const whereCondition = {
-      profesor_id: profesorId,
+      coordinador_id: coordinadorId,
       activo: true
     };
 
@@ -322,7 +322,10 @@ export const asistenciaService = {
       const formatTime = (timeField) => {
         if (!timeField) return '--:--';
         const d = new Date(timeField);
-        return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        // transformamos a string la hora y minutos para evitar el cambio de zona horario en el front.
+        const horas = d.getUTCHours().toString().padStart(2, '0');
+        const minutos = d.getUTCMinutes().toString().padStart(2, '0');
+        return `${horas}:${minutos}`;
       };
 
       return {

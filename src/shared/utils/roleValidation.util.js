@@ -68,7 +68,7 @@ export const validateRoleSpecificData = (rol, datos = {}) => {
       }
       break;
 
-    case VALID_ROLES.PROFESOR:
+    case VALID_ROLES.COORDINADOR:
       if (datos.tarifa_hora !== undefined) {
         const tarifa = parseFloat(datos.tarifa_hora);
         if (isNaN(tarifa) || tarifa <= 0) {

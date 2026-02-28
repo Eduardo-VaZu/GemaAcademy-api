@@ -122,7 +122,7 @@ export const usuarioService = {
     if (user.email) {
       emailService
         .sendCredentialsEmail(user.email, user.nombres, user.username, password)
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return {
@@ -144,7 +144,7 @@ export const usuarioService = {
             direcciones: true,
           },
         },
-        profesores: true,
+        coordinadores: true,
         administrador: {
           include: {
             sedes: true,
@@ -206,9 +206,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-      distrito !== undefined ||
-      ciudad !== undefined ||
-      referencia !== undefined
+        distrito !== undefined ||
+        ciudad !== undefined ||
+        referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 
@@ -330,7 +330,7 @@ export const usuarioService = {
               alumnos_contactos: true,
             },
           },
-          profesores: true,
+          coordinadores: true,
           administrador: {
             include: { sedes: true },
           },
@@ -346,7 +346,7 @@ export const usuarioService = {
   getRoleDescription: (rol) => {
     const descriptions = {
       [VALID_ROLES.ALUMNO]: 'Estudiante de la academia',
-      [VALID_ROLES.PROFESOR]: 'Instructor de clases',
+      [VALID_ROLES.COORDINADOR]: 'Coordinador de clases',
       [VALID_ROLES.ADMINISTRADOR]: 'Administrador del sistema',
     };
     return descriptions[rol.toLowerCase()] || 'Rol desconocido';
@@ -372,7 +372,7 @@ export const usuarioService = {
             grupo_sanguineo: true,
           },
         },
-        profesores: {
+        coordinadores: {
           select: {
             especializacion: true,
           },
@@ -439,8 +439,8 @@ const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
         },
       });
     },
-    [VALID_ROLES.PROFESOR]: async () => {
-      await tx.profesores.create({
+    [VALID_ROLES.COORDINADOR]: async () => {
+      await tx.coordinadores.create({
         data: {
           usuario_id: usuarioId,
           especializacion: datos.especializacion || null,

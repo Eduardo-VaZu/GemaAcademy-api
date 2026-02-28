@@ -118,7 +118,7 @@ model direcciones {
 model horarios_clases {
   id                    Int                   @id @default(autoincrement())
   cancha_id             Int
-  profesor_id           Int
+  coordinador_id           Int
   nivel_id              Int
   dia_semana            Int
   hora_inicio           DateTime              @db.Time(6)
@@ -128,7 +128,7 @@ model horarios_clases {
   minutos_reserva_especifico Int?
   canchas   canchas  @relation(fields: [cancha_id], references: [id], onDelete: Cascade)
   niveles_entrenamiento niveles_entrenamiento @relation(fields: [nivel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  profesores            profesores            @relation(fields: [profesor_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  coordinadores            coordinadores            @relation(fields: [coordinador_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
   inscripciones         inscripciones[]
   recuperaciones        recuperaciones[]
 
@@ -183,7 +183,7 @@ model pagos {
   administrador      administrador?     @relation(fields: [revisado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-model profesores {
+model coordinadores {
   usuario_id           Int                    @id
   especializacion      String?                @db.VarChar(100)
   horarios_clases      horarios_clases[]
@@ -220,7 +220,7 @@ model registros_asistencia {
   registrado_por Int?
   registrado_en  DateTime?     @default(now()) @db.Timestamp(6)
   inscripciones  inscripciones @relation(fields: [inscripcion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  profesores     profesores?   @relation(fields: [registrado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  coordinadores     coordinadores?   @relation(fields: [registrado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([inscripcion_id, fecha], map: "asistencia_unica_diaria")
 }
@@ -284,7 +284,7 @@ model usuarios {
   administrador        administrador?
   alumnos              alumnos?
   credenciales_usuario credenciales_usuario?
-  profesores           profesores?
+  coordinadores           coordinadores?
   refresh_tokens       refresh_tokens[]
   roles                roles                 @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tipos_documento      tipos_documento?      @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

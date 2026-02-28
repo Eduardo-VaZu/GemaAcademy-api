@@ -21,7 +21,7 @@ const SEDE_SELECT_FIELDS = {
           hora_inicio: true,
           hora_fin: true,
           niveles_entrenamiento: true,
-          profesores: {
+          coordinadores: {
             select: {
               usuarios: {
                 select: {
