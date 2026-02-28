@@ -57,6 +57,24 @@ export const usuarioService = {
 
     if (!rol) throw new ApiError(`El rol '${rolNombre}' no existe`, 400);
 
+    if (tipo_documento_id && numero_documento) {
+      const existeDocumento = await prisma.usuarios.findFirst({
+        where: { tipo_documento_id, numero_documento },
+      });
+      if (existeDocumento) {
+        throw new ApiError(`El documento ${numero_documento} ya se encuentra registrado`, 400);
+      }
+    }
+
+    if (providedUsername) {
+      const existeUsername = await prisma.usuarios.findUnique({
+        where: { username: providedUsername },
+      });
+      if (existeUsername) {
+        throw new ApiError(`El nombre de usuario '${providedUsername}' ya está en uso`, 400);
+      }
+    }
+
     const user = await prisma.$transaction(async (tx) => {
       const nuevoUsuario = await tx.usuarios.create({
         data: {
