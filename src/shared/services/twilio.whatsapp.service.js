@@ -25,10 +25,13 @@ class TwilioProvider {
       return false;
     }
 
-    const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:+${to.replace(/\D/g, '')}`;
-    const formattedFrom = TWILIO_PHONE_NUMBER.startsWith('whatsapp:')
-      ? TWILIO_PHONE_NUMBER
-      : `whatsapp:${TWILIO_PHONE_NUMBER}`;
+    const cleanTo = to.replace(/\D/g, '');
+    const finalTo = cleanTo.startsWith('51') ? cleanTo : `51${cleanTo}`;
+    const formattedTo = `whatsapp:+${finalTo}`;
+
+    // Twilio sandbox requires the exact + sign, so we strip and format it predictably
+    const cleanFrom = TWILIO_PHONE_NUMBER.replace(/\D/g, '');
+    const formattedFrom = `whatsapp:+${cleanFrom}`;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
