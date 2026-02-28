@@ -1,5 +1,5 @@
-import { prisma } from '../../../config/database.config.js';
-import { logger } from '../../../shared/utils/logger.util.js';
+import { prisma } from '../../config/database.config.js';
+import { logger } from '../../shared/utils/logger.util.js';
 
 class InscripcionCronService {
   async limpiarReservasZombies() {

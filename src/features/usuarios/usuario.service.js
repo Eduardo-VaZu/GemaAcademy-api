@@ -2,7 +2,7 @@ import { prisma } from '../../config/database.config.js';
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../shared/utils/error.util.js';
 import { VALID_ROLES } from '../../constants/roles.constants.js';
-import { emailService } from '../../shared/services/email.service.js';
+import { emailService } from '../../shared/services/brevo.email.service.js';
 
 export const usuarioService = {
   createUser: async (userData) => {
@@ -122,7 +122,7 @@ export const usuarioService = {
     if (user.email) {
       emailService
         .sendCredentialsEmail(user.email, user.nombres, user.username, password)
-        .catch(() => { });
+        .catch(() => {});
     }
 
     return {
@@ -206,9 +206,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-        distrito !== undefined ||
-        ciudad !== undefined ||
-        referencia !== undefined
+      distrito !== undefined ||
+      ciudad !== undefined ||
+      referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 

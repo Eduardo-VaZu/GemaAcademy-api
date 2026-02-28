@@ -8,7 +8,7 @@ import {
   JWT_EXPIRES_IN,
   REFRESH_TOKEN_EXPIRATION_DAYS,
 } from '../../config/secret.config.js';
-import { emailService } from '../../shared/services/email.service.js';
+import { emailService } from '../../shared/services/brevo.email.service.js';
 
 export const authService = {
   /**
