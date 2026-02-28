@@ -3,29 +3,29 @@ import { recuperacionService } from '../recuperaciones/recuperacion.service.js'
 
 /**
  * Función auxiliar para calcular fechas DENTRO DE UN RANGO (Dinámico) 📅
- * Ahora recibe una 'fechaLimite' en lugar de una cantidad fija.
+ * Garantiza que la primera clase sea IGUAL o POSTERIOR a la fecha de inicio.
  */
 const calcularProximasFechas = (fechaInicio, diaSemanaClase, fechaLimite) => {
   const fechas = [];
   const fechaActual = new Date(fechaInicio);
 
-  // 🔥 CORRECCIÓN DE ZONA HORARIA (Mediodía)
+  // 🔥 CORRECCIÓN DE ZONA HORARIA (Mediodía para evitar saltos de día)
   fechaActual.setHours(12, 0, 0, 0);
 
-  // Aseguramos que el límite también sea a mediodía para comparar peras con peras
   const limiteFijo = new Date(fechaLimite);
   limiteFijo.setHours(12, 0, 0, 0);
 
-  // 1. Buscamos el primer día de clase válido
+  // 1. Buscamos el primer día de clase válido que sea >= fechaInicio
+  // Si la fechaInicio ya coincide con diaSemanaClase, se queda ahí.
   while (fechaActual.getDay() !== diaSemanaClase) {
     fechaActual.setDate(fechaActual.getDate() + 1);
   }
 
-  // 2. Generamos fechas MIENTRAS estemos dentro del rango de tiempo
-  // (Esto cubre automáticamente si el mes tiene 4 o 5 clases)
+  // 2. Generamos fechas MIENTRAS no superemos el límite de los 30 días
+  // Importante: Si la primera fecha encontrada ya se pasó del límite, no agrega nada.
   while (fechaActual <= limiteFijo) {
-    fechas.push(new Date(fechaActual)); // Guardamos copia
-    fechaActual.setDate(fechaActual.getDate() + 7); // Saltamos a la próxima semana
+    fechas.push(new Date(fechaActual)); 
+    fechaActual.setDate(fechaActual.getDate() + 7); 
   }
 
   return fechas;
@@ -35,53 +35,49 @@ export const asistenciaService = {
 
   /**
    * Genera masivamente las clases futuras respetando el CICLO DE 30 DÍAS.
+   * Ahora prioriza el parámetro 'fecha_inicio' para evitar solapamientos.
    */
   generarClasesFuturas: async (tx, params) => {
-    // Desestructuramos los datos
-    const { inscripcion_id, dia_semana, usuario_admin_id, coordinador_id } = params;
+    // 🔥 Desestructuramos incluyendo el nuevo parámetro fecha_inicio
+    const { inscripcion_id, dia_semana, usuario_admin_id, coordinador_id, fecha_inicio } = params;
+
+    const DIAS_CICLO = 30;
 
     // =================================================================
-    // 🧠 CONFIGURACIÓN DE TIEMPO (Aquí definimos la regla de negocio)
+    // 🧠 LÓGICA DE PUNTO DE PARTIDA (Prioridad de Negocio)
     // =================================================================
-    const DIAS_CICLO = 30; // El estándar comercial que acordamos
+    let fechaInicioCalculo;
 
-    // =================================================================
-    // 🧠 LÓGICA SMART APPEND: ¿Desde cuándo empezamos?
-    // =================================================================
-
-    // 1. Buscamos la última clase registrada
-    const ultimaClase = await tx.registros_asistencia.findFirst({
-      where: { inscripcion_id: inscripcion_id },
-      orderBy: { fecha: 'desc' }
-    });
-
-    let fechaInicioCalculo = new Date(); // Por defecto: HOY
-
-    if (ultimaClase) {
-      const fechaUltima = new Date(ultimaClase.fecha);
-
-      // Si renueva antes de tiempo (Upgrade o Renovación)
-      if (fechaUltima > fechaInicioCalculo) {
-        console.log(`📅 Renovación detectada. Empalmando después de: ${fechaUltima.toISOString()}`);
-        fechaUltima.setDate(fechaUltima.getDate() + 1);
-        fechaInicioCalculo = fechaUltima;
-      } else {
-        console.log('📅 Renovación tardía o reingreso. Generando desde HOY.');
-      }
+    if (fecha_inicio) {
+      // 🌟 REGLA DE ORO: Si el pago ya definió cuándo empieza el ciclo (ej. 05/03), mandamos esa.
+      fechaInicioCalculo = new Date(fecha_inicio);
+      console.log(`🚀 Generando clases desde FECHA PROGRAMADA: ${fechaInicioCalculo.toLocaleDateString()}`);
     } else {
-      console.log('🌟 Alumno nuevo. Generando desde HOY.');
+      // 🔄 FALLBACK: Lógica de empalme automática si se llama sin fecha_inicio
+      const ultimaClase = await tx.registros_asistencia.findFirst({
+        where: { inscripcion_id: inscripcion_id },
+        orderBy: { fecha: 'desc' }
+      });
+
+      fechaInicioCalculo = new Date(); // Por defecto: HOY
+
+      if (ultimaClase) {
+        const fechaUltima = new Date(ultimaClase.fecha);
+        if (fechaUltima > fechaInicioCalculo) {
+          console.log(`📅 Detectada continuidad. Empalmando tras última clase: ${fechaUltima.toLocaleDateString()}`);
+          fechaUltima.setDate(fechaUltima.getDate() + 1);
+          fechaInicioCalculo = fechaUltima;
+        }
+      }
     }
 
     // =================================================================
     // 🧠 LÓGICA DE CÁLCULO DE LÍMITE (El "Hasta Cuándo")
     // =================================================================
-    // Calculamos la fecha en la que se le vence el derecho a asistir
     const fechaLimite = new Date(fechaInicioCalculo);
     fechaLimite.setDate(fechaLimite.getDate() + (DIAS_CICLO - 1));
-    // Nota: Restamos 1 porque si entro el 1, venzo el 30 (inclusive), no el 31.
 
-    // 2. Calculamos las fechas dinámicamente
-    // Si hay 5 lunes en este rango, generará 5. Si hay 4, generará 4.
+    // 2. Calculamos las fechas reales de clase dentro de este ciclo
     const fechasClases = calcularProximasFechas(fechaInicioCalculo, dia_semana, fechaLimite);
 
     // 3. Preparamos los objetos para insertar
@@ -93,7 +89,7 @@ export const asistenciaService = {
       comentario: `Generado auto (Ciclo 30 días) - Admin ID: ${usuario_admin_id}`
     }));
 
-    // 4. Insertamos usando la transacción
+    // 4. Insertamos usando skipDuplicates para blindar la base de datos
     if (datosAsistencia.length > 0) {
       await tx.registros_asistencia.createMany({
         data: datosAsistencia,
@@ -101,7 +97,7 @@ export const asistenciaService = {
       });
     }
 
-    console.log(`✅ Se generaron ${datosAsistencia.length} clases para inscripción ${inscripcion_id} (Rango: ${fechaInicioCalculo.toLocaleDateString()} al ${fechaLimite.toLocaleDateString()})`);
+    console.log(`✅ Ciclo generado: ${datosAsistencia.length} clases para ID ${inscripcion_id} (Hasta: ${fechaLimite.toLocaleDateString()})`);
 
     return datosAsistencia.length;
   },
@@ -262,13 +258,14 @@ export const asistenciaService = {
       orderBy: { hora_inicio: 'asc' }
     });
 
-    //Lógica para sumar a los alumnos que recuperarán clases ese dia.
+    // 🛡️ 2. SOLUCIÓN AL ERROR 500: Creamos un nuevo arreglo para NO mutar la data original de Prisma
+    const horariosProcesados = [];
+
+    // Lógica para sumar a los alumnos que recuperarán clases ese dia.
     for (let horario of horarios) {
-      //if (fecha) {
       const alumnosRecuperadores = await prisma.recuperaciones.findMany({
         where: {
           horario_destino_id: horario.id,
-          //fecha_programada: new Date(fecha),
           estado: { in: ['PROGRAMADA', 'COMPLETADA_PRESENTE', 'COMPLETADA_FALTA'] }
         },
         include: {
@@ -281,7 +278,6 @@ export const asistenciaService = {
           }
         }
       });
-      //}
 
       // Damos format a los alumnos para el front
       const recuperadoresFormat = alumnosRecuperadores.map(rec => {
@@ -302,13 +298,15 @@ export const asistenciaService = {
         };
       });
 
-      // Combinamos las inscripciones fijas del horario con los alumnos que recuperan clase ese día
-      horario.inscripciones = [...horario.inscripciones, ...recuperadoresFormat];
-
+      // 🌟 Combinamos las inscripciones de forma segura en un NUEVO objeto
+      horariosProcesados.push({
+        ...horario,
+        inscripciones: [...horario.inscripciones, ...recuperadoresFormat]
+      });
     }
 
-    // TRANSFORMACIÓN: Limpiamos la data para el Frontend
-    return horarios.map(h => {
+    // TRANSFORMACIÓN: Limpiamos la data usando el nuevo arreglo procesado
+    return horariosProcesados.map(h => {
       // Filtramos los registros "Fantasma" de las inscripciones regulares
       h.inscripciones.forEach(insc => {
         if (insc.estado !== 'RECUPERACION') {

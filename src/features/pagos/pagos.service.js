@@ -64,7 +64,7 @@ export const pagosService = {
     });
   },
 
-  // 2. VALIDAR EL PAGO (Tu lógica + Corrección de Monto 🛡️)
+  // 2. VALIDAR EL PAGO (Tu lógica + Corrección de Monto + Sincronización de Fechas 🛡️)
   validarPago: async (data) => {
     const { pago_id, accion, usuario_admin_id, notas, monto_real_confirmado } = data;
     const esAprobado = accion === 'APROBAR';
@@ -74,7 +74,7 @@ export const pagosService = {
     }
 
     return await prisma.$transaction(async (tx) => {
-      // 🛡️ PASO 1: Buscar y Validar el pago (Usa tu Validator)
+      // 🛡️ PASO 1: Buscar y Validar el pago
       let pago = await Validators.buscarYValidarPagoPendiente(tx, pago_id);
 
       // 👮‍♂️ PASO 2: Corrección de Monto por el Admin
@@ -92,7 +92,7 @@ export const pagosService = {
         }
       }
 
-      // 💰 PASO 3: Lógica de Alcancía (Usa tu Logic)
+      // 💰 PASO 3: Lógica de Alcancía
       let saldoRestante = 0;
       let esPagoCompleto = false;
 
@@ -102,7 +102,7 @@ export const pagosService = {
         esPagoCompleto = saldos.esPagoCompleto;
       }
 
-      // 🔄 PASO 4: Determinar Evolución de Estados (Usa tu Logic)
+      // 🔄 PASO 4: Determinar Evolución de Estados
       const { nuevoEstadoDeuda, activarAlumno } = await Logic.definirEvolucionDeEstados(
         tx,
         pago,
@@ -136,31 +136,91 @@ export const pagosService = {
 
       // 🎓 PASO 6: Gestión de Inscripciones y Asistencias
       if (activarAlumno) {
-        // Activamos inscripciones del alumno
-        const inscripciones = await tx.inscripciones.findMany({
-          where: {
-            alumno_id: pago.cuentas_por_cobrar.alumno_id,
-            estado: { in: ['POR_VALIDAR', 'PENDIENTE_PAGO'] },
-          },
-          include: { horarios_clases: true },
-        });
+        
+        const esRenovacion = pago.cuentas_por_cobrar.detalle_adicional?.includes('Renovación Automática');
 
-        for (const inscripcion of inscripciones) {
-          await tx.inscripciones.update({
-            where: { id: inscripcion.id },
-            data: { estado: 'ACTIVO', actualizado_en: new Date() },
+        if (esRenovacion) {
+          // ==========================================
+          // CAMINO A: RENOVACIÓN UNIFICADA (Fecha Madre + 1)
+          // ==========================================
+          const inscripcionesActivas = await tx.inscripciones.findMany({
+            where: {
+              alumno_id: pago.cuentas_por_cobrar.alumno_id,
+              estado: { in: ['ACTIVO', 'VENCIDO'] },
+            },
+            include: { horarios_clases: true },
           });
 
-          // Generar asistencias automáticas (Usa tu asistenciaService)
-          await asistenciaService.generarClasesFuturas(tx, {
-            inscripcion_id: inscripcion.id,
-            dia_semana: inscripcion.horarios_clases.dia_semana,
-            usuario_admin_id: Number.parseInt(usuario_admin_id),
-            coordinador_id: inscripcion.horarios_clases.coordinador_id,
+          if (inscripcionesActivas.length > 0) {
+            // 🌟 Encontrar la Fecha Madre (la más antigua)
+            const fechas = inscripcionesActivas.map(i => new Date(i.fecha_inscripcion).getTime());
+            const fechaMadre = new Date(Math.min(...fechas));
+
+            // 🕰️ Calcular fin del ciclo actual (Día 30)
+            const finCicloActual = new Date(fechaMadre);
+            finCicloActual.setDate(finCicloActual.getDate() + 30);
+            
+            const hoy = new Date();
+            let fechaInicioNuevoCiclo;
+
+            if (hoy < finCicloActual) {
+              // CASO 1: Pago temprano. Nuevo ciclo arranca el día SIGUIENTE al vencimiento (Día 31 real)
+              fechaInicioNuevoCiclo = new Date(finCicloActual);
+              fechaInicioNuevoCiclo.setDate(fechaInicioNuevoCiclo.getDate() + 1);
+            } else {
+              // CASO 2: Pago en prórroga. Nuevo ciclo arranca HOY.
+              fechaInicioNuevoCiclo = hoy;
+            }
+
+            for (const inscripcion of inscripcionesActivas) {
+              await tx.inscripciones.update({
+                where: { id: inscripcion.id },
+                data: { 
+                  fecha_inscripcion: fechaInicioNuevoCiclo, 
+                  estado: 'ACTIVO', 
+                  actualizado_en: hoy 
+                },
+              });
+
+              await asistenciaService.generarClasesFuturas(tx, {
+                inscripcion_id: inscripcion.id,
+                dia_semana: inscripcion.horarios_clases.dia_semana,
+                usuario_admin_id: Number.parseInt(usuario_admin_id),
+                coordinador_id: inscripcion.horarios_clases.coordinador_id,
+                fecha_inicio: fechaInicioNuevoCiclo 
+              });
+            }
+          }
+
+        } else {
+          // ==========================================
+          // CAMINO B: ALUMNOS NUEVOS O UPGRADES
+          // ==========================================
+          const inscripciones = await tx.inscripciones.findMany({
+            where: {
+              alumno_id: pago.cuentas_por_cobrar.alumno_id,
+              estado: { in: ['POR_VALIDAR', 'PENDIENTE_PAGO'] },
+            },
+            include: { horarios_clases: true },
           });
+
+          for (const inscripcion of inscripciones) {
+            await tx.inscripciones.update({
+              where: { id: inscripcion.id },
+              data: { estado: 'ACTIVO', actualizado_en: new Date() },
+            });
+
+            await asistenciaService.generarClasesFuturas(tx, {
+              inscripcion_id: inscripcion.id,
+              dia_semana: inscripcion.horarios_clases.dia_semana,
+              usuario_admin_id: Number.parseInt(usuario_admin_id),
+              coordinador_id: inscripcion.horarios_clases.coordinador_id,
+              fecha_inicio: new Date() 
+            });
+          }
         }
+
       } else if (!esAprobado) {
-        // Si se rechaza, devolvemos a PENDIENTE_PAGO para que el "Francotirador" lo vea
         await tx.inscripciones.updateMany({
           where: {
             alumno_id: pago.cuentas_por_cobrar.alumno_id,
