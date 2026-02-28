@@ -33,6 +33,10 @@ class TwilioProvider {
     const cleanFrom = TWILIO_PHONE_NUMBER.replace(/\D/g, '');
     const formattedFrom = `whatsapp:+${cleanFrom}`;
 
+    logger.info(
+      `[Twilio DEBUG] From: "${formattedFrom}" | To: "${formattedTo}" | Raw ENV: "${TWILIO_PHONE_NUMBER}"`
+    );
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const envioPromise = this.client.messages.create({
