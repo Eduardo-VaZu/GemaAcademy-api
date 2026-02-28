@@ -57,6 +57,7 @@
     "node-cron": "^4.2.1",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.13",
+    "twilio": "^5.12.2",
     "winston": "^3.19.0",
     "zod": "^3.23.8"
   },

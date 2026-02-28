@@ -21,3 +21,7 @@ export const BREVO_API_KEY = process.env.BREVO_API_KEY;
 export const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || 'no-reply@academiagema.com';
 
 export const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+export const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+export const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+export const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;

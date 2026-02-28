@@ -183,4 +183,46 @@ export const emailService = {
       htmlContent,
     });
   },
+
+  /**
+   * Envía correo de feliz cumpleaños.
+   * @param {string} email - Correo del destinatario.
+   * @param {string} nombres - Nombres del usuario.
+   * @returns {Promise<boolean>}
+   */
+  async sendBirthdayEmail(email, nombres) {
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 40px 20px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 28px; letter-spacing: 1px; text-transform: uppercase;">Academia Gema</h1>
+          <div style="height: 4px; width: 50px; background-color: #f97316; margin: 15px auto; border-radius: 2px;"></div>
+        </div>
+
+        <div style="padding: 40px 30px; text-align: center;">
+          <h2 style="color: #1e293b; margin-top: 0; font-size: 24px;">¡Feliz Cumpleaños, ${nombres}! 🎉</h2>
+          <p style="color: #475569; line-height: 1.6; font-size: 16px;">
+            De parte de toda la familia de GemaAcademy queremos desearte un día lleno de alegría y éxito.
+          </p>
+          <div style="font-size: 50px; margin: 20px 0;">🎂 🏐</div>
+          <p style="color: #475569; line-height: 1.6; font-size: 16px;">
+            Que disfrutes tu día al máximo y sigas alcanzando todas tus metas deportivas.
+          </p>
+        </div>
+
+        <div style="background-color: #f1f5f9; padding: 20px; text-align: center;">
+          <p style="color: #64748b; font-size: 12px; margin: 0;">
+             2026 Academia Gema. Todos los derechos reservados.
+          </p>
+        </div>
+      </div>
+    `;
+
+    return this.send({
+      to: email,
+      toName: nombres,
+      subject: '¡Feliz Cumpleaños! 🎉🎂 - Academia Gema',
+      htmlContent,
+    });
+  },
 };
