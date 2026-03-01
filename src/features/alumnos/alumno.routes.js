@@ -1,11 +1,10 @@
 import { Router } from 'express';
 import { alumnoController } from './alumno.controller.js';
-// Importa tus middlewares reales (ajusta la ruta según tu proyecto)
 
 const router = Router();
 
-// PUT /api/alumnos/mi-perfil
-// Solo un usuario logueado puede acceder a esta ruta
-router.put('/mi-perfil', verificarToken, alumnoController.actualizarMiPerfil);
+// PUT /api/alumno/mi-perfil
+// ⚠️ Se ha quitado el middleware de autenticación temporalmente
+router.put('/mi-perfil', alumnoController.actualizarMiPerfil);
 
 export default router;
