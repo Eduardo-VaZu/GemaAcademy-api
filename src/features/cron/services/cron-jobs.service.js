@@ -79,9 +79,9 @@ export const iniciarCronJobs = () => {
   // Objetivo: Expirar (VENCIDA) las recuperaciones que pasaron sus 30 días después del fin de inscripción.
   // ------------------------------------------------------------------
   cron.schedule(
-    '0 1 * * *',
+    '31 20 * * *',
     async () => {
-      logger.info(`[CRON] Limpiando tickets vencidos...`);
+      logger.info(`[CRON] Limpiando tickets vencidos... (hora peru: 20:35)`);
       try {
         await recuperacionCronService.ejecutarLimpiezaTickets();
       } catch (error) {
