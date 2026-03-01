@@ -20,13 +20,14 @@ export const detectarRegimenAlumno = async (tx, alumnoId) => {
  */
 export const calcularCicloUpgrade = async (tx, alumnoId) => {
   const hoy = new Date();
-  const ultimaInscripcionActiva = await tx.inscripciones.findFirst({
+  // Le cambiamos el nombre para que tenga sentido lógico con el 'asc'
+  const inscripcionMadre = await tx.inscripciones.findFirst({
     where: { alumno_id: parseInt(alumnoId), estado: 'ACTIVO' },
-    orderBy: { fecha_inscripcion: 'desc' },
+    orderBy: { fecha_inscripcion: 'asc' }, // <-- El cambio clave
   });
 
-  if (ultimaInscripcionActiva) {
-    const fechaInicioCiclo = new Date(ultimaInscripcionActiva.fecha_inscripcion);
+  if (inscripcionMadre) {
+    const fechaInicioCiclo = new Date(inscripcionMadre.fecha_inscripcion);
     const fechaFinCiclo = new Date(fechaInicioCiclo);
     fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30);
 
