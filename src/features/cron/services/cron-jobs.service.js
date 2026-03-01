@@ -48,7 +48,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Generar la deuda del próximo mes X días antes del vencimiento.
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * *',
+    '30 0 * * *',
     async () => {
       logger.info(`[CRON] El Profeta buscando renovaciones futuras...`);
       try {
@@ -79,9 +79,9 @@ export const iniciarCronJobs = () => {
   // Objetivo: Expirar (VENCIDA) las recuperaciones que pasaron sus 30 días después del fin de inscripción.
   // ------------------------------------------------------------------
   cron.schedule(
-    '35 20 * * *',
+    '0 1 * * *',
     async () => {
-      logger.info(`[CRON] Limpiando tickets vencidos... (hora peru: 20:35)`);
+      logger.info(`[CRON] Limpiando tickets vencidos...`);
       try {
         await recuperacionCronService.ejecutarLimpiezaTickets();
       } catch (error) {
