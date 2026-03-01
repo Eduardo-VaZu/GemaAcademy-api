@@ -7,7 +7,7 @@ const router = Router();
 // Solo pedimos que el usuario esté logueado
 router.use(authenticate);
 
-// PUT /api/alumno/mi-perfil
-router.put('/mi-perfil', alumnoController.actualizarMiPerfil);
+// PATCH /api/alumno/mi-perfil
+router.patch('/mi-perfil', alumnoController.actualizarMiPerfil);
 
 export default router;
