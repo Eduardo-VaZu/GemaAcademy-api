@@ -24,13 +24,10 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
-router.use(authenticate);
+router.get('/', publicacionController.getAllPublicaciones);
+router.get('/:id', publicacionController.getPublicacionById);
 
-// ==========================================
-// RUTAS DE LECTURA (Públicas o para usuarios)
-// ==========================================
-router.get('/', authorize('Administrador'), publicacionController.getAllPublicaciones);
-router.get('/:id', authorize('Administrador'), publicacionController.getPublicacionById);
+router.use(authenticate);
 
 // ==========================================
 // RUTAS DE ADMINISTRADOR
