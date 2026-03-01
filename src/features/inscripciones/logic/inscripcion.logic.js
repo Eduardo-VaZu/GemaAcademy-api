@@ -18,16 +18,32 @@ export const detectarRegimenAlumno = async (tx, alumnoId) => {
 /**
  * Determina si es un Upgrade y calcula la fecha de corte del ciclo actual.
  */
+/**
+ * Determina si es un Upgrade y calcula la fecha de corte del ciclo actual.
+ */
 export const calcularCicloUpgrade = async (tx, alumnoId) => {
   const hoy = new Date();
-  // Le cambiamos el nombre para que tenga sentido lógico con el 'asc'
+  
+  // 1. Buscamos la Fecha Madre
   const inscripcionMadre = await tx.inscripciones.findFirst({
     where: { alumno_id: parseInt(alumnoId), estado: 'ACTIVO' },
-    orderBy: { fecha_inscripcion: 'asc' }, // <-- El cambio clave
+    orderBy: { fecha_inscripcion: 'asc' }, 
   });
 
   if (inscripcionMadre) {
     const fechaInicioCiclo = new Date(inscripcionMadre.fecha_inscripcion);
+    
+    // =================================================================
+    // 🔥 NUEVO BLOQUEO CASO 9: EL AGUJERO NEGRO DEL PAGADOR ANTICIPADO
+    // =================================================================
+    if (fechaInicioCiclo > hoy) {
+      throw new Error(
+        `⛔ CIERRE DE CICLO: Ya adelantaste el pago de tu próximo mes. Espera al inicio de tu nuevo ciclo para agregar más horarios.`
+      );
+    }
+    // =================================================================
+
+    // 2. Si pasa la validación, calculamos el fin de su mes normal
     const fechaFinCiclo = new Date(fechaInicioCiclo);
     fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30);
 
