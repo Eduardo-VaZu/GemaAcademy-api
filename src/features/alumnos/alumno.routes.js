@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { alumnoController } from './alumno.controller.js';
 // Importa tus middlewares reales (ajusta la ruta según tu proyecto)
-import { verificarToken } from '../../middlewares/auth.middleware.js'; 
 
 const router = Router();
 
