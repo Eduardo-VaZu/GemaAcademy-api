@@ -31,6 +31,7 @@ import lesionRoutes from './features/lesiones/lesion.routes.js'
 import tipoDocumentosRoutes from './features/tipo_documento/tipo_documento.routers.js';
 import beneficioPendiente from './features/beneficios_pendientes/beneficios-pendientes.routes.js'
 import alumnoRoutes from './features/alumnos/alumno.routes.js'
+import publicacionRoutes from './features/publicaciones/publicacion.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -99,6 +100,7 @@ app.use('/api/lesiones', lesionRoutes);
 app.use('/api/tipos-documento', tipoDocumentosRoutes);
 app.use('/api/beneficioPendiente', beneficioPendiente)
 app.use('/api/alumno', alumnoRoutes)
+app.use('/api/publicaciones', publicacionRoutes);
 
 app.use(errorHandler);
 

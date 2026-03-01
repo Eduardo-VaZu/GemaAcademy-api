@@ -3,23 +3,31 @@ import { alumnoService } from './alumno.service.js';
 export const alumnoController = {
   actualizarMiPerfil: async (req, res) => {
     try {
-      // Usamos req.user o req.usuario según tu middleware 'authenticate'
-      const usuarioId = req.user?.id || req.usuario?.id;
+      const usuarioId = req.params.id;
 
-      if (!usuarioId) {
-        return res.status(401).json({ success: false, message: "Sesión no identificada" });
-      }
+      // 1. Extraemos la data exactamente como la armaste en Postman
+      const condiciones = req.body.datosRolEspecifico?.condiciones_medicas;
 
-      const perfilActualizado = await alumnoService.actualizarMiPerfil(usuarioId, req.body);
+      console.log(`🔥 LLEGÓ AL CONTROLADOR - ID: ${usuarioId}, Condiciones: ${condiciones}`);
 
-      res.status(200).json({
+      // 2. Llamamos a tu Service intacto
+      const resultado = await alumnoService.actualizarSoloCondiciones(usuarioId, condiciones);
+
+      return res.status(200).json({
         success: true,
-        message: '¡Perfil actualizado correctamente!',
-        data: perfilActualizado
+        message: "¡POR FIN FUNCIONÓ!",
+        data: resultado
       });
+
     } catch (error) {
-      console.error("❌ ERROR EN PERFIL:", error);
-      res.status(400).json({ success: false, message: error.message });
+      // 🚨 3. LA TRAMPA: Devolvemos el error directo a Postman saltándonos el errorHandler
+      console.error("🚨 FALLO REAL:", error.message);
+      
+      return res.status(500).json({
+        success: false,
+        message: "¡TE ATRAPÉ! El error real de Prisma es: " + error.message,
+        codigoPrisma: error.code || "Desconocido"
+      });
     }
   }
 };
