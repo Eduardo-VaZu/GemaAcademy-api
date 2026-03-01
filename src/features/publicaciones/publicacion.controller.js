@@ -7,7 +7,6 @@ export const publicacionController = {
     createPublicacion: catchAsync(async (req, res) => {
         const data = req.body;
         const imagenFile = req.file; // Extraído por Multer
-        console.log('LA DATA:',data);
         // Asignar el autor_id desde el token si no viene en el body
         if (!data.autor_id && req.user) {
             data.autor_id = req.user.id;
@@ -16,7 +15,7 @@ export const publicacionController = {
         if (!data.titulo || !data.contenido || !data.autor_id) {
             throw new ApiError('El título, contenido y autor_id son obligatorios', 400);
         }
-        
+
         const publicacion = await publicacionService.createPublicacion(data, imagenFile);
         return apiResponse.created(res, {
             message: 'Publicación creada exitosamente',

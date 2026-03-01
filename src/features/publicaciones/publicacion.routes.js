@@ -12,45 +12,38 @@ const router = Router();
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-        cb(null, true);
-    } else {
-        cb(new Error('¡Solo se permiten imágenes!'), false);
-    }
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('¡Solo se permiten imágenes!'), false);
+  }
 };
 
 const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
+  storage: storage,
+  fileFilter: fileFilter,
 });
 
+router.use(authenticate);
 
 // ==========================================
 // RUTAS DE LECTURA (Públicas o para usuarios)
 // ==========================================
-router.get('/', publicacionController.getAllPublicaciones);
-router.get('/:id', publicacionController.getPublicacionById);
+router.get('/', authorize('Administrador'), publicacionController.getAllPublicaciones);
+router.get('/:id', authorize('Administrador'), publicacionController.getPublicacionById);
 
 // ==========================================
 // RUTAS DE ADMINISTRADOR
 // ==========================================
 router.post(
   '/',
-  upload.single('imagen'), 
-  (req, res, next) => {
-    // 🔍 MONITOREO EN CONSOLA
-    console.log("=== NUEVA PETICIÓN DE PUBLICACIÓN ===");
-    console.log("Body recibido:", req.body);
-    console.log("Archivo (req.file):", req.file ? req.file.originalname : "❌ NO LLEGÓ IMAGEN");
-    console.log("Admin logueado (req.user):", req.user ? req.user.id : "❌ NO HAY USER EN REQ");
-    next(); // Pasa al controlador
-  },
+  authorize('Administrador'),
+  upload.single('imagen'),
   publicacionController.createPublicacion
 );
 
 router.put(
   '/:id',
-  authenticate,
   authorize('Administrador'),
   upload.single('imagen'), // También aquí por si editan la foto
   publicacionController.updatePublicacion
@@ -58,21 +51,18 @@ router.put(
 
 router.patch(
   '/:id/desactivar',
-  authenticate,
   authorize('Administrador'),
   publicacionController.updateDefusePublicacion
 );
 
 router.patch(
   '/:id/activar',
-  authenticate,
   authorize('Administrador'),
   publicacionController.updateActivePublicacion
 );
 
 router.delete(
   '/:id',
-  authenticate,
   authorize('Administrador'),
   publicacionController.deletePublicacion
 );
