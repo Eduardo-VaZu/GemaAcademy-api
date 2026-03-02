@@ -1,6 +1,6 @@
 import z from 'zod';
-import { userCommonValidation } from '../common/common.validation.js';
-import { VALID_ROLES_ARRAY, ROLE_REQUIRED_FIELDS } from '../../constants/roles.constants.js';
+import { userCommonValidation } from '../../shared/validation/common.validation.js';
+import { VALID_ROLES_ARRAY, ROLE_REQUIRED_FIELDS } from '../roles/roles.constants.js';
 
 const emptyToUndefined = (schema) => z.preprocess((val) => (val === '' ? undefined : val), schema);
 
@@ -225,13 +225,27 @@ export const usuarioSchema = {
     })
     .superRefine((data, ctx) => {
       const {
-        username, email, password, direccion_completa, distrito,
-        ciudad, referencia, contacto_emergencia, datosRolEspecifico
+        username,
+        email,
+        password,
+        direccion_completa,
+        distrito,
+        ciudad,
+        referencia,
+        contacto_emergencia,
+        datosRolEspecifico,
       } = data;
 
       const fieldsToUpdate = [
-        username, email, password, direccion_completa, distrito,
-        ciudad, referencia, contacto_emergencia, datosRolEspecifico
+        username,
+        email,
+        password,
+        direccion_completa,
+        distrito,
+        ciudad,
+        referencia,
+        contacto_emergencia,
+        datosRolEspecifico,
       ];
 
       const hasAnyField = fieldsToUpdate.some((value) => value !== undefined);
@@ -246,7 +260,7 @@ export const usuarioSchema = {
 
       if (contacto_emergencia) {
         const { nombre_completo, telefono } = contacto_emergencia;
-        if (Object.values(contacto_emergencia).some(v => v !== undefined)) {
+        if (Object.values(contacto_emergencia).some((v) => v !== undefined)) {
           if (!nombre_completo) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,

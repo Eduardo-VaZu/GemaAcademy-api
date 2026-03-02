@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { claseController } from './clase.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { authorize } from '../../shared/middlewares/authorize.middleware.js';
-import { validate } from '../../validation/middlewares/validate.middleware.js';
+import { validate } from '../../shared/middlewares/validate.middleware.js';
 import { claseSchema } from './clase.schema.js';
 
 const router = Router();

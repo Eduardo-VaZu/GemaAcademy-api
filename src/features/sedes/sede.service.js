@@ -1,13 +1,17 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
+const DIRECCION_SELECT = {
+  select: { id: true, direccion_completa: true, distrito: true, ciudad: true, referencia: true },
+};
+
 const SEDE_SELECT_FIELDS = {
   id: true,
   nombre: true,
   telefono_contacto: true,
   tipo_instalacion: true,
   activo: true,
-  direcciones: true,
+  direcciones: DIRECCION_SELECT,
   canchas: {
     select: {
       id: true,
@@ -50,22 +54,35 @@ const SEDE_SELECT_FIELDS = {
   },
 };
 
+/**
+ * Construye el objeto `where` para filtrar sedes.
+ * Reutilizado por getAllSedes y getCanchaForSedeCount.
+ */
+const buildWhereFilters = ({ activo, distrito, tipo_instalacion }) => {
+  const where = {};
+  if (activo !== undefined) where.activo = activo;
+  if (distrito) {
+    where.direcciones = { distrito: { contains: distrito, mode: 'insensitive' } };
+  }
+  if (tipo_instalacion) {
+    where.tipo_instalacion = { contains: tipo_instalacion, mode: 'insensitive' };
+  }
+  return where;
+};
+
 export const sedeService = {
   createSede: async (sedeData) => {
     const { direccion, administrador_id, canchas } = sedeData;
 
-    // 1. Validar administrador
-    const adminId = Number.parseInt(administrador_id);
     const adminRelacion = await prisma.administrador.findUnique({
-      where: { usuario_id: adminId },
+      where: { usuario_id: administrador_id },
+      select: { usuario_id: true },
     });
 
     if (!adminRelacion) throw new ApiError('Administrador no válido', 404);
 
-    // 2. Ejecutar transacción secuencial
     return await prisma.$transaction(
       async (tx) => {
-        // A. Crear la dirección primero
         const nuevaDireccion = await tx.direcciones.create({
           data: {
             direccion_completa: direccion.direccion_completa,
@@ -75,7 +92,6 @@ export const sedeService = {
           },
         });
 
-        // B. Crear la sede (vinculada a la dirección y al admin)
         const sedeCreada = await tx.sedes.create({
           data: {
             nombre: sedeData.nombre,
@@ -89,128 +105,58 @@ export const sedeService = {
           },
         });
 
-        // C. CREACIÓN MANUAL DE CANCHAS (Aquí aseguramos que se guarden)
         if (canchas && canchas.length > 0) {
-          // Usamos createMany para eficiencia
           await tx.canchas.createMany({
             data: canchas.map((c) => ({
               nombre: c.nombre,
               descripcion: c.descripcion || '',
-              sede_id: sedeCreada.id, // Vinculación manual por ID
+              sede_id: sedeCreada.id,
             })),
           });
         }
 
-        // D. Retornar todo el objeto completo
         return await tx.sedes.findUnique({
           where: { id: sedeCreada.id },
-          include: {
-            direcciones: true,
-            canchas: true,
-          },
+          select: SEDE_SELECT_FIELDS,
         });
       },
-      {
-        timeout: 10000, // 10 segundos para asegurar que termine todo
-      }
+      { timeout: 10000 }
     );
   },
 
   getAllSedes: async (filters = {}) => {
-    let { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
-
-    page = Number.parseInt(page, 10);
-    limit = Number.parseInt(limit, 10);
-
-    const where = {};
-
-    if (activo !== undefined) {
-      where.activo = String(activo) === 'true';
-    }
-
-    if (distrito) {
-      where.direcciones = {
-        distrito: {
-          contains: distrito,
-          mode: 'insensitive',
-        },
-      };
-    }
-
-    if (tipo_instalacion) {
-      where.tipo_instalacion = {
-        contains: tipo_instalacion,
-        mode: 'insensitive',
-      };
-    }
-
+    const { page = 1, limit = 10, ...rest } = filters;
+    const where = buildWhereFilters(rest);
     const skip = (page - 1) * limit;
 
     const [sedes, total] = await Promise.all([
       prisma.sedes.findMany({
         where,
         select: SEDE_SELECT_FIELDS,
-        orderBy: {
-          nombre: 'asc',
-        },
+        orderBy: { nombre: 'asc' },
         skip,
         take: limit,
       }),
       prisma.sedes.count({ where }),
     ]);
 
-    return {
-      sedes,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return { sedes, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
   getSedeById: async (id) => {
     const sede = await prisma.sedes.findUnique({
-      where: {
-        id: parseInt(id),
-      },
+      where: { id },
       select: SEDE_SELECT_FIELDS,
     });
 
-    if (!sede) {
-      throw new ApiError('Sede no encontrada', 404);
-    }
+    if (!sede) throw new ApiError('Sede no encontrada', 404);
 
     return sede;
   },
 
   getCanchaForSedeCount: async (filters = {}) => {
-    let { activo, distrito, tipo_instalacion, page = 1, limit = 10 } = filters;
-
-    page = Number.parseInt(page, 10);
-    limit = Number.parseInt(limit, 10);
-
-    const where = {};
-
-    if (activo !== undefined) {
-      where.activo = String(activo) === 'true';
-    }
-
-    if (distrito) {
-      where.direcciones = {
-        distrito: {
-          contains: distrito,
-          mode: 'insensitive',
-        },
-      };
-    }
-
-    if (tipo_instalacion) {
-      where.tipo_instalacion = {
-        contains: tipo_instalacion,
-        mode: 'insensitive',
-      };
-    }
-
+    const { page = 1, limit = 10, ...rest } = filters;
+    const where = buildWhereFilters(rest);
     const skip = (page - 1) * limit;
 
     const [sedes, total] = await Promise.all([
@@ -221,46 +167,29 @@ export const sedeService = {
           nombre: true,
           tipo_instalacion: true,
           activo: true,
-          direcciones: true,
-          _count: {
-            select: {
-              canchas: true,
-            },
-          },
+          direcciones: DIRECCION_SELECT,
+          _count: { select: { canchas: true } },
         },
-        orderBy: {
-          nombre: 'asc',
-        },
+        orderBy: { nombre: 'asc' },
         skip,
         take: limit,
       }),
       prisma.sedes.count({ where }),
     ]);
 
-    const sedesConConteo = sedes.map((sede) => {
-      const { _count, ...rest } = sede;
-      return {
-        ...rest,
-        canchas_count: _count?.canchas ?? 0,
-      };
-    });
+    const sedesConConteo = sedes.map(({ _count, ...rest }) => ({
+      ...rest,
+      canchas_count: _count?.canchas ?? 0,
+    }));
 
-    return {
-      sedes: sedesConConteo,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return { sedes: sedesConConteo, total, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
   updateSede: async (id, sedeData) => {
-    const sedeId = parseInt(id);
-
     return await prisma.$transaction(async (tx) => {
       // 1. Actualizar datos de Sede y Dirección
       await tx.sedes.update({
-        where: { id: sedeId },
+        where: { id },
         data: {
           ...(sedeData.nombre && { nombre: sedeData.nombre }),
           ...(sedeData.telefono_contacto !== undefined && {
@@ -291,91 +220,87 @@ export const sedeService = {
         },
       });
 
-      // 2. Procesar Canchas (Solo Crear o Actualizar, NO BORRAR)
+      // 2. Procesar Canchas en paralelo (Antigravity §3.1)
       if (sedeData.canchas && Array.isArray(sedeData.canchas)) {
-        for (const cancha of sedeData.canchas) {
-          if (cancha.id) {
-            await tx.canchas.update({
-              where: { id: parseInt(cancha.id) },
-              data: {
-                nombre: cancha.nombre,
-                descripcion: cancha.descripcion || '',
-              },
-            });
-          } else {
-            const existeNombre = await tx.canchas.findFirst({
-              where: {
-                sede_id: sedeId,
-                nombre: { equals: cancha.nombre, mode: 'insensitive' },
-              },
-            });
+        const canchasExistentes = sedeData.canchas.filter((c) => c.id);
+        const canchasNuevas = sedeData.canchas.filter((c) => !c.id);
 
-            if (!existeNombre) {
-              await tx.canchas.create({
-                data: {
-                  nombre: cancha.nombre,
-                  descripcion: cancha.descripcion || '',
-                  sede_id: sedeId,
-                },
-              });
-            }
+        // Updates en paralelo
+        if (canchasExistentes.length > 0) {
+          await Promise.all(
+            canchasExistentes.map((c) =>
+              tx.canchas.update({
+                where: { id: c.id },
+                data: { nombre: c.nombre, descripcion: c.descripcion || '' },
+              })
+            )
+          );
+        }
+
+        // Nuevas: un solo query para verificar duplicados + createMany
+        if (canchasNuevas.length > 0) {
+          const nombresNuevos = canchasNuevas.map((c) => c.nombre.toLowerCase());
+          const yaExisten = await tx.canchas.findMany({
+            where: {
+              sede_id: id,
+              nombre: { in: nombresNuevos, mode: 'insensitive' },
+            },
+            select: { nombre: true },
+          });
+          const nombresExistentes = new Set(yaExisten.map((c) => c.nombre.toLowerCase()));
+          const realmNuevas = canchasNuevas.filter(
+            (c) => !nombresExistentes.has(c.nombre.toLowerCase())
+          );
+
+          if (realmNuevas.length > 0) {
+            await tx.canchas.createMany({
+              data: realmNuevas.map((c) => ({
+                nombre: c.nombre,
+                descripcion: c.descripcion || '',
+                sede_id: id,
+              })),
+            });
           }
         }
       }
 
-      // 3. Retornar la sede con su info actualizada y todas sus canchas
+      // 3. Retornar la sede actualizada
       return await tx.sedes.findUnique({
-        where: { id: sedeId },
-        include: {
-          direcciones: true,
-          canchas: { orderBy: { id: 'asc' } }
-        },
+        where: { id },
+        select: SEDE_SELECT_FIELDS,
       });
     });
   },
 
   updateDefuseSede: async (id) => {
     return await prisma.sedes.update({
-      where: { id: parseInt(id) },
-      data: {
-        activo: false,
-      },
-      include: {
-        direcciones: true,
-      },
+      where: { id },
+      data: { activo: false },
+      select: { id: true, nombre: true, activo: true, direcciones: DIRECCION_SELECT },
     });
   },
 
   updateActiveSede: async (id) => {
     return await prisma.sedes.update({
-      where: { id: parseInt(id) },
-      data: {
-        activo: true,
-      },
-      include: {
-        direcciones: true,
-      },
+      where: { id },
+      data: { activo: true },
+      select: { id: true, nombre: true, activo: true, direcciones: DIRECCION_SELECT },
     });
   },
-  deleteSede: async (id) => {
-    const sedeId = parseInt(id);
 
+  deleteSede: async (id) => {
     return await prisma.$transaction(async (tx) => {
       const sede = await tx.sedes.findUnique({
-        where: { id: sedeId },
+        where: { id },
         select: { direccion_id: true },
       });
 
       if (!sede) throw new ApiError('Sede no encontrada', 404);
 
-      await tx.sedes.delete({
-        where: { id: sedeId },
-      });
+      await tx.sedes.delete({ where: { id } });
 
       if (sede.direccion_id) {
-        await tx.direcciones.delete({
-          where: { id: sede.direccion_id },
-        });
+        await tx.direcciones.delete({ where: { id: sede.direccion_id } });
       }
 
       return { success: true, message: 'Sede, canchas y dirección eliminadas correctamente' };

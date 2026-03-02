@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database.config.js';
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../shared/utils/error.util.js';
-import { VALID_ROLES } from '../../constants/roles.constants.js';
+import { VALID_ROLES } from '../roles/roles.constants.js';
 import { emailService } from '../../shared/services/brevo.email.service.js';
 
 export const usuarioService = {

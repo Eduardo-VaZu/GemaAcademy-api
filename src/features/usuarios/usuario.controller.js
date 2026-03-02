@@ -2,7 +2,7 @@ import { usuarioService } from './usuario.service.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { ApiError } from '../../shared/utils/error.util.js';
-import { validateRoleSpecificData } from '../../shared/utils/roleValidation.util.js';
+import { validateRoleSpecificData } from './usuario.validation.js';
 
 export const usuarioController = {
   register: catchAsync(async (req, res) => {
@@ -21,7 +21,7 @@ export const usuarioController = {
     const payload = {
       ...userData,
       rol_id,
-      ...datosRolEspecifico
+      ...datosRolEspecifico,
     };
 
     // 2. Creación del usuario
@@ -29,7 +29,8 @@ export const usuarioController = {
 
     // 3. Respuesta estructurada para el Alumno
     return apiResponse.created(res, {
-      message: '¡Inscripción exitosa! Los detalles de tu cuenta han sido enviados a tu correo electrónico.',
+      message:
+        '¡Inscripción exitosa! Los detalles de tu cuenta han sido enviados a tu correo electrónico.',
       data: {
         id: usuario.id,
         username: usuario.username,

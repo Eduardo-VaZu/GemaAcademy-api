@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { usuarioController } from './usuario.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { authorize } from '../../shared/middlewares/authorize.middleware.js';
-import { validate } from '../../validation/middlewares/validate.middleware.js';
-import { schemas } from '../../validation/index.js';
+import { validate } from '../../shared/middlewares/validate.middleware.js';
+import { usuarioSchema } from './usuario.schema.js';
 
 const router = Router();
 
@@ -25,7 +25,7 @@ router.get('/count/usuarios-stats', usuarioController.getUsuariosStats);
 router.put(
   '/:id',
   authenticate,
-  validate(schemas.usuarioSchema.updateUserSchema),
+  validate(usuarioSchema.updateUserSchema),
   usuarioController.updateStudentProfile
 );
 

@@ -1,8 +1,4 @@
-import {
-  VALID_ROLES,
-  VALID_ROLES_ARRAY,
-  ROLE_REQUIRED_FIELDS,
-} from '../../constants/roles.constants.js';
+import { VALID_ROLES, VALID_ROLES_ARRAY, ROLE_REQUIRED_FIELDS } from '../roles/roles.constants.js';
 
 export const isValidRole = (rol) => {
   if (!rol || typeof rol !== 'string') return false;
@@ -54,7 +50,11 @@ export const validateRoleSpecificData = (rol, datos = {}) => {
         if (ciudad !== undefined && ciudad !== null && ciudad.toString().trim().length < 1) {
           errors.push('La ciudad es requerida');
         }
-        if (referencia !== undefined && referencia !== null && referencia.toString().trim().length < 1) {
+        if (
+          referencia !== undefined &&
+          referencia !== null &&
+          referencia.toString().trim().length < 1
+        ) {
           errors.push('La referencia es requerida');
         }
       }

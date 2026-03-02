@@ -6,28 +6,24 @@ import {
   validate,
   validateParams,
   validateQuery,
-} from '../../validation/middlewares/validate.middleware.js';
-import { schemas } from '../../validation/index.js';
+} from '../../shared/middlewares/validate.middleware.js';
+import { sedeSchema } from './sede.schema.js';
 
 const router = Router();
 
-router.get('/', validateQuery(schemas.sedeSchema.sedeQuerySchema), sedeController.getAllSedes);
+router.get('/', validateQuery(sedeSchema.sedeQuerySchema), sedeController.getAllSedes);
 router.get(
   '/canchas/conteo',
-  validateQuery(schemas.sedeSchema.sedeQuerySchema),
+  validateQuery(sedeSchema.sedeQuerySchema),
   sedeController.getCanchaForSedeCount
 );
-router.get(
-  '/:id',
-  validateParams(schemas.sedeSchema.sedeIdParamSchema),
-  sedeController.getSedeById
-);
+router.get('/:id', validateParams(sedeSchema.sedeIdParamSchema), sedeController.getSedeById);
 
 router.post(
   '/',
   authenticate,
   authorize('Administrador'),
-  validate(schemas.sedeSchema.createSedeSchema),
+  validate(sedeSchema.createSedeSchema),
   sedeController.createSede
 );
 
@@ -35,8 +31,8 @@ router.put(
   '/:id',
   authenticate,
   authorize('Administrador'),
-  validateParams(schemas.sedeSchema.sedeIdParamSchema),
-  validate(schemas.sedeSchema.updateSedeSchema),
+  validateParams(sedeSchema.sedeIdParamSchema),
+  validate(sedeSchema.updateSedeSchema),
   sedeController.updateSede
 );
 
@@ -44,15 +40,15 @@ router.patch(
   '/:id/desactivar',
   authenticate,
   authorize('Administrador'),
-  validateParams(schemas.sedeSchema.sedeIdParamSchema),
+  validateParams(sedeSchema.sedeIdParamSchema),
   sedeController.updateDefuseSede
 );
 
 router.patch(
   '/:id/activar',
   authenticate,
-  authorize('administrador'),
-  validateParams(schemas.sedeSchema.sedeIdParamSchema),
+  authorize('Administrador'),
+  validateParams(sedeSchema.sedeIdParamSchema),
   sedeController.updateActiveSede
 );
 
@@ -60,7 +56,7 @@ router.delete(
   '/:id',
   authenticate,
   authorize('Administrador'),
-  validateParams(schemas.sedeSchema.sedeIdParamSchema),
+  validateParams(sedeSchema.sedeIdParamSchema),
   sedeController.deleteSede
 );
 

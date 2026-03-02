@@ -1,39 +1,36 @@
 import { nivelService } from './niveles.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
-import { ApiError } from '../../shared/utils/error.util.js';
 
 export const nivelController = {
   createNivel: catchAsync(async (req, res) => {
-    const data = req.body;
-    const newNivel = await nivelService.createNivel(data);
-    if (!newNivel) {
-      throw new ApiError('Error al crear el nivel', 400);
-    }
-    apiResponse.success(res, { data: newNivel, message: 'Nivel creado exitosamente' });
+    const nivel = await nivelService.createNivel(req.body);
+    return apiResponse.created(res, {
+      message: 'Nivel creado exitosamente',
+      data: nivel,
+    });
   }),
+
   getAllNiveles: catchAsync(async (req, res) => {
     const niveles = await nivelService.getAllNiveles();
-    if (!niveles || niveles.length === 0) {
-      throw new ApiError('No se encontraron niveles', 404);
-    }
-    apiResponse.success(res, { data: niveles, message: 'Niveles obtenidos exitosamente' });
+    return apiResponse.success(res, {
+      message: 'Niveles obtenidos exitosamente',
+      data: niveles,
+    });
   }),
+
   updateNivel: catchAsync(async (req, res) => {
-    const { id } = req.params;
-    const data = req.body;
-    const updatedNivel = await nivelService.updateNivel(id, data);
-    if (!updatedNivel) {
-      throw new ApiError('Nivel no encontrado', 404);
-    }
-    apiResponse.success(res, { data: updatedNivel, message: 'Nivel actualizado exitosamente' });
+    const nivel = await nivelService.updateNivel(req.params.id, req.body);
+    return apiResponse.success(res, {
+      message: 'Nivel actualizado exitosamente',
+      data: nivel,
+    });
   }),
+
   deleteNivel: catchAsync(async (req, res) => {
-    const { id } = req.params;
-    const deletedNivel = await nivelService.deleteNivel(id);
-    if (!deletedNivel) {
-      throw new ApiError('Nivel no encontrado', 404);
-    }
-    apiResponse.success(res, { data: deletedNivel, message: 'Nivel eliminado exitosamente' });
+    await nivelService.deleteNivel(req.params.id);
+    return apiResponse.success(res, {
+      message: 'Nivel eliminado exitosamente',
+    });
   }),
 };

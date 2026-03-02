@@ -1,16 +1,39 @@
 import { Router } from 'express';
 import { horarioController } from './horario.controller.js';
-import { validate } from '../../validation/middlewares/validate.middleware.js';
-import { schemas } from '../../validation/index.js';
+import { validate, validateParams } from '../../shared/middlewares/validate.middleware.js';
+import { authenticate } from '../../shared/middlewares/auth.middleware.js';
+import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import { horarioSchema } from './horario.schema.js';
 
 const router = Router();
 
+// Ruta pública — listar horarios disponibles
 router.get('/', horarioController.getHorarios);
-router.post('/', validate(schemas.horarioSchema.createHorarioSchema), horarioController.createHorario);
+
+// Rutas protegidas — solo Administrador y Coordinador
+router.post(
+  '/',
+  authenticate,
+  authorize('Administrador', 'Coordinador'),
+  validate(horarioSchema.createHorarioSchema),
+  horarioController.createHorario
+);
+
 router.put(
   '/:id',
-  validate(schemas.horarioSchema.createHorarioSchema),
+  authenticate,
+  authorize('Administrador', 'Coordinador'),
+  validateParams(horarioSchema.idParamSchema),
+  validate(horarioSchema.updateHorarioSchema),
   horarioController.updateHorario
+);
+
+router.delete(
+  '/:id',
+  authenticate,
+  authorize('Administrador'),
+  validateParams(horarioSchema.idParamSchema),
+  horarioController.deleteHorario
 );
 
 export default router;
