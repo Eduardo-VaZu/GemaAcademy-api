@@ -24,8 +24,8 @@ const calcularProximasFechas = (fechaInicio, diaSemanaClase, fechaLimite) => {
   // 2. Generamos fechas MIENTRAS no superemos el límite de los 30 días
   // Importante: Si la primera fecha encontrada ya se pasó del límite, no agrega nada.
   while (fechaActual <= limiteFijo) {
-    fechas.push(new Date(fechaActual)); 
-    fechaActual.setDate(fechaActual.getDate() + 7); 
+    fechas.push(new Date(fechaActual));
+    fechaActual.setDate(fechaActual.getDate() + 7);
   }
 
   return fechas;
@@ -196,7 +196,7 @@ export const asistenciaService = {
         niveles_entrenamiento: true,
         canchas: { include: { sedes: true } },
         inscripciones: {
-          where: { estado: 'ACTIVO' },
+          where: { estado: { in: ['ACTIVO', 'PEN-RECU'] }, },
           include: {
             alumnos: {
               include: {
@@ -233,7 +233,7 @@ export const asistenciaService = {
         niveles_entrenamiento: true,
         canchas: { include: { sedes: true } },
         inscripciones: {
-          where: { estado: 'ACTIVO' },
+          where: { estado: { in: ['ACTIVO', 'PEN-RECU'] }, },
           include: {
             alumnos: {
               include: {
@@ -352,7 +352,7 @@ export const asistenciaService = {
           });
 
           const inscActiva = await tx.inscripciones.findFirst({
-            where: { alumno_id: recu.alumno_id, estado: 'ACTIVO' }
+            where: { alumno_id: recu.alumno_id, estado: { in: ['ACTIVO', 'PEN-RECU'] }, }
           });
 
           if (inscActiva) {

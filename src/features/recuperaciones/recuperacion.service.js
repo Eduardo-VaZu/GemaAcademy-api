@@ -7,13 +7,26 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta, asistenciaId) =
   const cantidadInscripciones = await tx.inscripciones.count({
     where: {
       alumno_id: Number.parseInt(alumnoId),
-      estado: 'ACTIVO',
+      estado: { in: ['ACTIVO', 'PEN-RECU'] },
     },
   });
 
   // Si tiene menos de 2 inscripciones, entonces no se crea una recuperacion pendiente.
   if (cantidadInscripciones < 2) {
     return null; // Retornamos null para indicar que no se creó nada.
+  }
+
+  const parcial = await tx.cuentas_por_cobrar.findFirst({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: 'PARCIAL',
+    },
+  });
+
+  // Si aún no realiza el pago total, no se genera una recuperación.
+  if (parcial) {
+    console.log('El alumno aún no realiza el pago total.');
+    return null;
   }
 
   // 1. Evitar duplicados
@@ -32,7 +45,7 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta, asistenciaId) =
   const inscripcion = await tx.inscripciones.findFirst({
     where: {
       alumno_id: Number.parseInt(alumnoId),
-      estado: 'ACTIVO',
+      estado: { in: ['ACTIVO', 'PEN-RECU'] },
     },
     orderBy: {
       fecha_inscripcion: 'asc',
@@ -194,7 +207,7 @@ const obtenerPendientes = async (alumnoId) => {
   const inscripciones = await prisma.inscripciones.findMany({
     where: {
       alumno_id: Number.parseInt(alumnoId),
-      estado: 'ACTIVO',
+      estado: { in: ['ACTIVO', 'PEN-RECU'] },
     },
     include: {
       horarios_clases: true
@@ -238,7 +251,7 @@ const obtenerPendientes = async (alumnoId) => {
   const cantidadInscripciones = await prisma.inscripciones.count({
     where: {
       alumno_id: Number.parseInt(alumnoId),
-      estado: 'ACTIVO',
+      estado: { in: ['ACTIVO', 'PEN-RECU'] },
     },
   });
 
@@ -329,7 +342,7 @@ const validarElegibilidad = async (alumnoId, recuperacionId, fechaProgramada, ho
   const inscripciones = await prisma.inscripciones.findMany({
     where: {
       alumno_id: Number.parseInt(alumnoId),
-      estado: 'ACTIVO',
+      estado: { in: ['ACTIVO', 'PEN-RECU'] },
     },
     include: {
       horarios_clases: true,

@@ -113,6 +113,34 @@ class InscripcionCronService {
       logger.info(`[VERDUGO] Se liberaron ${finalizados.count} cupos tras vencer su tolerancia.`);
     }
   }
+
+  async cambiarEstado() {
+    const dia0 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+
+    const inscFinalizadas = await prisma.inscripciones.updateMany({
+      where: {
+        estado: 'PEN-RECU',
+        fecha_inscripcion: {
+          lte: dia0,
+        },
+        alumnos: {
+          recuperaciones: {
+            none: {
+              es_por_lesion: true,
+              estado: { in: ['PENDIENTE', 'PROGRAMADA'] },
+            },
+          },
+        },
+      },
+      data: {
+        estado: 'FINALIZADO',
+      }
+    })
+
+    if (inscFinalizadas.count > 0) {
+      logger.info(`Se cambiaron ${inscFinalizadas.count} inscripciones pendientes por recuperación a finalizados.`);
+    }
+  }
 }
 
 export const inscripcionCronService = new InscripcionCronService();

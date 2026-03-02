@@ -108,4 +108,18 @@ export const iniciarCronJobs = () => {
     },
     { timezone: 'America/Lima' }
   );
+
+  // Cron para actualizar estado de inscripciones pendientes de recuperación a finalizados cada día a la 1 am
+  cron.schedule(
+    '0 1 * * *',
+    async () => {
+      logger.info(`[CRON] Verificando estados de inscripciones pendientes de recuperación...`);
+      try {
+        await inscripcionCronService.cambiarEstado();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló la verificación de inscripciones:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
 };

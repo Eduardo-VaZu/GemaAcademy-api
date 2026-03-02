@@ -19,7 +19,7 @@ class RecuperacionCronService {
       const inscripcion = await prisma.inscripciones.findFirst({
         where: {
           alumno_id: ticket.alumno_id,
-          estado: 'ACTIVO',
+          estado: { in: ['ACTIVO', 'PEN-RECU'] },
         },
         orderBy: { fecha_inscripcion: 'asc' },
       });
