@@ -113,7 +113,7 @@ const anularFaltaPendiente = async (tx, alumnoId, asistenciaId) => {
     where: {
       alumno_id: Number.parseInt(alumnoId),
       registro_asistencia_id: Number.parseInt(asistenciaId),
-      estado: 'PENDIENTE',
+      estado: { in: ['PENDIENTE', 'PROGRAMADA'] },
       es_por_lesion: false
     }
   });
@@ -320,7 +320,8 @@ const obtenerPendientes = async (alumnoId) => {
  * Valida TODAS las reglas de negocio antes de permitir una recuperación.
  */
 const validarElegibilidad = async (alumnoId, recuperacionId, fechaProgramada, horarioDestinoId) => {
-  const fechaProgramadaDate = new Date(fechaProgramada);
+  const soloFechaString = fechaProgramada.split('T')[0];
+  const fechaProgramadaDate = new Date(`${soloFechaString}T00:00:00.000Z`);
 
   const faltaPendiente = await prisma.recuperaciones.findFirst({
     where: {
@@ -356,8 +357,10 @@ const validarElegibilidad = async (alumnoId, recuperacionId, fechaProgramada, ho
     throw new ApiError('No tienes una inscripción activa.', 403);
   }
 
-  if (fechaProgramadaDate < new Date()) {
-    throw new ApiError('La fecha programada debe ser futura.', 400);
+  const hoyUTC = new Date();
+  hoyUTC.setUTCHours(0, 0, 0, 0);
+  if (fechaProgramadaDate < hoyUTC) {
+    throw new ApiError('La fecha programada no puede ser anterior a hoy.', 400);
   }
 
   const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion);
@@ -464,6 +467,9 @@ const agendarRecuperacion = async ({ alumnoId, recuperacionId, horarioDestinoId,
   // 1. Re-validar reglas de negocio (Doble check de seguridad)
   await validarElegibilidad(alumnoId, recuperacionId, fechaProgramada, horarioDestinoId);
 
+  const soloFechaString = fechaProgramada.split('T')[0];
+  const fechaFinalUTC = new Date(`${soloFechaString}T00:00:00.000Z`);
+
   // 2. VALIDACIÓN DE AFORO
   // Necesitamos saber si cabe un alumno más en esa clase específica
   const horarioDestino = await prisma.horarios_clases.findUnique({
@@ -486,7 +492,7 @@ const agendarRecuperacion = async ({ alumnoId, recuperacionId, horarioDestinoId,
   const recuperacionesEseDia = await prisma.recuperaciones.count({
     where: {
       horario_destino_id: Number.parseInt(horarioDestinoId),
-      fecha_programada: new Date(fechaProgramada),
+      fecha_programada: fechaFinalUTC,
       estado: 'PROGRAMADA',
     },
   });
@@ -507,7 +513,7 @@ const agendarRecuperacion = async ({ alumnoId, recuperacionId, horarioDestinoId,
     },
     data: {
       horario_destino_id: Number.parseInt(horarioDestinoId),
-      fecha_programada: new Date(fechaProgramada),
+      fecha_programada: fechaFinalUTC,
       estado: 'PROGRAMADA',
     },
   });

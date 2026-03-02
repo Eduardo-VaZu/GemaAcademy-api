@@ -5,7 +5,7 @@ class RecuperacionCronService {
   async ejecutarLimpiezaTickets() {
     const pendientes = await prisma.recuperaciones.findMany({
       where: {
-        estado: 'PENDIENTE',
+        estado: { in: ['PENDIENTE', 'PROGRAMADA'] },
         es_por_lesion: false,
       },
     });
