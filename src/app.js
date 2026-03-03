@@ -8,16 +8,16 @@ import { logger } from './shared/utils/logger.util.js';
 import { CORS_CREDENTIALS, CORS_ORIGIN } from './config/secret.config.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
 
-import healthRoutes from './features/health/health.router.js';
+import healthRoutes from './features/health/health.routes.js';
 import horarioRoutes from './features/horarios/horario.routes.js';
 import usuarioRoutes from './features/usuarios/usuario.routes.js';
 import authRoutes from './features/auth/auth.routes.js';
 import rolesRoutes from './features/roles/roles.routes.js';
 import inscripcionRoutes from './features/inscripciones/inscripcion.routes.js';
 import pagosRoutes from './features/pagos/pagos.routes.js';
-import sedeRoutes from './features/sedes/sede.routers.js';
+import sedeRoutes from './features/sedes/sede.routes.js';
 import recuperacionRoutes from './features/recuperaciones/recuperacion.routes.js';
-import canchasRoutes from './features/canchas/cancha.router.js';
+import canchasRoutes from './features/canchas/cancha.routes.js';
 import nivelesRoutes from './features/niveles/niveles.routes.js';
 import tiposBeneficioRoutes from './features/tipos_beneficio/tipos_beneficio.routes.js';
 import descuentosRoutes from './features/descuentos_aplicados/descuentos_aplicados.routes.js';
@@ -27,10 +27,10 @@ import claseRoutes from './features/clases/clase.routes.js';
 import catalogoRoutes from './features/catalogo_de_concepto/catalogo.routes.js';
 import parametrosRoutes from './features/parametros_sistema/parametros.routes.js';
 import cloudinaryRoutes from './features/cloudinaryImg/cloudinary.routes.js';
-import lesionRoutes from './features/lesiones/lesion.routes.js'
+import lesionRoutes from './features/lesiones/lesion.routes.js';
 import tipoDocumentosRoutes from './features/tipo_documento/tipo_documento.routers.js';
-import beneficioPendiente from './features/beneficios_pendientes/beneficios-pendientes.routes.js'
-import alumnoRoutes from './features/alumnos/alumno.routes.js'
+import beneficioPendiente from './features/beneficios_pendientes/beneficios-pendientes.routes.js';
+import alumnoRoutes from './features/alumnos/alumno.routes.js';
 import publicacionRoutes from './features/publicaciones/publicacion.routes.js';
 
 const app = express();
@@ -98,8 +98,8 @@ app.use('/api/parametros', parametrosRoutes);
 app.use('/api/cloudinary', cloudinaryRoutes);
 app.use('/api/lesiones', lesionRoutes);
 app.use('/api/tipos-documento', tipoDocumentosRoutes);
-app.use('/api/beneficioPendiente', beneficioPendiente)
-app.use('/api/alumno', alumnoRoutes)
+app.use('/api/beneficioPendiente', beneficioPendiente);
+app.use('/api/alumno', alumnoRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
 
 app.use(errorHandler);

@@ -13,8 +13,8 @@ src/features/auth/
 ├── auth.service.js        # Lógica de negocio + JWT + Prisma
 ├── auth.schema.js         # Schemas Zod (login, email, password)
 └── utils/
-    ├── tokenUtils.js      # Generación y validación de refresh tokens
-    └── cleanupTokens.js   # Cron de limpieza de tokens expirados
+    ├── token.util.js          # Generación y validación de refresh tokens
+    └── cleanupTokens.util.js  # Cron de limpieza de tokens expirados
 ```
 
 ---

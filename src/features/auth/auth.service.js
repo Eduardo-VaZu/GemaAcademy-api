@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { tokenUtils } from './utils/tokenUtils.js';
+import { tokenUtils } from './utils/token.util.js';
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 import {

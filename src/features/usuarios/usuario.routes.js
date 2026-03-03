@@ -29,7 +29,12 @@ router.get(
   usuarioController.getUsersByRol
 );
 
-router.get('/count/usuarios-stats', usuarioController.getUsuariosStats);
+router.get(
+  '/count/usuarios-stats',
+  authenticate,
+  authorize('Administrador'),
+  usuarioController.getUsuariosStats
+);
 
 router.put(
   '/:id',
@@ -39,7 +44,10 @@ router.put(
   usuarioController.updateStudentProfile
 );
 
-router.get('/reporte/detallado',
+router.get(
+  '/reporte/detallado',
+  authenticate,
+  authorize('Administrador'),
   usuarioController.getDetailedReport
 );
 

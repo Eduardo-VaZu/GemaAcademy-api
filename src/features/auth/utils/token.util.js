@@ -11,19 +11,13 @@ export const tokenUtils = {
   },
 
   /**
-   * Calcula de manera defensiva la fecha de expiración sumando una cantidad de días.
+   * Calcula la fecha de expiración sumando una cantidad de días.
    * @param {number|string} days - Número de días de validez del token (por defecto 7).
    * @returns {Date} Fecha de expiración calculada.
    */
   getRefreshTokenExpiration: (days) => {
     const daysNum = parseInt(days, 10) || 7;
-
     const expirationDate = new Date();
-
-    if (isNaN(expirationDate.getTime())) {
-      return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    }
-
     expirationDate.setDate(expirationDate.getDate() + daysNum);
     return expirationDate;
   },

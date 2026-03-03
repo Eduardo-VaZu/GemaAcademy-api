@@ -148,7 +148,7 @@ export const usuarioService = {
     if (user.email) {
       emailService
         .sendCredentialsEmail(user.email, user.nombres, user.username, password)
-        .catch(() => { });
+        .catch(() => {});
     }
 
     return {
@@ -264,9 +264,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-        distrito !== undefined ||
-        ciudad !== undefined ||
-        referencia !== undefined
+      distrito !== undefined ||
+      ciudad !== undefined ||
+      referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 
@@ -464,16 +464,16 @@ export const usuarioService = {
         select: { id: true, nombre: true },
       }),
       prisma.sedes.count({
-        where: { activo: true }
+        where: { activo: true },
       }),
       prisma.pagos.aggregate({
         _sum: { monto_pagado: true },
-        where: { estado_validacion: 'APROBADO' }
+        where: { estado_validacion: 'APROBADO' },
       }),
       prisma.cuentas_por_cobrar.aggregate({
         _sum: { monto_final: true },
-        where: { estado: 'PENDIENTE' }
-      })
+        where: { estado: 'PENDIENTE' },
+      }),
     ]);
 
     const roleStats = roles.reduce((acc, rol) => {
@@ -486,7 +486,7 @@ export const usuarioService = {
       ...roleStats,
       sedes: sedesCount,
       ingresosTotales: Number(ingresosSum._sum.monto_pagado || 0).toFixed(2),
-      deudaPendiente: Number(deudaSum._sum.monto_final || 0).toFixed(2)
+      deudaPendiente: Number(deudaSum._sum.monto_final || 0).toFixed(2),
     };
   },
 
@@ -495,60 +495,98 @@ export const usuarioService = {
       const [alumnos, pagos, deudas] = await Promise.all([
         // 1. Alumnos
         prisma.alumnos.findMany({
-          include: {
-            usuarios: true,
-            alumnos_contactos: { where: { es_principal: true } }
-          }
-        }),
-        // 2. Pagos (Asegurando que existan las relaciones)
-        prisma.pagos.findMany({
-          include: {
-            cuentas_por_cobrar: {
-              include: {
-                alumnos: { include: { usuarios: true } }
-              }
+          select: {
+            usuario_id: true,
+            seguro_medico: true,
+            usuarios: {
+              select: {
+                nombres: true,
+                apellidos: true,
+                email: true,
+                telefono_personal: true,
+              },
             },
-            metodos_pago: true
-          }
+            alumnos_contactos: {
+              where: { es_principal: true },
+              select: { nombre_completo: true },
+            },
+          },
+        }),
+        // 2. Pagos
+        prisma.pagos.findMany({
+          select: {
+            fecha_pago: true,
+            monto_pagado: true,
+            estado_validacion: true,
+            cuentas_por_cobrar: {
+              select: {
+                alumnos: {
+                  select: {
+                    usuarios: {
+                      select: { nombres: true, apellidos: true },
+                    },
+                  },
+                },
+              },
+            },
+            metodos_pago: {
+              select: { nombre: true },
+            },
+          },
         }),
         // 3. Deudas
         prisma.cuentas_por_cobrar.findMany({
           where: { estado: 'PENDIENTE' },
-          include: {
-            alumnos: { include: { usuarios: true } },
-            catalogo_conceptos: true
-          }
-        })
+          select: {
+            monto_final: true,
+            fecha_vencimiento: true,
+            detalle_adicional: true,
+            catalogo_conceptos: {
+              select: { nombre: true },
+            },
+            alumnos: {
+              select: {
+                usuarios: {
+                  select: { nombres: true, apellidos: true },
+                },
+              },
+            },
+          },
+        }),
       ]);
 
       return {
-        alumnos: alumnos.map(a => ({
+        alumnos: alumnos.map((a) => ({
           ID: a.usuario_id,
           Nombre: `${a.usuarios?.nombres || ''} ${a.usuarios?.apellidos || ''}`,
           Email: a.usuarios?.email || 'N/A',
           Celular: a.usuarios?.telefono_personal || 'N/A',
           Seguro: a.seguro_medico || 'No registrado',
-          Contacto_Emergencia: a.alumnos_contactos[0]?.nombre_completo || 'N/A'
+          Contacto_Emergencia: a.alumnos_contactos[0]?.nombre_completo || 'N/A',
         })),
-        pagos: pagos.map(p => ({
+        pagos: pagos.map((p) => ({
           Fecha: p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString() : 'N/A',
-          Alumno: p.cuentas_por_cobrar?.alumnos?.usuarios?.nombres || 'Desconocido',
+          Alumno: p.cuentas_por_cobrar?.alumnos?.usuarios
+            ? `${p.cuentas_por_cobrar.alumnos.usuarios.nombres} ${p.cuentas_por_cobrar.alumnos.usuarios.apellidos}`
+            : 'Desconocido',
           Monto: parseFloat(p.monto_pagado || 0),
           Metodo: p.metodos_pago?.nombre || 'N/A',
-          Estado: p.estado_validacion
+          Estado: p.estado_validacion,
         })),
-        deudas: deudas.map(d => ({
+        deudas: deudas.map((d) => ({
           Alumno: `${d.alumnos?.usuarios?.nombres || ''} ${d.alumnos?.usuarios?.apellidos || ''}`,
           Concepto: d.catalogo_conceptos?.nombre || d.detalle_adicional || 'Varios',
           Monto_Pendiente: parseFloat(d.monto_final || 0),
-          Vencimiento: d.fecha_vencimiento ? new Date(d.fecha_vencimiento).toLocaleDateString() : 'N/A'
-        }))
+          Vencimiento: d.fecha_vencimiento
+            ? new Date(d.fecha_vencimiento).toLocaleDateString()
+            : 'N/A',
+        })),
       };
     } catch (error) {
-      console.error("Error detallado en Prisma:", error);
-      throw error; 
+      console.error('Error detallado en Prisma:', error);
+      throw error;
     }
-  }
+  },
 };
 
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {

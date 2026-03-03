@@ -1,13 +1,16 @@
 import { Router } from 'express';
 import { alumnoController } from './alumno.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
+import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import { validate } from '../../shared/middlewares/validate.middleware.js';
+import { actualizarPerfilSchema } from './alumno.schema.js';
 
 const router = Router();
 
-// Solo pedimos que el usuario esté logueado
 router.use(authenticate);
+router.use(authorize('Alumno'));
 
 // PATCH /api/alumno/mi-perfil
-router.patch('/mi-perfil', alumnoController.actualizarMiPerfil);
+router.patch('/mi-perfil', validate(actualizarPerfilSchema), alumnoController.actualizarMiPerfil);
 
 export default router;
