@@ -39,4 +39,8 @@ router.put(
   usuarioController.updateStudentProfile
 );
 
+router.get('/reporte/detallado',
+  usuarioController.getDetailedReport
+);
+
 export default router;
