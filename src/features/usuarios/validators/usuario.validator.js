@@ -1,4 +1,8 @@
-import { VALID_ROLES, VALID_ROLES_ARRAY, ROLE_REQUIRED_FIELDS } from '../roles/roles.constants.js';
+import {
+  VALID_ROLES,
+  VALID_ROLES_ARRAY,
+  ROLE_REQUIRED_FIELDS,
+} from '../../roles/roles.constants.js';
 
 export const isValidRole = (rol) => {
   if (!rol || typeof rol !== 'string') return false;
@@ -114,14 +118,4 @@ export const getInvalidRoleMessage = () => {
     `Rol inválido. Los roles permitidos son: ${VALID_ROLES_ARRAY.join(', ')}. ` +
     `Ejemplo: {"rol_id": "alumno"}`
   );
-};
-
-export default {
-  isValidRole,
-  normalizeRole,
-  getBdRoleName,
-  validateRoleSpecificData,
-  getValidRoles,
-  canCreateUserRole,
-  getInvalidRoleMessage,
 };

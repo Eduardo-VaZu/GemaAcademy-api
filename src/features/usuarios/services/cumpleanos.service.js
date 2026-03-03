@@ -1,7 +1,7 @@
-import { prisma } from '../../config/database.config.js';
-import { twilioProvider } from '../../shared/services/twilio.whatsapp.service.js';
-import { emailService } from '../../shared/services/brevo.email.service.js';
-import { logger } from '../../shared/utils/logger.util.js';
+import { prisma } from '../../../config/database.config.js';
+import { twilioProvider } from '../../../shared/services/twilio.whatsapp.service.js';
+import { emailService } from '../../../shared/services/brevo.email.service.js';
+import { logger } from '../../../shared/utils/logger.util.js';
 
 class CumpleanosService {
   async ejecutarSaludosCumpleanos() {

@@ -50,9 +50,15 @@ export const usuarioService = {
     if (typeof rolNombre === 'string') {
       const rolNombreNormalizado =
         rolNombre.charAt(0).toUpperCase() + rolNombre.slice(1).toLowerCase();
-      rol = await prisma.roles.findUnique({ where: { nombre: rolNombreNormalizado } });
+      rol = await prisma.roles.findUnique({
+        where: { nombre: rolNombreNormalizado },
+        select: { id: true, nombre: true },
+      });
     } else {
-      rol = await prisma.roles.findUnique({ where: { id: parseInt(rolNombre) } });
+      rol = await prisma.roles.findUnique({
+        where: { id: parseInt(rolNombre) },
+        select: { id: true, nombre: true },
+      });
     }
 
     if (!rol) throw new ApiError(`El rol '${rolNombre}' no existe`, 400);
@@ -60,6 +66,7 @@ export const usuarioService = {
     if (tipo_documento_id && numero_documento) {
       const existeDocumento = await prisma.usuarios.findFirst({
         where: { tipo_documento_id, numero_documento },
+        select: { id: true },
       });
       if (existeDocumento) {
         throw new ApiError(`El documento ${numero_documento} ya se encuentra registrado`, 400);
@@ -69,6 +76,7 @@ export const usuarioService = {
     if (providedUsername) {
       const existeUsername = await prisma.usuarios.findUnique({
         where: { username: providedUsername },
+        select: { id: true },
       });
       if (existeUsername) {
         throw new ApiError(`El nombre de usuario '${providedUsername}' ya está en uso`, 400);
@@ -153,64 +161,96 @@ export const usuarioService = {
   },
 
   getUserById: async (userId) => {
-    return await prisma.usuarios.findUnique({
+    const usuario = await prisma.usuarios.findUnique({
       where: { id: userId },
-      include: {
-        roles: true,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        telefono_personal: true,
+        fecha_nacimiento: true,
+        genero: true,
+        tipo_documento_id: true,
+        numero_documento: true,
+        activo: true,
+        roles: { select: { id: true, nombre: true } },
         alumnos: {
-          include: {
-            direcciones: true,
+          select: {
+            condiciones_medicas: true,
+            seguro_medico: true,
+            grupo_sanguineo: true,
+            direccion_id: true,
+            direcciones: {
+              select: {
+                id: true,
+                direccion_completa: true,
+                distrito: true,
+                ciudad: true,
+                referencia: true,
+              },
+            },
           },
         },
-        coordinadores: true,
+        coordinadores: { select: { usuario_id: true, especializacion: true } },
         administrador: {
-          include: {
-            sedes: true,
+          select: {
+            usuario_id: true,
+            cargo: true,
+            area: true,
+            sedes: { select: { id: true, nombre: true } },
           },
         },
       },
     });
+
+    if (!usuario) throw new ApiError('Usuario no encontrado', 404);
+    return usuario;
   },
 
   getUserByUsername: async (username) => {
     return await prisma.usuarios.findUnique({
       where: { username },
-      include: {
-        alumnos: true,
-        roles: true,
-        credenciales_usuario: true,
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nombres: true,
+        apellidos: true,
+        telefono_personal: true,
+        rol_id: true,
+        activo: true,
+        roles: { select: { id: true, nombre: true } },
+        alumnos: {
+          select: { condiciones_medicas: true, seguro_medico: true, grupo_sanguineo: true },
+        },
+        credenciales_usuario: { select: { hash_contrasena: true } },
       },
     });
   },
 
   updateStudentProfile: async (userId, payload) => {
-    const usuarioId = Number.parseInt(userId);
-
-    if (isNaN(usuarioId)) {
-      throw new ApiError('ID de usuario inválido', 400);
-    }
-
     const usuario = await prisma.usuarios.findUnique({
-      where: { id: usuarioId },
-      include: {
+      where: { id: userId },
+      select: {
+        id: true,
         alumnos: {
-          include: {
-            direcciones: true,
-            alumnos_contactos: true,
+          select: {
+            usuario_id: true,
+            direccion_id: true,
+            direcciones: { select: { id: true } },
+            alumnos_contactos: { where: { es_principal: true }, select: { id: true } },
           },
         },
-        roles: true,
-        credenciales_usuario: true,
+        credenciales_usuario: { select: { usuario_id: true } },
       },
     });
 
-    if (!usuario) {
-      throw new ApiError('Usuario no encontrado', 404);
-    }
+    if (!usuario) throw new ApiError('Usuario no encontrado', 404);
+    if (!usuario.alumnos) throw new ApiError('El usuario no corresponde a un alumno', 400);
 
-    if (!usuario.alumnos) {
-      throw new ApiError('El usuario no corresponde a un alumno', 400);
-    }
+    const usuarioId = userId;
 
     const {
       password,
@@ -340,34 +380,45 @@ export const usuarioService = {
 
       return await tx.usuarios.findUnique({
         where: { id: usuarioId },
-        include: {
-          roles: true,
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          nombres: true,
+          apellidos: true,
+          telefono_personal: true,
+          fecha_nacimiento: true,
+          genero: true,
+          activo: true,
+          roles: { select: { id: true, nombre: true } },
           alumnos: {
-            include: {
-              direcciones: true,
-              alumnos_contactos: true,
+            select: {
+              condiciones_medicas: true,
+              seguro_medico: true,
+              grupo_sanguineo: true,
+              direcciones: {
+                select: {
+                  id: true,
+                  direccion_completa: true,
+                  distrito: true,
+                  ciudad: true,
+                  referencia: true,
+                },
+              },
+              alumnos_contactos: {
+                select: {
+                  id: true,
+                  nombre_completo: true,
+                  telefono: true,
+                  relacion: true,
+                  es_principal: true,
+                },
+              },
             },
-          },
-          coordinadores: true,
-          administrador: {
-            include: { sedes: true },
           },
         },
       });
     });
-  },
-
-  isValidRole: (rol) => {
-    return Object.values(VALID_ROLES).includes(rol.toLowerCase());
-  },
-
-  getRoleDescription: (rol) => {
-    const descriptions = {
-      [VALID_ROLES.ALUMNO]: 'Estudiante de la academia',
-      [VALID_ROLES.COORDINADOR]: 'Coordinador de clases',
-      [VALID_ROLES.ADMINISTRADOR]: 'Administrador del sistema',
-    };
-    return descriptions[rol.toLowerCase()] || 'Rol desconocido';
   },
 
   getUsersByRol: async (rolOrId) => {

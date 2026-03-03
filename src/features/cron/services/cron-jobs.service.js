@@ -5,7 +5,7 @@ import { prisma } from '../../../config/database.config.js';
 import { inscripcionService } from '../../inscripciones/inscripcion.service.js';
 import { inscripcionCronService } from '../../inscripciones/inscripcion-cron.service.js';
 import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.service.js';
-import { cumpleanosService } from '../../usuarios/cumpleanos.service.js';
+import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
 
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
