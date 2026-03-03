@@ -92,15 +92,15 @@ app.use('/api/niveles', nivelesRoutes);
 app.use('/api/tipos-beneficio', tiposBeneficioRoutes);
 app.use('/api/descuentos', descuentosRoutes);
 app.use('/api/asistencias', asistenciaRoutes);
-app.use('/api/cuentas-por-cobrar', cuentaPorCobrarRoutes);
+app.use('/api/cuentaPorCobrar', cuentaPorCobrarRoutes);
 app.use('/api/clases', claseRoutes);
 app.use('/api/catalogo', catalogoRoutes);
 app.use('/api/parametros', parametrosRoutes);
 app.use('/api/cloudinary', cloudinaryRoutes);
 app.use('/api/lesiones', lesionRoutes);
 app.use('/api/tipos-documento', tipoDocumentosRoutes);
-app.use('/api/beneficios-pendientes', beneficioPendiente);
-app.use('/api/alumnos', alumnoRoutes);
+app.use('/api/beneficioPendiente', beneficioPendiente);
+app.use('/api/alumno', alumnoRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
 
 app.use(errorHandler);
