@@ -116,4 +116,12 @@ export const usuarioController = {
       data: stats,
     });
   }),
+
+  getDetailedReport: catchAsync(async (req, res) => {
+    const reportData = await usuarioService.getDetailedExcelReport();
+    return apiResponse.success(res, {
+      message: 'Reporte generado',
+      data: reportData,
+    });
+  }),
 };

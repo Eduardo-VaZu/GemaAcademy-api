@@ -140,7 +140,7 @@ export const usuarioService = {
     if (user.email) {
       emailService
         .sendCredentialsEmail(user.email, user.nombres, user.username, password)
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return {
@@ -224,9 +224,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-      distrito !== undefined ||
-      ciudad !== undefined ||
-      referencia !== undefined
+        distrito !== undefined ||
+        ciudad !== undefined ||
+        referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 
@@ -403,31 +403,101 @@ export const usuarioService = {
   },
 
   async getDashboardStats() {
-    const counts = await prisma.usuarios.groupBy({
-      by: ['rol_id'],
-      where: {
-        activo: true,
-      },
-      _count: {
-        id: true,
-      },
-    });
+    const [counts, roles, sedesCount, ingresosSum, deudaSum] = await Promise.all([
+      prisma.usuarios.groupBy({
+        by: ['rol_id'],
+        where: { activo: true },
+        _count: { id: true },
+      }),
+      prisma.roles.findMany({
+        select: { id: true, nombre: true },
+      }),
+      prisma.sedes.count({
+        where: { activo: true }
+      }),
+      prisma.pagos.aggregate({
+        _sum: { monto_pagado: true },
+        where: { estado_validacion: 'APROBADO' }
+      }),
+      prisma.cuentas_por_cobrar.aggregate({
+        _sum: { monto_final: true },
+        where: { estado: 'PENDIENTE' }
+      })
+    ]);
 
-    const roles = await prisma.roles.findMany({
-      select: {
-        id: true,
-        nombre: true,
-      },
-    });
-
-    const stats = roles.reduce((acc, rol) => {
+    const roleStats = roles.reduce((acc, rol) => {
       const group = counts.find((c) => c.rol_id === rol.id);
       acc[rol.nombre.toLowerCase()] = group ? group._count.id : 0;
       return acc;
     }, {});
 
-    return stats;
+    return {
+      ...roleStats,
+      sedes: sedesCount,
+      ingresosTotales: Number(ingresosSum._sum.monto_pagado || 0).toFixed(2),
+      deudaPendiente: Number(deudaSum._sum.monto_final || 0).toFixed(2)
+    };
   },
+
+  async getDetailedExcelReport() {
+    try {
+      const [alumnos, pagos, deudas] = await Promise.all([
+        // 1. Alumnos
+        prisma.alumnos.findMany({
+          include: {
+            usuarios: true,
+            alumnos_contactos: { where: { es_principal: true } }
+          }
+        }),
+        // 2. Pagos (Asegurando que existan las relaciones)
+        prisma.pagos.findMany({
+          include: {
+            cuentas_por_cobrar: {
+              include: {
+                alumnos: { include: { usuarios: true } }
+              }
+            },
+            metodos_pago: true
+          }
+        }),
+        // 3. Deudas
+        prisma.cuentas_por_cobrar.findMany({
+          where: { estado: 'PENDIENTE' },
+          include: {
+            alumnos: { include: { usuarios: true } },
+            catalogo_conceptos: true
+          }
+        })
+      ]);
+
+      return {
+        alumnos: alumnos.map(a => ({
+          ID: a.usuario_id,
+          Nombre: `${a.usuarios?.nombres || ''} ${a.usuarios?.apellidos || ''}`,
+          Email: a.usuarios?.email || 'N/A',
+          Celular: a.usuarios?.telefono_personal || 'N/A',
+          Seguro: a.seguro_medico || 'No registrado',
+          Contacto_Emergencia: a.alumnos_contactos[0]?.nombre_completo || 'N/A'
+        })),
+        pagos: pagos.map(p => ({
+          Fecha: p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString() : 'N/A',
+          Alumno: p.cuentas_por_cobrar?.alumnos?.usuarios?.nombres || 'Desconocido',
+          Monto: parseFloat(p.monto_pagado || 0),
+          Metodo: p.metodos_pago?.nombre || 'N/A',
+          Estado: p.estado_validacion
+        })),
+        deudas: deudas.map(d => ({
+          Alumno: `${d.alumnos?.usuarios?.nombres || ''} ${d.alumnos?.usuarios?.apellidos || ''}`,
+          Concepto: d.catalogo_conceptos?.nombre || d.detalle_adicional || 'Varios',
+          Monto_Pendiente: parseFloat(d.monto_final || 0),
+          Vencimiento: d.fecha_vencimiento ? new Date(d.fecha_vencimiento).toLocaleDateString() : 'N/A'
+        }))
+      };
+    } catch (error) {
+      console.error("Error detallado en Prisma:", error);
+      throw error; 
+    }
+  }
 };
 
 const createRoleSpecificData = async (tx, rolNombre, usuarioId, datos) => {
