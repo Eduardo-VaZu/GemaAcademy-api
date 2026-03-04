@@ -28,10 +28,10 @@ export const iniciarCronJobs = () => {
 
   // ------------------------------------------------------------------
   // TAREA 2: EL VERDUGO DE VENCIMIENTOS (Todos los días a las 00:00 AM)
-  // Objetivo: Congelar (VENCIDO) y luego Eliminar (FINALIZADO) según ciclo de 30 días.
+  // Objetivo: Cambiar a FINALIZADO o PEN-RECU según el ciclo (Madre + 30 días + tolerancia).
   // ------------------------------------------------------------------
   cron.schedule(
-    '0 0 * * *',
+    '* * * * *',
     async () => {
       logger.info(`[CRON] Iniciando revisión nocturna de ciclos: ${new Date().toISOString()}`);
       try {
