@@ -1,66 +1,63 @@
 import { Router } from 'express';
-import multer from 'multer'; // Importamos multer directamente aquí
 import { publicacionController } from './publicacion.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import {
+  validate,
+  validateParams,
+  validateQuery,
+} from '../../shared/middlewares/validate.middleware.js';
+import { uploadMemory } from '../../shared/middlewares/upload.middleware.js';
+import { publicacionSchema } from './publicacion.schema.js';
 
 const router = Router();
 
-// ==========================================
-// Configuración de Multer (Igual que en lesiones)
-// ==========================================
-const storage = multer.memoryStorage();
+// Rutas públicas
+router.get(
+  '/',
+  validateQuery(publicacionSchema.querySchema),
+  publicacionController.getAllPublicaciones
+);
+router.get(
+  '/:id',
+  validateParams(publicacionSchema.idParamSchema),
+  publicacionController.getPublicacionById
+);
 
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('¡Solo se permiten imágenes!'), false);
-  }
-};
-
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-});
-
-router.get('/', publicacionController.getAllPublicaciones);
-router.get('/:id', publicacionController.getPublicacionById);
-
+// Rutas protegidas — solo Administrador
 router.use(authenticate);
+router.use(authorize('Administrador'));
 
-// ==========================================
-// RUTAS DE ADMINISTRADOR
-// ==========================================
 router.post(
   '/',
-  authorize('Administrador'),
-  upload.single('imagen'),
+  uploadMemory.single('imagen'),
+  validate(publicacionSchema.createSchema),
   publicacionController.createPublicacion
 );
 
 router.put(
   '/:id',
-  authorize('Administrador'),
-  upload.single('imagen'), // También aquí por si editan la foto
+  validateParams(publicacionSchema.idParamSchema),
+  uploadMemory.single('imagen'),
+  validate(publicacionSchema.updateSchema),
   publicacionController.updatePublicacion
 );
 
 router.patch(
   '/:id/desactivar',
-  authorize('Administrador'),
+  validateParams(publicacionSchema.idParamSchema),
   publicacionController.updateDefusePublicacion
 );
 
 router.patch(
   '/:id/activar',
-  authorize('Administrador'),
+  validateParams(publicacionSchema.idParamSchema),
   publicacionController.updateActivePublicacion
 );
 
 router.delete(
   '/:id',
-  authorize('Administrador'),
+  validateParams(publicacionSchema.idParamSchema),
   publicacionController.deletePublicacion
 );
 

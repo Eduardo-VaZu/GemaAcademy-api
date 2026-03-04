@@ -1,58 +1,21 @@
 import { usuarioService } from './usuario.service.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
-import { ApiError } from '../../shared/utils/error.util.js';
-import { validateRoleSpecificData } from './usuario.validation.js';
+import { validateRoleSpecificData } from './validators/usuario.validator.js';
 
 export const usuarioController = {
   register: catchAsync(async (req, res) => {
-    const { rol_id, datosRolEspecifico = {}, ...userData } = req.body;
+    const usuario = await usuarioService.createUser(req.body);
 
-    // 1. Validación de datos específicos según el rol
-    if (datosRolEspecifico && typeof rol_id === 'string') {
-      const validationResult = validateRoleSpecificData(rol_id, datosRolEspecifico);
-
-      if (!validationResult.valid) {
-        throw new ApiError('Error en validación de datos del rol', 400, validationResult.errors);
-      }
-    }
-
-    // Se copian las props de datosRolEspecifico para manejarlas en el servicio
-    const payload = {
-      ...userData,
-      rol_id,
-      ...datosRolEspecifico,
-    };
-
-    // 2. Creación del usuario
-    const usuario = await usuarioService.createUser(payload);
-
-    // 3. Respuesta estructurada para el Alumno
     return apiResponse.created(res, {
       message:
         '¡Inscripción exitosa! Los detalles de tu cuenta han sido enviados a tu correo electrónico.',
-      data: {
-        id: usuario.id,
-        username: usuario.username,
-        email: usuario.email,
-        nombres: usuario.nombres,
-        rol: usuario.rol,
-      },
+      data: usuario,
     });
   }),
 
   getUserProfile: catchAsync(async (req, res) => {
-    const userId = parseInt(req.params.id);
-
-    if (isNaN(userId)) {
-      throw new ApiError('ID de usuario inválido', 400);
-    }
-
-    const usuario = await usuarioService.getUserById(userId);
-
-    if (!usuario) {
-      throw new ApiError('Usuario no encontrado', 404);
-    }
+    const usuario = await usuarioService.getUserById(req.params.id);
 
     return apiResponse.success(res, {
       data: usuario,
@@ -62,11 +25,10 @@ export const usuarioController = {
   validateRole: catchAsync(async (req, res) => {
     const { rol_id, datosRolEspecifico } = req.body;
 
-    if (!rol_id) {
-      throw new ApiError('rol_id es requerido', 400);
-    }
-
-    const validationResult = validateRoleSpecificData(rol_id, datosRolEspecifico || {});
+    const validationResult = validateRoleSpecificData(
+      typeof rol_id === 'string' ? rol_id : '',
+      datosRolEspecifico || {}
+    );
 
     return apiResponse.success(res, {
       data: {
@@ -79,28 +41,16 @@ export const usuarioController = {
   }),
 
   getUsersByRol: catchAsync(async (req, res) => {
-    const { rol } = req.params;
-
-    if (!rol) {
-      throw new ApiError('Es necesario especificar un rol o ID', 400);
-    }
-
-    const usuarios = await usuarioService.getUsersByRol(rol);
+    const usuarios = await usuarioService.getUsersByRol(req.params.rol);
 
     return apiResponse.success(res, {
-      message: `Usuarios con rol ${rol} obtenidos exitosamente`,
+      message: `Usuarios con rol ${req.params.rol} obtenidos exitosamente`,
       data: usuarios,
     });
   }),
 
   updateStudentProfile: catchAsync(async (req, res) => {
-    const userId = parseInt(req.params.id);
-
-    if (isNaN(userId)) {
-      throw new ApiError('ID de usuario inválido', 400);
-    }
-
-    const usuarioActualizado = await usuarioService.updateStudentProfile(userId, req.body);
+    const usuarioActualizado = await usuarioService.updateStudentProfile(req.params.id, req.body);
 
     return apiResponse.success(res, {
       message: 'Perfil del estudiante actualizado exitosamente',
@@ -114,6 +64,14 @@ export const usuarioController = {
     return apiResponse.success(res, {
       message: 'Estadísticas de usuarios obtenidas exitosamente',
       data: stats,
+    });
+  }),
+
+  getDetailedReport: catchAsync(async (req, res) => {
+    const reportData = await usuarioService.getDetailedExcelReport();
+    return apiResponse.success(res, {
+      message: 'Reporte generado',
+      data: reportData,
     });
   }),
 };

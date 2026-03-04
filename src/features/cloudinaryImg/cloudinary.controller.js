@@ -1,24 +1,19 @@
-import { uploadToCloudinary } from './cloudinary.service.js';
+import { cloudinaryService } from './cloudinary.service.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
+import { ApiError } from '../../shared/utils/error.util.js';
 
-export const uploadFile = async (req, res) => {
-  try {
+export const cloudinaryController = {
+  upload: catchAsync(async (req, res) => {
     if (!req.file) {
-      return res.status(400).json({ error: 'No se ha subido ningún archivo.' });
+      throw new ApiError('No se ha subido ningún archivo', 400);
     }
 
-    const cloudinaryResponse = await uploadToCloudinary(req.file, req.body.folderName);
+    const resultado = await cloudinaryService.upload(req.file, req.body.folderName);
 
-    res.status(200).json({
+    return apiResponse.success(res, {
       message: 'Imagen subida exitosamente',
-      url: cloudinaryResponse.url,
-      publicId: cloudinaryResponse.publicId,
-      format: cloudinaryResponse.format,
-      size: cloudinaryResponse.bytes,
+      data: resultado,
     });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Error al subir la imagen',
-      details: error.message,
-    });
-  }
+  }),
 };

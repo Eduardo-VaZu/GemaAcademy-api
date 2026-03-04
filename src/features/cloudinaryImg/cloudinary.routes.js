@@ -1,26 +1,20 @@
-import express from 'express';
-import multer from 'multer';
-import { uploadFile } from './cloudinary.controller.js';
+import { Router } from 'express';
+import { cloudinaryController } from './cloudinary.controller.js';
+import { authenticate } from '../../shared/middlewares/auth.middleware.js';
+import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import { validate } from '../../shared/middlewares/validate.middleware.js';
+import { uploadMemory } from '../../shared/middlewares/upload.middleware.js';
+import { cloudinarySchema } from './cloudinary.schema.js';
 
-const router = express.Router();
+const router = Router();
 
-// Configuración de Multer
-const storage = multer.memoryStorage();
-
-const fileFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true);
-  } else {
-    cb(new Error('¡Solo se permiten imágenes!'), false);
-  }
-};
-
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-});
-
-// Rutas
-router.post('/upload', upload.single('imagen'), uploadFile);
+router.post(
+  '/upload',
+  authenticate,
+  authorize('Administrador', 'Alumno'),
+  uploadMemory.single('imagen'),
+  validate(cloudinarySchema.uploadSchema),
+  cloudinaryController.upload
+);
 
 export default router;

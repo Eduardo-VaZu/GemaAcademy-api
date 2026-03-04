@@ -5,7 +5,8 @@ import { prisma } from '../../../config/database.config.js';
 import { inscripcionService } from '../../inscripciones/inscripcion.service.js';
 import { inscripcionCronService } from '../../inscripciones/inscripcion-cron.service.js';
 import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.service.js';
-import { cumpleanosService } from '../../usuarios/cumpleanos.service.js';
+import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
+import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
@@ -118,6 +119,20 @@ export const iniciarCronJobs = () => {
         await inscripcionCronService.cambiarEstado();
       } catch (error) {
         logger.error('[CRON ERROR] Falló la verificación de inscripciones:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
+  // Cron para finalizar congelamientos por lesiones a la 1 am
+  cron.schedule(
+    '0 1 * * *',
+    async () => {
+      logger.info(`[CRON] Verificando congelamientos por finalizar...`);
+      try {
+        await congelamientoCronService.gestionarCongelamientos();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló la verificación de congelamientos:', error);
       }
     },
     { timezone: 'America/Lima' }

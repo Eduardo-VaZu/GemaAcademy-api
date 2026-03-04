@@ -1,7 +1,6 @@
 import { asistenciaService } from './asistencia.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
-import { ApiError } from '../../shared/utils/error.util.js';
 
 // NO SE USA
 // // 1. Marcar o actualizar una asistencia específica
@@ -37,79 +36,74 @@ import { ApiError } from '../../shared/utils/error.util.js';
 // ======================================================
 
 const listarPorAlumno = catchAsync(async (req, res) => {
-    const { alumnoId } = req.params;
+  const { alumnoId } = req.params; // Viene validado y como entero desde Zod
 
-    if (!alumnoId) throw new ApiError('El ID del alumno es requerido.', 400);
+  const asistencias = await asistenciaService.obtenerPorAlumno(alumnoId);
 
-    const asistencias = await asistenciaService.obtenerPorAlumno(alumnoId);
-
-    // ✅ Llamada correcta a tu clase estática
-    return apiResponse.success(res, {
-        data: asistencias,
-        message: 'Asistencias del alumno recuperadas.'
-    });
+  // ✅ Llamada correcta a tu clase estática
+  return apiResponse.success(res, {
+    data: asistencias,
+    message: 'Asistencias del alumno recuperadas.',
+  });
 });
 
 const listarTodas = catchAsync(async (req, res) => {
-    const asistencias = await asistenciaService.obtenerTodas();
+  const asistencias = await asistenciaService.obtenerTodas();
 
-    // ✅ Llamada correcta a tu clase estática
-    return apiResponse.success(res, {
-        data: asistencias,
-        message: 'Listado general de asistencias.'
-    });
-
-
+  // ✅ Llamada correcta a tu clase estática
+  return apiResponse.success(res, {
+    data: asistencias,
+    message: 'Listado general de asistencias.',
+  });
 });
 const listarAgenda = catchAsync(async (req, res) => {
-    const coordinadorId = req.user.id;
-    const { fecha } = req.query;
+  const coordinadorId = req.user.id;
+  const { fecha } = req.query;
 
-    // Si no viene fecha en el query, pasamos null para traer toda la data del coordinador
-    const fechaConsulta = fecha ? new Date(fecha) : null;
+  // Si no viene fecha en el query, pasamos null para traer toda la data del coordinador
+  const fechaConsulta = fecha ? new Date(fecha) : null;
 
-    const clases = await asistenciaService.obtenerAgendaCoordinador(coordinadorId, fechaConsulta);
+  const clases = await asistenciaService.obtenerAgendaCoordinador(coordinadorId, fechaConsulta);
 
-    return apiResponse.success(res, {
-        message: 'Agenda de entrenamiento recuperada exitosamente.',
-        data: clases
-    });
+  return apiResponse.success(res, {
+    message: 'Agenda de entrenamiento recuperada exitosamente.',
+    data: clases,
+  });
 });
 const marcarAsistenciaMasiva = catchAsync(async (req, res) => {
-    const { asistencias } = req.body;
+  const { asistencias } = req.body; // Ya validados por Zod
 
-    if (!asistencias || !Array.isArray(asistencias)) {
-        throw new ApiError('Se requiere un listado de asistencias.', 400);
-    }
+  const resultado = await asistenciaService.procesarAsistenciaMasiva(asistencias);
 
-    const resultado = await asistenciaService.procesarAsistenciaMasiva(asistencias);
-
-    return apiResponse.success(res, {
-        data: resultado,
-        message: 'Asistencia grupal actualizada correctamente.'
-    });
+  return apiResponse.success(res, {
+    data: resultado,
+    message: 'Asistencia grupal actualizada correctamente.',
+  });
 });
 const listarClasesHoy = catchAsync(async (req, res) => {
-    // Extraemos el ID del coordinador desde el middleware authenticate
-    const coordinadorId = req.user.id;
+  // Extraemos el ID del coordinador desde el middleware authenticate
+  const coordinadorId = req.user.id;
 
-    // Podemos permitir que envíen una fecha específica, o usar HOY por defecto
-    const { fecha } = req.query;
-    const fechaConsulta = fecha ? new Date(fecha) : new Date();
+  // Podemos permitir que envíen una fecha específica, o usar HOY por defecto
+  const { fecha } = req.query;
+  const fechaConsulta = fecha ? new Date(fecha) : new Date();
 
-    const clases = await asistenciaService.obtenerClasesDelDiaPorCoordinador(coordinadorId, fechaConsulta);
+  const clases = await asistenciaService.obtenerClasesDelDiaPorCoordinador(
+    coordinadorId,
+    fechaConsulta
+  );
 
-    return apiResponse.success(res, {
-        message: 'Agenda del día recuperada exitosamente.',
-        data: clases
-    });
+  return apiResponse.success(res, {
+    message: 'Agenda del día recuperada exitosamente.',
+    data: clases,
+  });
 });
 
 export const asistenciaController = {
-    //marcarAsistencia,
-    listarPorAlumno,
-    listarTodas,
-    listarClasesHoy,
-    listarAgenda,
-    marcarAsistenciaMasiva
+  //marcarAsistencia,
+  listarPorAlumno,
+  listarTodas,
+  listarClasesHoy,
+  listarAgenda,
+  marcarAsistenciaMasiva,
 };

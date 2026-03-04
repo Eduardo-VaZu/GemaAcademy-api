@@ -232,14 +232,18 @@ export const claseService = {
           select: { nombre: true, sedes: { select: { nombre: true } } },
         },
         coordinadores: {
-          include: { usuarios: { select: { nombres: true, apellidos: true } } },
+          select: {
+            usuarios: { select: { nombres: true, apellidos: true } },
+          },
         },
         niveles_entrenamiento: { select: { nombre: true } },
         inscripciones: {
           where: { estado: 'ACTIVO' },
-          include: {
+          select: {
+            id: true,
             alumnos: {
-              include: {
+              select: {
+                usuario_id: true,
                 usuarios: { select: { id: true, nombres: true, apellidos: true, email: true } },
               },
             },

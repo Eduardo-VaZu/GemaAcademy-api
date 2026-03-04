@@ -2,42 +2,50 @@ import { Router } from 'express';
 import { asistenciaController } from './asistencia.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import {
+  validate,
+  validateParams,
+  validateQuery,
+} from '../../shared/middlewares/validate.middleware.js';
+import { asistenciaSchema } from './asistencia.schema.js';
 
 const router = Router();
 
 // ======================================================
-// 🔓 RUTAS PÚBLICAS (Sin Token por ahora)
+// 🔒 RUTAS PROTEGIDAS
 // ======================================================
-
-// Buscar asistencias por ID de alumno
-router.get('/alumno/:alumnoId', asistenciaController.listarPorAlumno);
-
-// Listado general de asistencias
-router.get('/', asistenciaController.listarTodas);
-
-// ✅ Corrección en asistencia.routes.js
 router.use(authenticate);
 
+// Listado general de asistencias (Solo Admin/Coordinador)
+router.get('/', authorize('Administrador', 'Coordinador'), asistenciaController.listarTodas);
+
+// Buscar asistencias por ID de alumno (Admin, Coordinador, Alumno)
 router.get(
-    '/agenda/hoy',
-    authorize('Coordinador'), // Sin corchetes
-    asistenciaController.listarClasesHoy
-);
-router.get(
-    '/agenda', // Quitamos el '/hoy' para que sea una ruta de agenda general
-    authorize('Coordinador'),
-    asistenciaController.listarAgenda
-);
-router.post(
-    '/masiva',
-    authorize('Coordinador'),
-    asistenciaController.marcarAsistenciaMasiva
+  '/alumno/:alumnoId',
+  authorize('Administrador', 'Coordinador', 'Alumno'),
+  validateParams(asistenciaSchema.alumnoIdParamSchema),
+  asistenciaController.listarPorAlumno
 );
 
-// router.patch(
-//     '/:id',
-//     authorize('Coordinador', 'Administrador'), // Sin corchetes
-//     asistenciaController.marcarAsistencia
-// );
+router.get(
+  '/agenda/hoy',
+  authorize('Coordinador'),
+  validateQuery(asistenciaSchema.agendaQuerySchema),
+  asistenciaController.listarClasesHoy
+);
+
+router.get(
+  '/agenda',
+  authorize('Coordinador'),
+  validateQuery(asistenciaSchema.agendaQuerySchema),
+  asistenciaController.listarAgenda
+);
+
+router.post(
+  '/masiva',
+  authorize('Coordinador'),
+  validate(asistenciaSchema.masivaSchema),
+  asistenciaController.marcarAsistenciaMasiva
+);
 
 export default router;

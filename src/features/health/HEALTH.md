@@ -8,7 +8,7 @@ Endpoint de verificación de estado (health check) del servidor. Usado por balan
 
 ```
 src/features/health/
-├── health.router.js       # Ruta GET /
+├── health.routes.js       # Ruta GET /
 └── health.controller.js   # Responde con timestamp
 ```
 

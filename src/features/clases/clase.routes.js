@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { claseController } from './clase.controller.js';
 import { authenticate } from '../../shared/middlewares/auth.middleware.js';
 import { authorize } from '../../shared/middlewares/authorize.middleware.js';
-import { validate } from '../../shared/middlewares/validate.middleware.js';
+import { validate, validateParams } from '../../shared/middlewares/validate.middleware.js';
 import { claseSchema } from './clase.schema.js';
 
 const router = Router();
@@ -21,6 +21,7 @@ router.post(
 router.get(
   '/:horario_id/detalle',
   authorize('Administrador', 'Coordinador'),
+  validateParams(claseSchema.horarioIdParamSchema),
   claseController.obtenerDetalle
 );
 

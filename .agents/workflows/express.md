@@ -19,14 +19,96 @@ No agrupamos por "capas" técnicas (Controllers, Services), agrupamos por Featur
 
 **Estructura de Directorios:**
 Todo el código relacionado con una entidad debe vivir en su propia carpeta dentro de `src/features/`.
+Cuando un feature crece, se crean **sub-packages** para mantener cada archivo enfocado y legible.
+
 ```text
 src/
-└── features/
-    ├── [nombre-entidad]/       # Ej: inscripciones, alumnos
-    │   ├── [entidad].routes.js     # Definición de endpoints
-    │   ├── [entidad].controller.js # Manejo de Request/Response HTTP
-    │   ├── [entidad].service.js    # Lógica de negocio y llamadas a Prisma
-    │   └── [entidad].schema.js     # (Opcional) Schemas locales de Zod
+├── config/                          # Configuración de servicios externos y entorno
+│   ├── cloudinary.config.js
+│   ├── cookie.config.js
+│   ├── database.config.js
+│   └── secret.config.js
+│
+├── shared/                          # Packages GLOBALES (transversales a todos los features)
+│   ├── middlewares/                  # Middlewares reutilizables (auth, validate, error, etc.)
+│   │   ├── auth.middleware.js
+│   │   ├── authorize.middleware.js
+│   │   ├── error.middleware.js
+│   │   ├── rateLimit.middleware.js
+│   │   ├── upload.middleware.js
+│   │   └── validate.middleware.js
+│   ├── services/                    # Integraciones con APIs externas reutilizables
+│   │   ├── brevo.email.service.js
+│   │   └── twilio.whatsapp.service.js
+│   ├── utils/                       # Utilidades puras sin lógica de negocio
+│   │   ├── catchAsync.util.js
+│   │   ├── error.util.js
+│   │   ├── logger.util.js
+│   │   └── response.util.js
+│   └── validation/                  # Schemas Zod compartidos entre features
+│       └── common.validation.js
+│
+├── features/
+│   ├── [nombre-entidad]/            # Ej: inscripciones, usuarios
+│   │   ├── [entidad].routes.js      # Definición de endpoints
+│   │   ├── [entidad].controller.js  # Manejo de Request/Response HTTP
+│   │   ├── [entidad].service.js     # Lógica de negocio principal y llamadas a Prisma
+│   │   ├── [entidad].schema.js      # (Opcional) Schemas Zod locales del feature
+│   │   │
+│   │   ├── validators/              # (Opcional) Validación imperativa propia del dominio
+│   │   │   └── [entidad].validator.js
+│   │   ├── utils/                   # (Opcional) Helpers puros del feature
+│   │   │   └── [entidad].util.js
+│   │   ├── logic/                   # (Opcional) Lógica compleja extraída del service
+│   │   │   └── [entidad].logic.js
+│   │   ├── services/                # (Opcional) Servicios auxiliares del dominio
+│   │   │   └── [nombre].service.js
+│   │   └── middlewares/             # (Opcional) Middlewares exclusivos del feature
+│   │       └── [entidad].middleware.js
+```
+
+### 2.1 Packages Globales (`shared/`)
+Contienen código **transversal** que no pertenece a ningún dominio específico.
+
+| Package | Propósito | Convención de Nombrado |
+|---|---|---|
+| `shared/middlewares/` | Middlewares que protegen rutas de cualquier feature (auth, validate, error) | `[nombre].middleware.js` |
+| `shared/services/` | Integraciones con APIs externas reutilizables (Brevo, Twilio) | `[proveedor].[tipo].service.js` |
+| `shared/utils/` | Funciones puras sin lógica de negocio (logger, catchAsync, response) | `[nombre].util.js` |
+| `shared/validation/` | Schemas Zod reutilizados por ≥2 features (email, phone, id) | `[dominio].validation.js` |
+
+> **Regla:** Todo archivo en `shared/` debe ser **agnóstico al dominio**. Si menciona "inscripción", "pago" o "usuario" en su lógica interna, NO pertenece aquí.
+
+### 2.2 Sub-packages dentro de un Feature
+Cuando un feature crece más allá de los 4 archivos base, se pueden crear sub-carpetas para mantener la legibilidad:
+
+| Sub-package | Cuándo crearlo | Convención de Nombrado |
+|---|---|---|
+| `validators/` | El feature tiene validación imperativa (no Zod) que excede ~30 líneas | `[entidad].validator.js` |
+| `utils/` | Helpers de formato, cálculo o transformación propios del feature | `[entidad].util.js` |
+| `logic/` | El service supera ~300 líneas; se extrae lógica de negocio compleja | `[entidad].logic.js` |
+| `services/` | Servicios auxiliares del dominio (crons, notificaciones, integraciones) | `[nombre-descriptivo].service.js` |
+| `middlewares/` | Middleware que SOLO aplica a este feature (poco frecuente) | `[entidad].middleware.js` |
+
+> **Regla de oro:** No crear sub-packages vacíos o con un solo archivo de <20 líneas. Si el archivo es pequeño, puede vivir en la raíz del feature.
+
+### 2.3 Criterios: ¿`shared/` o Feature-local?
+
+```
+¿Lo usan ≥2 features?  ──── SÍ ────► shared/
+         │
+         NO
+         │
+         ▼
+¿Es infraestructura transversal
+(auth, error, logging, rate-limit)?  ── SÍ ──► shared/
+         │
+         NO
+         │
+         ▼
+    Feature-local (empieza local;
+    promociónalo a shared/ cuando
+    un segundo feature lo necesite)
 ```
 
 ## 3. Reglas de Optimización "Antigravity" (Performance Crítico)

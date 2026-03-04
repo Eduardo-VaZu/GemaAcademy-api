@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database.config.js';
-import { recuperacionService } from '../recuperaciones/recuperacion.service.js'
+import { recuperacionService } from '../recuperaciones/recuperacion.service.js';
 
 /**
  * Función auxiliar para calcular fechas DENTRO DE UN RANGO (Dinámico) 📅
@@ -32,7 +32,6 @@ const calcularProximasFechas = (fechaInicio, diaSemanaClase, fechaLimite) => {
 };
 
 export const asistenciaService = {
-
   /**
    * Genera masivamente las clases futuras respetando el CICLO DE 30 DÍAS.
    * Ahora prioriza el parámetro 'fecha_inicio' para evitar solapamientos.
@@ -51,12 +50,14 @@ export const asistenciaService = {
     if (fecha_inicio) {
       // 🌟 REGLA DE ORO: Si el pago ya definió cuándo empieza el ciclo (ej. 05/03), mandamos esa.
       fechaInicioCalculo = new Date(fecha_inicio);
-      console.log(`🚀 Generando clases desde FECHA PROGRAMADA: ${fechaInicioCalculo.toLocaleDateString()}`);
+      console.log(
+        `🚀 Generando clases desde FECHA PROGRAMADA: ${fechaInicioCalculo.toLocaleDateString()}`
+      );
     } else {
       // 🔄 FALLBACK: Lógica de empalme automática si se llama sin fecha_inicio
       const ultimaClase = await tx.registros_asistencia.findFirst({
         where: { inscripcion_id: inscripcion_id },
-        orderBy: { fecha: 'desc' }
+        orderBy: { fecha: 'desc' },
       });
 
       fechaInicioCalculo = new Date(); // Por defecto: HOY
@@ -64,7 +65,9 @@ export const asistenciaService = {
       if (ultimaClase) {
         const fechaUltima = new Date(ultimaClase.fecha);
         if (fechaUltima > fechaInicioCalculo) {
-          console.log(`📅 Detectada continuidad. Empalmando tras última clase: ${fechaUltima.toLocaleDateString()}`);
+          console.log(
+            `📅 Detectada continuidad. Empalmando tras última clase: ${fechaUltima.toLocaleDateString()}`
+          );
           fechaUltima.setDate(fechaUltima.getDate() + 1);
           fechaInicioCalculo = fechaUltima;
         }
@@ -81,23 +84,25 @@ export const asistenciaService = {
     const fechasClases = calcularProximasFechas(fechaInicioCalculo, dia_semana, fechaLimite);
 
     // 3. Preparamos los objetos para insertar
-    const datosAsistencia = fechasClases.map(fecha => ({
+    const datosAsistencia = fechasClases.map((fecha) => ({
       inscripcion_id: inscripcion_id,
       fecha: fecha,
       estado: 'PROGRAMADA',
       registrado_por: coordinador_id,
-      comentario: `Generado auto (Ciclo 30 días) - Admin ID: ${usuario_admin_id}`
+      comentario: `Generado auto (Ciclo 30 días) - Admin ID: ${usuario_admin_id}`,
     }));
 
     // 4. Insertamos usando skipDuplicates para blindar la base de datos
     if (datosAsistencia.length > 0) {
       await tx.registros_asistencia.createMany({
         data: datosAsistencia,
-        skipDuplicates: true
+        skipDuplicates: true,
       });
     }
 
-    console.log(`✅ Ciclo generado: ${datosAsistencia.length} clases para ID ${inscripcion_id} (Hasta: ${fechaLimite.toLocaleDateString()})`);
+    console.log(
+      `✅ Ciclo generado: ${datosAsistencia.length} clases para ID ${inscripcion_id} (Hasta: ${fechaLimite.toLocaleDateString()})`
+    );
 
     return datosAsistencia.length;
   },
@@ -128,15 +133,15 @@ export const asistenciaService = {
   obtenerHistorial: async (inscripcionId) => {
     return await prisma.registros_asistencia.findMany({
       where: { inscripcion_id: parseInt(inscripcionId) },
-      orderBy: { fecha: 'asc' }
+      orderBy: { fecha: 'asc' },
     });
   },
   obtenerPorAlumno: async (alumnoId) => {
     return await prisma.registros_asistencia.findMany({
       where: {
         inscripciones: {
-          alumno_id: parseInt(alumnoId)
-        }
+          alumno_id: parseInt(alumnoId),
+        },
       },
       include: {
         inscripciones: {
@@ -144,24 +149,23 @@ export const asistenciaService = {
             horarios_clases: {
               include: {
                 canchas: { include: { sedes: true } },
-                // 🔥 ESTO ES LO QUE DEBES AGREGAR:
                 coordinadores: {
-                  include: {
+                  select: {
                     usuarios: {
                       select: {
                         nombres: true,
-                        apellidos: true
-                      }
-                    }
-                  }
+                        apellidos: true,
+                      },
+                    },
+                  },
                 },
-                niveles_entrenamiento: true
-              }
-            }
-          }
-        }
+                niveles_entrenamiento: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: { fecha: 'asc' } // Recomendado 'asc' para ver cronológicamente
+      orderBy: { fecha: 'asc' }, // Recomendado 'asc' para ver cronológicamente
     });
   },
 
@@ -173,11 +177,21 @@ export const asistenciaService = {
       include: {
         inscripciones: {
           include: {
-            alumnos: { include: { usuarios: true } }
-          }
-        }
+            alumnos: {
+              select: {
+                usuarios: {
+                  select: {
+                    nombres: true,
+                    apellidos: true,
+                    email: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
-      orderBy: { fecha: 'desc' }
+      orderBy: { fecha: 'desc' },
     });
   },
 
@@ -190,41 +204,41 @@ export const asistenciaService = {
       where: {
         coordinador_id: coordinadorId,
         dia_semana: diaSemana,
-        activo: true
+        activo: true,
       },
       include: {
         niveles_entrenamiento: true,
         canchas: { include: { sedes: true } },
         inscripciones: {
-          where: { estado: { in: ['ACTIVO', 'PEN-RECU'] }, },
+          where: { estado: { in: ['ACTIVO', 'PEN-RECU'] } },
           include: {
             alumnos: {
               include: {
                 usuarios: {
-                  select: { id: true, nombres: true, apellidos: true }
-                }
-              }
+                  select: { id: true, nombres: true, apellidos: true },
+                },
+              },
             },
             // IMPORTANTE: Buscamos el registro de asistencia específico para este día
             registros_asistencia: {
               where: { fecha: fechaConsulta },
               select: {
-                id: true,       // Este es el ID que usará el coordinador para marcar
-                estado: true,   // Saldrá "PROGRAMADA" inicialmente
-                comentario: true
-              }
-            }
-          }
-        }
+                id: true, // Este es el ID que usará el coordinador para marcar
+                estado: true, // Saldrá "PROGRAMADA" inicialmente
+                comentario: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: { hora_inicio: 'asc' }
+      orderBy: { hora_inicio: 'asc' },
     });
   },
   // En asistencia.service.js
   obtenerAgendaCoordinador: async (coordinadorId, fecha = null) => {
     const whereCondition = {
       coordinador_id: coordinadorId,
-      activo: true
+      activo: true,
     };
 
     const horarios = await prisma.horarios_clases.findMany({
@@ -233,14 +247,14 @@ export const asistenciaService = {
         niveles_entrenamiento: true,
         canchas: { include: { sedes: true } },
         inscripciones: {
-          where: { estado: { in: ['ACTIVO', 'PEN-RECU'] }, },
+          where: { estado: { in: ['ACTIVO', 'PEN-RECU'] } },
           include: {
             alumnos: {
               include: {
                 usuarios: {
-                  select: { id: true, nombres: true, apellidos: true, numero_documento: true }
-                }
-              }
+                  select: { id: true, nombres: true, apellidos: true, numero_documento: true },
+                },
+              },
             },
             registros_asistencia: {
               where: fecha ? { fecha: new Date(fecha) } : {},
@@ -249,13 +263,13 @@ export const asistenciaService = {
                 id: true,
                 fecha: true,
                 estado: true,
-                comentario: true
-              }
-            }
-          }
-        }
+                comentario: true,
+              },
+            },
+          },
+        },
       },
-      orderBy: { hora_inicio: 'asc' }
+      orderBy: { hora_inicio: 'asc' },
     });
 
     // 🛡️ 2. SOLUCIÓN AL ERROR 500: Creamos un nuevo arreglo para NO mutar la data original de Prisma
@@ -266,21 +280,21 @@ export const asistenciaService = {
       const alumnosRecuperadores = await prisma.recuperaciones.findMany({
         where: {
           horario_destino_id: horario.id,
-          estado: { in: ['PROGRAMADA', 'COMPLETADA_PRESENTE', 'COMPLETADA_FALTA'] }
+          estado: { in: ['PROGRAMADA', 'COMPLETADA_PRESENTE', 'COMPLETADA_FALTA'] },
         },
         include: {
           alumnos: {
             include: {
               usuarios: {
-                select: { id: true, nombres: true, apellidos: true, numero_documento: true }
-              }
-            }
-          }
-        }
+                select: { id: true, nombres: true, apellidos: true, numero_documento: true },
+              },
+            },
+          },
+        },
       });
 
       // Damos format a los alumnos para el front
-      const recuperadoresFormat = alumnosRecuperadores.map(rec => {
+      const recuperadoresFormat = alumnosRecuperadores.map((rec) => {
         let estadoFormat = 'PROGRAMADA';
         if (rec.estado === 'COMPLETADA_PRESENTE') estadoFormat = 'PRESENTE';
         else if (rec.estado === 'COMPLETADA_FALTA') estadoFormat = 'FALTA';
@@ -289,29 +303,31 @@ export const asistenciaService = {
           id: `insc-recu-${rec.id}`,
           estado: 'RECUPERACION',
           alumnos: rec.alumnos,
-          registros_asistencia: [{
-            id: `reg-asis-recu-${rec.id}`,
-            fecha: rec.fecha_programada,
-            estado: estadoFormat,
-            comentario: 'Alumno en clase de recuperación'
-          }]
+          registros_asistencia: [
+            {
+              id: `reg-asis-recu-${rec.id}`,
+              fecha: rec.fecha_programada,
+              estado: estadoFormat,
+              comentario: 'Alumno en clase de recuperación',
+            },
+          ],
         };
       });
 
       // 🌟 Combinamos las inscripciones de forma segura en un NUEVO objeto
       horariosProcesados.push({
         ...horario,
-        inscripciones: [...horario.inscripciones, ...recuperadoresFormat]
+        inscripciones: [...horario.inscripciones, ...recuperadoresFormat],
       });
     }
 
     // TRANSFORMACIÓN: Limpiamos la data usando el nuevo arreglo procesado
-    return horariosProcesados.map(h => {
+    return horariosProcesados.map((h) => {
       // Filtramos los registros "Fantasma" de las inscripciones regulares
-      h.inscripciones.forEach(insc => {
+      h.inscripciones.forEach((insc) => {
         if (insc.estado !== 'RECUPERACION') {
           insc.registros_asistencia = insc.registros_asistencia.filter(
-            reg => !reg.comentario?.includes('[RECUPERACION]')
+            (reg) => !reg.comentario?.includes('[RECUPERACION]')
           );
         }
       });
@@ -329,16 +345,25 @@ export const asistenciaService = {
       return {
         ...h,
         hora_inicio: formatTime(h.hora_inicio),
-        hora_fin: formatTime(h.hora_fin)
+        hora_fin: formatTime(h.hora_fin),
       };
     });
   },
 
   procesarAsistenciaMasiva: async (asistencias) => {
+
+    const esFechaFutura = (fechaClase) => {
+      const hoy = new Date();
+      const hoyUTC = Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate());
+
+      const fecha = new Date(fechaClase);
+      const fechaUTC = Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+
+      return fechaUTC > hoyUTC;
+    };
+
     return await prisma.$transaction(async (tx) => {
-
       for (const a of asistencias) {
-
         // Por si el alumno es de recuperación
         if (typeof a.id === 'string' && a.id.startsWith('reg-asis-recu-')) {
           const recuperacionId = parseInt(a.id.split('-')[3]);
@@ -347,12 +372,20 @@ export const asistenciaService = {
           const recu = await tx.recuperaciones.update({
             where: { id: recuperacionId },
             data: {
-              estado: a.estado === 'FALTA' ? 'COMPLETADA_FALTA' : 'COMPLETADA_PRESENTE'
+              estado: a.estado === 'FALTA'
+                ? 'COMPLETADA_FALTA'
+                : a.estado === 'PRESENTE'
+                  ? 'COMPLETADA_PRESENTE'
+                  : a.estado
             }
           });
 
+          if (esFechaFutura(recu.fecha_programada)) {
+            throw new Error("No se puede registrar recuperación en una fecha futura.");
+          }
+
           const inscActiva = await tx.inscripciones.findFirst({
-            where: { alumno_id: recu.alumno_id, estado: { in: ['ACTIVO', 'PEN-RECU'] }, }
+            where: { alumno_id: recu.alumno_id, estado: { in: ['ACTIVO', 'PEN-RECU'] } },
           });
 
           if (inscActiva) {
@@ -361,15 +394,15 @@ export const asistenciaService = {
               where: {
                 inscripcion_id: inscActiva.id,
                 fecha: recu.fecha_programada,
-                comentario: { contains: '[RECUPERACION]' } // Usamos la etiqueta para encontrarlo
-              }
+                comentario: { contains: '[RECUPERACION]' }, // Usamos la etiqueta para encontrarlo
+              },
             });
 
             if (a.estado === 'FALTA') {
               // Si se corrigió el registro como FALTA, lo borramos
               if (registroFisicoExistente) {
                 await tx.registros_asistencia.delete({
-                  where: { id: registroFisicoExistente.id }
+                  where: { id: registroFisicoExistente.id },
                 });
               }
             } else {
@@ -378,18 +411,18 @@ export const asistenciaService = {
                 await tx.registros_asistencia.update({
                   where: { id: registroFisicoExistente.id },
                   data: {
-                    estado: a.estado
-                  }
+                    estado: a.estado,
+                  },
                 });
               } else {
-                // Si no existe, lo creamos 
+                // Si no existe, lo creamos
                 await tx.registros_asistencia.create({
                   data: {
                     inscripcion_id: inscActiva.id,
                     fecha: recu.fecha_programada,
                     estado: a.estado,
-                    comentario: `[RECUPERACION] ${a.comentario || ''}`
-                  }
+                    comentario: `[RECUPERACION] ${a.comentario || ''}`,
+                  },
                 });
               }
             }
@@ -399,10 +432,14 @@ export const asistenciaService = {
 
         // Si el estado de la asistencia es JUSTIFICADO_LESION, se salta al siguiente alumno.
         const asistencia = await tx.registros_asistencia.findUnique({
-          where: { id: Number(a.id) }
+          where: { id: Number(a.id) },
         });
         if (!asistencia || asistencia.estado === 'JUSTIFICADO_LESION') {
           continue;
+        }
+
+        if (esFechaFutura(asistencia.fecha)) {
+          throw new Error("No se puede registrar asistencia en una fecha futura.");
         }
 
         // Si es un alumno fijo, simplemente se actualiza la asistencia
@@ -410,25 +447,30 @@ export const asistenciaService = {
           where: { id: Number(a.id) },
           data: {
             estado: a.estado,
-            comentario: a.comentario || "",
-            registrado_en: new Date()
+            comentario: a.comentario || '',
+            registrado_en: new Date(),
           },
           include: {
-            inscripciones: true
-          }
+            inscripciones: true,
+          },
         });
 
         const idAlumnoInscripcion = asistenciaRegistrada.inscripciones.alumno_id;
         const fechaClase = asistenciaRegistrada.fecha;
 
         // Crea un registro en la tabla recuperaciones con estado PENDIENTE en caso la asistencia sea registrada como FALTA.
-        if (asistenciaRegistrada.estado === "FALTA") {
-          await recuperacionService.registrarFaltaPendiente(tx, idAlumnoInscripcion, fechaClase, asistencia.id)
-        } else if (asistenciaRegistrada.estado === "PRESENTE") {
+        if (asistenciaRegistrada.estado === 'FALTA') {
+          await recuperacionService.registrarFaltaPendiente(
+            tx,
+            idAlumnoInscripcion,
+            fechaClase,
+            asistencia.id
+          );
+        } else if (asistenciaRegistrada.estado === 'PRESENTE') {
           // En caso el alumno llegue tarde, se elimina la recuperación generada.
           await recuperacionService.anularFaltaPendiente(tx, idAlumnoInscripcion, asistencia.id);
         }
       }
     });
-  }
+  },
 };

@@ -1,6 +1,6 @@
 import { prisma } from '../../config/database.config.js';
 import { asistenciaService } from '../asistencia/asistencia.service.js';
-import { uploadToCloudinary } from '../cloudinaryImg/cloudinary.service.js';
+import { cloudinaryService } from '../cloudinaryImg/cloudinary.service.js';
 import * as Validators from './validators/pagos.validator.js';
 import * as Logic from './logic/pagos.logic.js';
 import * as Utils from './utils/pagos.util.js';
@@ -17,7 +17,7 @@ export const pagosService = {
 
     if (voucherFile) {
       try {
-        const cloudinaryResponse = await uploadToCloudinary(voucherFile, 'yape');
+        const cloudinaryResponse = await cloudinaryService.upload(voucherFile, 'yape');
         imageUrl = cloudinaryResponse.url;
       } catch (error) {
         throw new Error(`Error al subir la imagen a Cloudinary: ${error.message}`);
@@ -136,8 +136,8 @@ export const pagosService = {
 
       // 🎓 PASO 6: Gestión de Inscripciones y Asistencias
       if (activarAlumno) {
-
-        const esRenovacion = pago.cuentas_por_cobrar.detalle_adicional?.includes('Renovación Automática');
+        const esRenovacion =
+          pago.cuentas_por_cobrar.detalle_adicional?.includes('Renovación Automática');
 
         if (esRenovacion) {
           // ==========================================
@@ -153,7 +153,7 @@ export const pagosService = {
 
           if (inscripcionesActivas.length > 0) {
             // 🌟 Encontrar la Fecha Madre (la más antigua)
-            const fechas = inscripcionesActivas.map(i => new Date(i.fecha_inscripcion).getTime());
+            const fechas = inscripcionesActivas.map((i) => new Date(i.fecha_inscripcion).getTime());
             const fechaMadre = new Date(Math.min(...fechas));
 
             // 🕰️ Calcular fin del ciclo actual (Día 30)
@@ -178,7 +178,7 @@ export const pagosService = {
                 data: {
                   fecha_inscripcion: fechaInicioNuevoCiclo,
                   estado: 'ACTIVO',
-                  actualizado_en: hoy
+                  actualizado_en: hoy,
                 },
               });
 
@@ -187,11 +187,10 @@ export const pagosService = {
                 dia_semana: inscripcion.horarios_clases.dia_semana,
                 usuario_admin_id: Number.parseInt(usuario_admin_id),
                 coordinador_id: inscripcion.horarios_clases.coordinador_id,
-                fecha_inicio: fechaInicioNuevoCiclo
+                fecha_inicio: fechaInicioNuevoCiclo,
               });
             }
           }
-
         } else {
           // ==========================================
           // CAMINO B: ALUMNOS NUEVOS O UPGRADES
@@ -215,11 +214,10 @@ export const pagosService = {
               dia_semana: inscripcion.horarios_clases.dia_semana,
               usuario_admin_id: Number.parseInt(usuario_admin_id),
               coordinador_id: inscripcion.horarios_clases.coordinador_id,
-              fecha_inicio: new Date()
+              fecha_inicio: new Date(),
             });
           }
         }
-
       } else if (!esAprobado) {
         await tx.inscripciones.updateMany({
           where: {
@@ -274,13 +272,13 @@ export const pagosService = {
         cuentas_por_cobrar: {
           include: {
             alumnos: {
-              include: { usuarios: true }
-            }
-          }
+              include: { usuarios: true },
+            },
+          },
         },
         metodos_pago: true,
         administrador: {
-          include: { usuarios: true }
+          include: { usuarios: true },
         },
       },
       orderBy: { fecha_pago: 'desc' },
