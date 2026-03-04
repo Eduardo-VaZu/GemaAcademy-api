@@ -119,7 +119,7 @@ const anularFaltaPendiente = async (tx, alumnoId, asistenciaId) => {
   });
 };
 
-// Permite al alumno poder cancelar una recuperación agendada con 12 horas de anticipación.
+// Permite al alumno poder cancelar una recuperación agendada con 1 hora de anticipación.
 const cancelarRecuperacion = async (alumnoId, recuperacionId) => {
   // 1. Buscamos el ticket y traemos la información del horario para saber a qué hora era la clase
   const ticket = await prisma.recuperaciones.findUnique({
@@ -144,23 +144,32 @@ const cancelarRecuperacion = async (alumnoId, recuperacionId) => {
     throw new ApiError('Solo puedes cancelar recuperaciones que estén programadas.', 400);
   }
 
-  // 3. Lógica del Reloj (Validación de 12 horas)
+  // 3. Lógica del Reloj (Validación de 1 hora)
   const ahora = new Date();
 
   // Armamos la fecha y hora exacta de la clase
-  const fechaClase = new Date(ticket.fecha_programada);
+  const fechaProg = new Date(ticket.fecha_programada);
   const horaInicio = new Date(ticket.horarios_clases.hora_inicio);
 
-  fechaClase.setHours(horaInicio.getHours(), horaInicio.getMinutes(), 0, 0);
+  const fechaClase = new Date(Date.UTC(
+    fechaProg.getUTCFullYear(),
+    fechaProg.getUTCMonth(),
+    fechaProg.getUTCDate(),
+    horaInicio.getUTCHours(),
+    horaInicio.getUTCMinutes(),
+    0,
+    0
+  ));
+  console.log(fechaClase)
 
   // Calculamos la diferencia en milisegundos y la pasamos a horas
   const diferenciaMilisegundos = fechaClase.getTime() - ahora.getTime();
   const horasFaltantes = diferenciaMilisegundos / (1000 * 60 * 60);
 
-  // Si faltan menos de 12 horas o ya pasó la clase, no se puede cancelar.
-  if (horasFaltantes < 12) {
+  // Si falta menos de 1 hora o ya pasó la clase, no se puede cancelar.
+  if (horasFaltantes < 1) {
     throw new ApiError(
-      'Ya no puedes cancelar esta clase. Debes hacerlo con al menos 12 horas de anticipación.',
+      'Ya no puedes cancelar esta clase. Debes hacerlo con al menos 1 hora de anticipación.',
       400
     );
   }
@@ -191,7 +200,18 @@ const obtenerHistorial = async (alumnoId) => {
         include: {
           canchas: {
             include: { sedes: true }
-          }
+          },
+          coordinadores: {
+            include: {
+              usuarios: {
+                select: {
+                  nombres: true,
+                  apellidos: true
+                }
+              }
+            }
+          },
+          niveles_entrenamiento: true
         }
       }
     },
