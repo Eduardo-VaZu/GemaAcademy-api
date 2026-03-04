@@ -132,7 +132,7 @@ export const iniciarCronJobs = () => {
       try {
         await congelamientoCronService.gestionarCongelamientos();
       } catch (error) {
-        logger.error('[CRON ERROR] Falló la verificación de congelamientos:', error);
+        logger.error('[CRON ERROR] Falló la verificación de congelamientos: ', error);
       }
     },
     { timezone: 'America/Lima' }
