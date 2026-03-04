@@ -10,6 +10,8 @@ const router = Router();
 router.use(authenticate);
 router.use(authorize('Alumno'));
 
+
+router.get('/mi-perfil', alumnoController.obtenerMiPerfil);
 // PATCH /api/alumno/mi-perfil
 router.patch('/mi-perfil', validate(actualizarPerfilSchema), alumnoController.actualizarMiPerfil);
 

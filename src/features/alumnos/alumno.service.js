@@ -96,4 +96,20 @@ export const alumnoService = {
       });
     });
   },
+  obtenerMiPerfil: async (usuarioId) => {
+  // Realizamos una consulta anidada para traer todo el expediente
+  const perfil = await prisma.usuarios.findUnique({
+    where: { id: usuarioId },
+    include: {
+      alumnos: {
+        include: {
+          direcciones: true // Traemos calle, distrito y referencia
+        }
+      }
+    }
+  });
+
+  if (!perfil) throw new ApiError('Alumno no encontrado', 404);
+  return perfil;
+},
 };
