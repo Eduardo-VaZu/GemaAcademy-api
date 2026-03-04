@@ -1,7 +1,7 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
 
-const NIVEL_SELECT = { id: true, nombre: true, descripcion: true };
+const NIVEL_SELECT = { id: true, nombre: true };
 
 export const nivelService = {
   createNivel: async (data) => {
@@ -13,7 +13,7 @@ export const nivelService = {
     if (nivelExistente) throw new ApiError('El nivel ya existe', 409);
 
     return await prisma.niveles_entrenamiento.create({
-      data: { nombre: data.nombre, descripcion: data.descripcion || null },
+      data: { nombre: data.nombre },
       select: NIVEL_SELECT,
     });
   },
