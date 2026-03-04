@@ -6,6 +6,8 @@ export const alumnoService = {
     const {
       email,
       telefono_personal,
+      tipo_documento_id,
+      numero_documento,
       fecha_nacimiento,
       condiciones_medicas,
       seguro_medico,
@@ -22,6 +24,8 @@ export const alumnoService = {
       if (email) dataUsuario.email = email;
       if (telefono_personal) dataUsuario.telefono_personal = telefono_personal;
       if (fecha_nacimiento) dataUsuario.fecha_nacimiento = new Date(fecha_nacimiento);
+      if (tipo_documento_id) dataUsuario.tipo_documento_id = tipo_documento_id;
+      if (numero_documento) dataUsuario.numero_documento = numero_documento;
 
       if (Object.keys(dataUsuario).length > 0) {
         await tx.usuarios.update({ where: { id: usuarioId }, data: dataUsuario });
@@ -81,6 +85,8 @@ export const alumnoService = {
               email: true,
               telefono_personal: true,
               fecha_nacimiento: true,
+              tipo_documento_id: true,
+              numero_documento: true,
             },
           },
           direcciones: {
@@ -97,19 +103,19 @@ export const alumnoService = {
     });
   },
   obtenerMiPerfil: async (usuarioId) => {
-  // Realizamos una consulta anidada para traer todo el expediente
-  const perfil = await prisma.usuarios.findUnique({
-    where: { id: usuarioId },
-    include: {
-      alumnos: {
-        include: {
-          direcciones: true // Traemos calle, distrito y referencia
+    // Realizamos una consulta anidada para traer todo el expediente
+    const perfil = await prisma.usuarios.findUnique({
+      where: { id: usuarioId },
+      include: {
+        alumnos: {
+          include: {
+            direcciones: true // Traemos calle, distrito y referencia
+          }
         }
       }
-    }
-  });
+    });
 
-  if (!perfil) throw new ApiError('Alumno no encontrado', 404);
-  return perfil;
-},
+    if (!perfil) throw new ApiError('Alumno no encontrado', 404);
+    return perfil;
+  },
 };

@@ -44,5 +44,9 @@ export const actualizarPerfilSchema = z
     ciudad: z.string().max(100, 'Máximo 100 caracteres').optional(),
 
     referencia: z.string().max(500, 'Máximo 500 caracteres').optional(),
+
+    tipo_documento_id: z.string().max(10, 'Máximo 10 caracteres').optional(),
+
+    numero_documento: z.string().max(20, 'Máximo 20 caracteres').optional(),
   })
   .strict();
