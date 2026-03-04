@@ -6,6 +6,7 @@ import { inscripcionService } from '../../inscripciones/inscripcion.service.js';
 import { inscripcionCronService } from '../../inscripciones/inscripcion-cron.service.js';
 import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.service.js';
 import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
+import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
@@ -28,10 +29,10 @@ export const iniciarCronJobs = () => {
 
   // ------------------------------------------------------------------
   // TAREA 2: EL VERDUGO DE VENCIMIENTOS (Todos los días a las 00:00 AM)
-  // Objetivo: Congelar (VENCIDO) y luego Eliminar (FINALIZADO) según ciclo de 30 días.
+  // Objetivo: Cambiar a FINALIZADO o PEN-RECU según el ciclo (Madre + 30 días + tolerancia).
   // ------------------------------------------------------------------
   cron.schedule(
-    '0 0 * * *',
+    '* * * * *',
     async () => {
       logger.info(`[CRON] Iniciando revisión nocturna de ciclos: ${new Date().toISOString()}`);
       try {
@@ -118,6 +119,20 @@ export const iniciarCronJobs = () => {
         await inscripcionCronService.cambiarEstado();
       } catch (error) {
         logger.error('[CRON ERROR] Falló la verificación de inscripciones:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
+  // Cron para finalizar congelamientos por lesiones a la 1 am
+  cron.schedule(
+    '0 1 * * *',
+    async () => {
+      logger.info(`[CRON] Verificando congelamientos por finalizar...`);
+      try {
+        await congelamientoCronService.gestionarCongelamientos();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló la verificación de congelamientos: ', error);
       }
     },
     { timezone: 'America/Lima' }

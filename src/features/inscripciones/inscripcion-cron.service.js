@@ -72,45 +72,78 @@ class InscripcionCronService {
   async gestionarVencimientos() {
     const hoy = new Date();
 
+    // 1. Obtenemos los días de gracia del sistema
     const paramTolerancia = await prisma.parametros_sistema.findUnique({
       where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' },
     });
     const diasGracia = paramTolerancia ? Number.parseInt(paramTolerancia.valor) : 5;
 
-    const limiteCiclo = new Date();
-    limiteCiclo.setDate(hoy.getDate() - 30);
-
-    const congelados = await prisma.inscripciones.updateMany({
-      where: {
-        estado: 'ACTIVO',
-        fecha_inscripcion: { lt: limiteCiclo },
-      },
-      data: {
-        estado: 'VENCIDO',
-        actualizado_en: new Date(),
-      },
+    // 2. Obtenemos TODOS los alumnos que tienen al menos una inscripción ACTIVA
+    const alumnosActivos = await prisma.inscripciones.findMany({
+      where: { estado: 'ACTIVO' },
+      distinct: ['alumno_id'],
+      select: { alumno_id: true }
     });
 
-    if (congelados.count > 0) {
-      logger.info(`[VERDUGO] Se congelaron ${congelados.count} inscripciones (Fin de mes).`);
+    if (alumnosActivos.length === 0) return;
+
+    let totalFinalizados = 0;
+    let totalPenRecu = 0;
+
+    // 3. Iteramos por cada alumno para analizar su ciclo completo
+    for (const { alumno_id } of alumnosActivos) {
+      
+      // 4. Buscamos su FECHA MADRE (la inscripción activa más antigua)
+      const inscripcionMadre = await prisma.inscripciones.findFirst({
+        where: { alumno_id: alumno_id, estado: 'ACTIVO' },
+        orderBy: { fecha_inscripcion: 'asc' },
+      });
+
+      if (!inscripcionMadre) continue;
+
+      // 5. Calculamos la fecha de muerte (Madre + 30 días + Tolerancia)
+      const fechaLimiteMuerte = new Date(inscripcionMadre.fecha_inscripcion);
+      fechaLimiteMuerte.setDate(fechaLimiteMuerte.getDate() + 30 + diasGracia);
+
+      // 6. Si la fecha límite aún no ha pasado, pasa al siguiente alumno
+      if (fechaLimiteMuerte > hoy) {
+        continue; 
+      }
+
+      // 7. El alumno ya venció. Revisamos la tabla de recuperaciones.
+      const tieneRecuperacionesPendientes = await prisma.recuperaciones.findFirst({
+        where: {
+          alumno_id: alumno_id,
+          estado: { in: ['PENDIENTE', 'PROGRAMADA'] }
+        }
+      });
+
+      let nuevoEstado = '';
+
+      if (tieneRecuperacionesPendientes) {
+        nuevoEstado = 'PEN-RECU';
+        totalPenRecu++;
+      } else {
+        nuevoEstado = 'FINALIZADO';
+        totalFinalizados++;
+      }
+
+      // 8. Aplicamos la sentencia: Cambiamos TODAS sus inscripciones activas al nuevo estado.
+      await prisma.inscripciones.updateMany({
+        where: {
+          alumno_id: alumno_id,
+          estado: 'ACTIVO'
+        },
+        data: {
+          estado: nuevoEstado,
+          actualizado_en: new Date()
+        }
+      });
     }
 
-    const limiteTotal = new Date();
-    limiteTotal.setDate(hoy.getDate() - (30 + diasGracia));
-
-    const finalizados = await prisma.inscripciones.updateMany({
-      where: {
-        estado: 'VENCIDO',
-        fecha_inscripcion: { lt: limiteTotal },
-      },
-      data: {
-        estado: 'FINALIZADO',
-        actualizado_en: new Date(),
-      },
-    });
-
-    if (finalizados.count > 0) {
-      logger.info(`[VERDUGO] Se liberaron ${finalizados.count} cupos tras vencer su tolerancia.`);
+    // Reporte en consola
+    if (totalFinalizados > 0 || totalPenRecu > 0) {
+      logger.info(`[VERDUGO] Cierre de ciclos procesado. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}.`);
     }
   }
 

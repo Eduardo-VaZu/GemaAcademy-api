@@ -351,6 +351,17 @@ export const asistenciaService = {
   },
 
   procesarAsistenciaMasiva: async (asistencias) => {
+
+    const esFechaFutura = (fechaClase) => {
+      const hoy = new Date();
+      const hoyUTC = Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate());
+
+      const fecha = new Date(fechaClase);
+      const fechaUTC = Date.UTC(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+
+      return fechaUTC > hoyUTC;
+    };
+
     return await prisma.$transaction(async (tx) => {
       for (const a of asistencias) {
         // Por si el alumno es de recuperación
@@ -361,9 +372,17 @@ export const asistenciaService = {
           const recu = await tx.recuperaciones.update({
             where: { id: recuperacionId },
             data: {
-              estado: a.estado === 'FALTA' ? 'COMPLETADA_FALTA' : 'COMPLETADA_PRESENTE',
-            },
+              estado: a.estado === 'FALTA'
+                ? 'COMPLETADA_FALTA'
+                : a.estado === 'PRESENTE'
+                  ? 'COMPLETADA_PRESENTE'
+                  : a.estado
+            }
           });
+
+          if (esFechaFutura(recu.fecha_programada)) {
+            throw new Error("No se puede registrar recuperación en una fecha futura.");
+          }
 
           const inscActiva = await tx.inscripciones.findFirst({
             where: { alumno_id: recu.alumno_id, estado: { in: ['ACTIVO', 'PEN-RECU'] } },
@@ -417,6 +436,10 @@ export const asistenciaService = {
         });
         if (!asistencia || asistencia.estado === 'JUSTIFICADO_LESION') {
           continue;
+        }
+
+        if (esFechaFutura(asistencia.fecha)) {
+          throw new Error("No se puede registrar asistencia en una fecha futura.");
         }
 
         // Si es un alumno fijo, simplemente se actualiza la asistencia
