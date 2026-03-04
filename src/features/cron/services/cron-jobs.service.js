@@ -7,6 +7,7 @@ import { inscripcionCronService } from '../../inscripciones/inscripcion-cron.ser
 import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.service.js';
 import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
+import { notificacionCronService } from '../../inscripciones/notificacion-cron.service.js';
 
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
@@ -150,6 +151,23 @@ export const iniciarCronJobs = () => {
         await inscripcionCronService.liquidarMorososParciales();
       } catch (error) {
         logger.error('[CRON ERROR] Falló el Liquidador de Parciales:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
+  // ------------------------------------------------------------------
+  // TAREA NUEVA: EL NOTIFICADOR DE WHATSAPP (Todos los días a las 10:00 AM)
+  // Objetivo: Avisar a los morosos parciales 2 días antes de que el Liquidador actúe.
+  // ------------------------------------------------------------------
+  cron.schedule(
+    '0 10 * * *',
+    async () => {
+      logger.info(`[CRON] El Notificador de WhatsApp buscando morosos en peligro...`);
+      try {
+        await notificacionCronService.avisarMorososParciales();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló el Notificador de WhatsApp:', error);
       }
     },
     { timezone: 'America/Lima' }

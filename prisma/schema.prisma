@@ -96,6 +96,7 @@ model cuentas_por_cobrar {
   monto_final          Decimal                @db.Decimal(10, 2)
   fecha_vencimiento    DateTime               @db.Date
   estado               String?                @default("PENDIENTE") @db.VarChar(20)
+  notificacion_parcial_enviada Boolean?       @default(false)
   creado_en            DateTime?              @default(now()) @db.Timestamp(6)
   actualizado_en       DateTime?              @default(now()) @db.Timestamp(6)
   alumnos              alumnos                @relation(fields: [alumno_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
