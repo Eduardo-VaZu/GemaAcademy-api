@@ -60,3 +60,24 @@ export const existeRenovacionReciente = async (tx, alumnoId, inicioBusqueda) => 
   });
   return !!deuda;
 };
+
+// =================================================================
+// 🔥 NUEVO FILTRO 6: EL MURO DE RECUPERACIONES
+// =================================================================
+/**
+ * Verifica si el alumno tiene recuperaciones pendientes o programadas.
+ */
+export const validarSinRecuperacionesPendientes = async (tx, alumnoId) => {
+  const recuperacionesPendientes = await tx.recuperaciones.count({
+    where: {
+      alumno_id: Number.parseInt(alumnoId),
+      estado: { in: ['PENDIENTE', 'PROGRAMADA'] },
+    },
+  });
+
+  if (recuperacionesPendientes > 0) {
+    throw new Error(
+      '⛔ BLOQUEO POR RECUPERACIÓN: Tienes clases por recuperar. Debes agendar y asistir a tus clases pendientes antes de comprar un nuevo paquete.'
+    );
+  }
+};
