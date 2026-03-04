@@ -1,58 +1,44 @@
-import { CatalogoService } from './catalogo.service.js';
+import { catalogoService } from './catalogo.service.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
 
-export class CatalogoController {
-    constructor() {
-        this.service = new CatalogoService();
-    }
+export const catalogoController = {
+  getAll: catchAsync(async (req, res) => {
+    const data = await catalogoService.findAll();
+    return apiResponse.success(res, {
+      message: 'Catálogo de conceptos obtenido',
+      data,
+    });
+  }),
 
-    /** @param {import('express').Request} req @param {import('express').Response} res */
-    getAll = async (req, res) => {
-        try {
-            const data = await this.service.findAll();
-            res.json({ status: 'success', data });
-        } catch (error) {
-            res.status(500).json({ status: 'error', message: error.message });
-        }
-    };
+  getById: catchAsync(async (req, res) => {
+    const data = await catalogoService.findOne(req.params.id); // req.params.id is parsed by Zod now
+    return apiResponse.success(res, {
+      message: 'Concepto obtenido',
+      data,
+    });
+  }),
 
-    /** @param {import('express').Request} req @param {import('express').Response} res */
-    getById = async (req, res) => {
-        try {
-            const data = await this.service.findOne(parseInt(req.params.id));
-            if (!data) return res.status(404).json({ message: 'Concepto no encontrado' });
-            res.json({ status: 'success', data });
-        } catch (error) {
-            res.status(500).json({ status: 'error', message: 'Error en el servidor' });
-        }
-    };
+  create: catchAsync(async (req, res) => {
+    const data = await catalogoService.create(req.body);
+    return apiResponse.created(res, {
+      message: 'Concepto creado exitosamente',
+      data,
+    });
+  }),
 
-    /** @param {import('express').Request} req @param {import('express').Response} res */
-    create = async (req, res) => {
-        try {
-            const data = await this.service.create(req.body);
-            res.status(201).json({ status: 'success', data });
-        } catch (error) {
-            res.status(400).json({ status: 'error', message: 'Error al crear el concepto' });
-        }
-    };
+  update: catchAsync(async (req, res) => {
+    const data = await catalogoService.update(req.params.id, req.body);
+    return apiResponse.success(res, {
+      message: 'Concepto actualizado exitosamente',
+      data,
+    });
+  }),
 
-    /** @param {import('express').Request} req @param {import('express').Response} res */
-    update = async (req, res) => {
-        try {
-            const data = await this.service.update(parseInt(req.params.id), req.body);
-            res.json({ status: 'success', data });
-        } catch (error) {
-            res.status(400).json({ status: 'error', message: 'Error al actualizar' });
-        }
-    };
-
-    /** @param {import('express').Request} req @param {import('express').Response} res */
-    delete = async (req, res) => {
-        try {
-            await this.service.delete(parseInt(req.params.id));
-            res.json({ status: 'success', message: 'Concepto desactivado correctamente' });
-        } catch (error) {
-            res.status(400).json({ status: 'error', message: 'No se pudo eliminar el concepto' });
-        }
-    };
-}
+  delete: catchAsync(async (req, res) => {
+    await catalogoService.delete(req.params.id);
+    return apiResponse.success(res, {
+      message: 'Concepto desactivado exitosamente',
+    });
+  }),
+};

@@ -1,47 +1,47 @@
 import { DescuentosAplicadosService } from './descuentos_aplicados.service.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
 
 export const DescuentosAplicadosController = {
-  async aplicarBeneficio(req, res) {
-    try {
-      const { cuenta_id, tipo_beneficio_id, admin_id, motivo } = req.body;
+  aplicarBeneficio: catchAsync(async (req, res) => {
+    const { cuenta_id, tipo_beneficio_id, motivo } = req.body;
 
-      // Validación rápida de campos obligatorios
-      if (!cuenta_id || !tipo_beneficio_id || !admin_id) {
-        return res.status(400).json({ 
-          ok: false, 
-          error: "Faltan datos obligatorios (cuenta, beneficio o admin)" 
-        });
-      }
-      
-      const result = await DescuentosAplicadosService.aplicar({
-        cuenta_id: parseInt(cuenta_id),
-        tipo_beneficio_id: parseInt(tipo_beneficio_id),
-        admin_id: parseInt(admin_id),
-        motivo
-      });
+    // Obtenemos el ID del Admin creador desde el JWT token, NUNCA desde un request payload.
+    const admin_id = req.user.id;
 
-      res.status(201).json({ 
-        ok: true, 
-        message: result.mensaje || "Descuento aplicado con éxito", 
-        data: result.descuento 
-      });
+    // Los datos numéricos de cuenta_id y tipo_beneficio_id ya están limpiados y coercionados por Zod.
+    const result = await DescuentosAplicadosService.aplicar({
+      cuenta_id,
+      tipo_beneficio_id,
+      admin_id,
+      motivo,
+    });
 
-    } catch (error) {
-      console.error("Error en Descuentos Controller:", error.message);
-      res.status(400).json({ ok: false, error: error.message || "Error al procesar el beneficio" });
-    }
-  },
+    return apiResponse.created(res, {
+      message: `S/ ${result.descuentoFinal.toFixed(2)} descontados correctamente.`,
+      data: result.descuento,
+    });
+  }),
 
-  async verHistorialCuenta(req, res) {
-    try {
-      const { cuentaId } = req.params;
-      if (!cuentaId) throw new Error("ID de cuenta no proporcionado");
+  // Nuevo endpoint que estaba en service pero inalcanzable
+  eliminarBeneficio: catchAsync(async (req, res) => {
+    const descuento_id = req.params.id; // Limpio por Zod
+    const restaurarBeneficio = req.query.restaurar_beneficio || false;
 
-      const result = await DescuentosAplicadosService.obtenerPorCuenta(cuentaId);
-      res.json({ ok: true, data: result });
-    } catch (error) {
-      console.error("Error obteniendo historial:", error.message);
-      res.status(500).json({ ok: false, error: "No se pudo recuperar el historial de descuentos" });
-    }
-  }
+    await DescuentosAplicadosService.eliminar(descuento_id, restaurarBeneficio);
+
+    return apiResponse.success(res, {
+      message: 'Descuento revertido satisfactoriamente',
+    });
+  }),
+
+  verHistorialCuenta: catchAsync(async (req, res) => {
+    const cuentaId = req.params.cuentaId; // Ya es number gracias a Zod coercion.
+
+    const result = await DescuentosAplicadosService.obtenerPorCuenta(cuentaId);
+    return apiResponse.success(res, {
+      message: 'Historial obtenido',
+      data: result,
+    });
+  }),
 };

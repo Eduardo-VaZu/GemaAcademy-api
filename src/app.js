@@ -28,7 +28,7 @@ import catalogoRoutes from './features/catalogo_de_concepto/catalogo.routes.js';
 import parametrosRoutes from './features/parametros_sistema/parametros.routes.js';
 import cloudinaryRoutes from './features/cloudinaryImg/cloudinary.routes.js';
 import lesionRoutes from './features/lesiones/lesion.routes.js';
-import tipoDocumentosRoutes from './features/tipo_documento/tipo_documento.routers.js';
+import tipoDocumentosRoutes from './features/tipo_documento/tipo_documento.routes.js';
 import beneficioPendiente from './features/beneficios_pendientes/beneficios-pendientes.routes.js';
 import alumnoRoutes from './features/alumnos/alumno.routes.js';
 import publicacionRoutes from './features/publicaciones/publicacion.routes.js';

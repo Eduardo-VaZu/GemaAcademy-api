@@ -1,22 +1,47 @@
 import { Router } from 'express';
-import { CatalogoController } from './catalogo.controller.js';
+import { catalogoController } from './catalogo.controller.js';
+import { authenticate } from '../../shared/middlewares/auth.middleware.js';
+import { authorize } from '../../shared/middlewares/authorize.middleware.js';
+import { validate, validateParams } from '../../shared/middlewares/validate.middleware.js';
+import { catalogoSchema } from './catalogo.schema.js';
 
 const router = Router();
-const controller = new CatalogoController();
 
-// Ruta para obtener todos los conceptos activos
-router.get('/', controller.getAll);
+// Todas las rutas del catálogo requieren autenticación mínima
+router.use(authenticate);
+
+// Ruta para obtener todos los conceptos activos (Admin/Coordinador)
+router.get('/', authorize('Administrador', 'Coordinador'), catalogoController.getAll);
 
 // Ruta para obtener un solo concepto por su ID
-router.get('/:id', controller.getById);
+router.get(
+  '/:id',
+  authorize('Administrador', 'Coordinador'),
+  validateParams(catalogoSchema.idParamSchema),
+  catalogoController.getById
+);
 
-// Ruta para crear un nuevo concepto (Mensualidad, Inscripción, etc.)
-router.post('/', controller.create);
+// MÉTODOS MUTABLES (Solo Admin)
+router.post(
+  '/',
+  authorize('Administrador'),
+  validate(catalogoSchema.createSchema),
+  catalogoController.create
+);
 
-// Ruta para actualizar un concepto existente
-router.put('/:id', controller.update);
+router.put(
+  '/:id',
+  authorize('Administrador'),
+  validateParams(catalogoSchema.idParamSchema),
+  validate(catalogoSchema.updateSchema),
+  catalogoController.update
+);
 
-// Ruta para eliminar (borrado lógico) un concepto
-router.delete('/:id', controller.delete);
+router.delete(
+  '/:id',
+  authorize('Administrador'),
+  validateParams(catalogoSchema.idParamSchema),
+  catalogoController.delete
+);
 
 export default router;
