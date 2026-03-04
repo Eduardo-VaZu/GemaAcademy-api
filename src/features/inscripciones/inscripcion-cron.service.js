@@ -78,39 +78,42 @@ class InscripcionCronService {
     });
     const diasGracia = paramTolerancia ? Number.parseInt(paramTolerancia.valor) : 5;
 
-    // 2. Obtenemos TODOS los alumnos que tienen al menos una inscripción ACTIVA
-    const alumnosActivos = await prisma.inscripciones.findMany({
-      where: { estado: 'ACTIVO' },
-      distinct: ['alumno_id'],
-      select: { alumno_id: true }
+    // 2. 🔥 EL FILTRO MAESTRO: Tráeme a CUALQUIERA que deba plata (estado: PENDIENTE)
+    // Sin importar de cuándo es la deuda. Si tiene deuda, El Verdugo lo investiga.
+    const rebeldes = await prisma.cuentas_por_cobrar.findMany({
+      where: { estado: 'PENDIENTE' },
+      select: { alumno_id: true },
+      distinct: ['alumno_id'], // No queremos ejecutar al mismo alumno dos veces
     });
 
-    if (alumnosActivos.length === 0) return;
+    if (rebeldes.length === 0) return; // Si nadie debe plata, El Verdugo sigue durmiendo
 
     let totalFinalizados = 0;
     let totalPenRecu = 0;
 
-    // 3. Iteramos por cada alumno para analizar su ciclo completo
-    for (const { alumno_id } of alumnosActivos) {
+    // 3. Iteramos SOLO sobre los alumnos que tienen cuentas pendientes
+    for (const { alumno_id } of rebeldes) {
       
-      // 4. Buscamos su FECHA MADRE (la inscripción activa más antigua)
+      // Buscamos su FECHA MADRE (la inscripción activa más antigua)
       const inscripcionMadre = await prisma.inscripciones.findFirst({
         where: { alumno_id: alumno_id, estado: 'ACTIVO' },
         orderBy: { fecha_inscripcion: 'asc' },
       });
 
+      // Si no tiene inscripciones activas, lo ignoramos
       if (!inscripcionMadre) continue;
 
-      // 5. Calculamos la fecha de muerte (Madre + 30 días + Tolerancia)
+      // 4. LA REGLA DE ORO: Fecha Madre + 30 días del ciclo normal + Días de Tolerancia
       const fechaLimiteMuerte = new Date(inscripcionMadre.fecha_inscripcion);
       fechaLimiteMuerte.setDate(fechaLimiteMuerte.getDate() + 30 + diasGracia);
 
-      // 6. Si la fecha límite aún no ha pasado, pasa al siguiente alumno
+      // Si la fecha límite aún no llega (está en el futuro), se salva por hoy
       if (fechaLimiteMuerte > hoy) {
         continue; 
       }
 
-      // 7. El alumno ya venció. Revisamos la tabla de recuperaciones.
+      // 5. SI LLEGÓ HASTA AQUÍ: Ya pasó su fecha límite y no ha pagado.
+      // Buscamos el perdón (Recuperaciones pendientes o programadas por lesión, etc.)
       const tieneRecuperacionesPendientes = await prisma.recuperaciones.findFirst({
         where: {
           alumno_id: alumno_id,
@@ -118,32 +121,32 @@ class InscripcionCronService {
         }
       });
 
-      let nuevoEstado = '';
+      const nuevoEstado = tieneRecuperacionesPendientes ? 'PEN-RECU' : 'FINALIZADO';
 
-      if (tieneRecuperacionesPendientes) {
-        nuevoEstado = 'PEN-RECU';
+      if (nuevoEstado === 'PEN-RECU') {
         totalPenRecu++;
       } else {
-        nuevoEstado = 'FINALIZADO';
         totalFinalizados++;
       }
 
-      // 8. Aplicamos la sentencia: Cambiamos TODAS sus inscripciones activas al nuevo estado.
-      await prisma.inscripciones.updateMany({
-        where: {
-          alumno_id: alumno_id,
-          estado: 'ACTIVO'
-        },
-        data: {
-          estado: nuevoEstado,
-          actualizado_en: new Date()
-        }
-      });
+      // 6. La Ejecución: Cambiamos estados en una transacción segura
+      await prisma.$transaction([
+        // Matamos TODAS sus inscripciones activas mandándolas al estado que le tocó
+        prisma.inscripciones.updateMany({
+          where: { alumno_id: alumno_id, estado: 'ACTIVO' },
+          data: { estado: nuevoEstado, actualizado_en: new Date() }
+        }),
+        // Marcamos las deudas pendientes de este alumno como VENCIDA
+        prisma.cuentas_por_cobrar.updateMany({
+          where: { alumno_id: alumno_id, estado: 'PENDIENTE' },
+          data: { estado: 'VENCIDA', actualizado_en: new Date() }
+        })
+      ]);
     }
 
     // Reporte en consola
     if (totalFinalizados > 0 || totalPenRecu > 0) {
-      logger.info(`[VERDUGO] Cierre de ciclos procesado. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}.`);
+      logger.info(`[VERDUGO] Ejecución completada. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos al Purgatorio (PEN-RECU): ${totalPenRecu}.`);
     }
   }
 
