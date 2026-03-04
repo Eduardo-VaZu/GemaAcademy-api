@@ -22,7 +22,7 @@ export const asistenciaSchema = {
       .array(
         z.object({
           id: z.union([z.number(), z.string().regex(/^reg-asis-recu-\d+$/)]),
-          estado: z.enum(['PRESENTE', 'FALTA', 'PROGRAMADA', 'JUSTIFICADO_LESION']),
+          estado: z.enum(['PRESENTE', 'FALTA', 'PROGRAMADA', 'JUSTIFICADO_LESION', 'SIN_REGISTRO',]),
           comentario: z.string().max(255).optional().nullable(),
         })
       )

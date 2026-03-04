@@ -54,6 +54,25 @@ class RecuperacionCronService {
       logger.info(`Se marcaron ${expiradosCount} tickets como VENCIDOS.`);
     }
   }
+
+  async ejecutarLimpiezaTicketsPorLesion() {
+    const hoy = new Date();
+    const ticketsActualizados = await prisma.recuperaciones.updateMany({
+      where: {
+        es_por_lesion: true,
+        estado: 'PROGRAMADA',
+        fecha_programada: {
+          lt: hoy,
+        }
+      },
+      data: {
+        estado: 'COMPLETADA_FALTA',
+      }
+    })
+    if (ticketsActualizados.count > 0) {
+      logger.info(`Se actualizaron ${ticketsActualizados.count} recuperaciones por lesión como COMPLETADA_FALTA.`);
+    }
+  }
 }
 
 export const recuperacionCronService = new RecuperacionCronService();

@@ -7,6 +7,7 @@ import { inscripcionCronService } from '../../inscripciones/inscripcion-cron.ser
 import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.service.js';
 import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
+import { asistenciaCronService } from '../../asistencia/asistencia-cron.service.js';
 
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
@@ -150,6 +151,34 @@ export const iniciarCronJobs = () => {
         await inscripcionCronService.liquidarMorososParciales();
       } catch (error) {
         logger.error('[CRON ERROR] Falló el Liquidador de Parciales:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
+  // Cron para actualizar registros de asistencias sin marcar a la 1 am
+  cron.schedule(
+    '0 1 * * *',
+    async () => {
+      logger.info(`[CRON] Verificando registros de asistencia sin marcar...`);
+      try {
+        await asistenciaCronService.sinRegistroAsistencias();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló la verificación de registros: ', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
+  // Cron para cambiar de estado a las recuperaciones por lesion que no fueron marcadas como PRESENTE / FALTA
+  cron.schedule(
+    '0 1 * * *',
+    async () => {
+      logger.info(`[CRON] Verificando tickets por lesión sin marcar...`);
+      try {
+        await recuperacionCronService.ejecutarLimpiezaTicketsPorLesion();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló la verificación de tickets por lesión: ', error);
       }
     },
     { timezone: 'America/Lima' }
