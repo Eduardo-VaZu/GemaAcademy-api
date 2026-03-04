@@ -280,8 +280,7 @@ export const inscripcionService = {
   obtenerPorAlumno: async (alumnoId) => {
     return await prisma.inscripciones.findMany({
       where: {
-        alumno_id: Number.parseInt(alumnoId),
-        estado: 'ACTIVO' // Solo traemos las clases vigentes
+        alumno_id: Number.parseInt(alumnoId)
       },
       include: {
         horarios_clases: {
@@ -328,8 +327,60 @@ export const inscripcionService = {
     return await prisma.inscripciones.delete({
       where: { id: Number.parseInt(id) }
     });
-  }
+  },
+// =================================================================
+  // 👋 FINALIZACIÓN VOLUNTARIA (El usuario decide retirarse)
+  // =================================================================
+  finalizarInscripcionVoluntaria: async (id) => {
+    return await prisma.$transaction(async (tx) => {
+      // 1. Verificamos que la inscripción exista y sea del alumno
+      const inscripcion = await tx.inscripciones.findUnique({
+        where: { id: Number.parseInt(id) }
+      });
+
+      if (!inscripcion) {
+        throw new Error('La inscripción no existe.');
+      }
+
+      // 🛡️ REGLA DE NEGOCIO: Solo se puede finalizar lo que está ACTIVO
+      if (inscripcion.estado !== 'ACTIVO') {
+        throw new Error(`No se puede finalizar una inscripción con estado ${inscripcion.estado}.`);
+      }
+
+      // 2. Aplicamos la misma lógica que "El Verdugo": Buscamos recuperaciones
+      const tieneRecuperaciones = await tx.recuperaciones.findFirst({
+        where: {
+          alumno_id: inscripcion.alumno_id,
+          estado: { in: ['PENDIENTE', 'PROGRAMADA'] }
+        }
+      });
+
+      // Si tiene tickets de recuperación, lo mandamos al "Purgatorio" (PEN-RECU)
+      // Si no tiene nada, se marca como FINALIZADO definitivamente
+      const nuevoEstado = tieneRecuperaciones ? 'PEN-RECU' : 'FINALIZADO';
+
+      const inscripcionActualizada = await tx.inscripciones.update({
+        where: { id: Number.parseInt(id) },
+        data: { 
+          estado: nuevoEstado,
+          actualizado_en: new Date()
+        }
+      });
+
+      console.log(`✅ [CANCELACIÓN] El alumno ${inscripcion.alumno_id} finalizó voluntariamente el horario ${inscripcion.horario_id}.`);
+      
+      return {
+        success: true,
+        mensaje: tieneRecuperaciones 
+          ? 'Inscripción finalizada. Aún tienes recuperaciones pendientes.' 
+          : 'Inscripción finalizada correctamente.',
+        nuevo_estado: nuevoEstado
+      };
+    });
+  },
+
 };
+
 
 // --- HELPER (Calendario) ---
 function contarClasesEnIntervalo(diaSemana, inicio, fin) {

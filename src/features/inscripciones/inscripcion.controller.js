@@ -116,5 +116,26 @@ export const inscripcionController = {
         message: error.message
       });
     }
-  }
+  },
+  // 🆕 NUEVO: Finalización Voluntaria por parte del Alumno
+  finalizarVoluntaria: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const resultado = await inscripcionService.finalizarInscripcionVoluntaria(id);
+      
+      res.status(200).json({
+        status: 'success',
+        message: resultado.mensaje,
+        data: {
+          nuevo_estado: resultado.nuevo_estado
+        }
+      });
+    } catch (error) {
+      // Manejamos errores de lógica (si no está activa o no existe)
+      res.status(400).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  },
 };

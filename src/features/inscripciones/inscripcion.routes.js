@@ -10,6 +10,9 @@ router.post('/', inscripcionController.inscribir);
 // GET http://localhost:3000/api/inscripciones
 router.get('/', inscripcionController.listarInscripciones);
 
+// PATCH: Finalización voluntaria de la inscripción por el alumno
+router.patch('/:id/finalizar', inscripcionController.finalizarVoluntaria);
+
 // GET: Listado por alumno (CORREGIDO el nombre del controlador)
 router.get('/alumno/:alumnoId', inscripcionController.listarPorAlumno); //
 
