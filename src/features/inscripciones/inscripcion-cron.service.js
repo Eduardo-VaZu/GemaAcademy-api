@@ -93,7 +93,6 @@ class InscripcionCronService {
 
     // 3. Iteramos SOLO sobre los alumnos que tienen cuentas pendientes
     for (const { alumno_id } of rebeldes) {
-      
       // Buscamos su FECHA MADRE (la inscripción activa más antigua)
       const inscripcionMadre = await prisma.inscripciones.findFirst({
         where: { alumno_id: alumno_id, estado: 'ACTIVO' },
@@ -109,7 +108,7 @@ class InscripcionCronService {
 
       // Si la fecha límite aún no llega (está en el futuro), se salva por hoy
       if (fechaLimiteMuerte > hoy) {
-        continue; 
+        continue;
       }
 
       // 5. SI LLEGÓ HASTA AQUÍ: Ya pasó su fecha límite y no ha pagado.
@@ -117,8 +116,8 @@ class InscripcionCronService {
       const tieneRecuperacionesPendientes = await prisma.recuperaciones.findFirst({
         where: {
           alumno_id: alumno_id,
-          estado: { in: ['PENDIENTE', 'PROGRAMADA'] }
-        }
+          estado: { in: ['PENDIENTE', 'PROGRAMADA'] },
+        },
       });
 
       const nuevoEstado = tieneRecuperacionesPendientes ? 'PEN-RECU' : 'FINALIZADO';
@@ -134,19 +133,21 @@ class InscripcionCronService {
         // Matamos TODAS sus inscripciones activas mandándolas al estado que le tocó
         prisma.inscripciones.updateMany({
           where: { alumno_id: alumno_id, estado: 'ACTIVO' },
-          data: { estado: nuevoEstado, actualizado_en: new Date() }
+          data: { estado: nuevoEstado, actualizado_en: new Date() },
         }),
         // Marcamos las deudas pendientes de este alumno como VENCIDA
         prisma.cuentas_por_cobrar.updateMany({
           where: { alumno_id: alumno_id, estado: 'PENDIENTE' },
-          data: { estado: 'VENCIDA', actualizado_en: new Date() }
-        })
+          data: { estado: 'VENCIDA', actualizado_en: new Date() },
+        }),
       ]);
     }
 
     // Reporte en consola
     if (totalFinalizados > 0 || totalPenRecu > 0) {
-      logger.info(`[VERDUGO] Ejecución completada. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos al Purgatorio (PEN-RECU): ${totalPenRecu}.`);
+      logger.info(
+        `[VERDUGO] Ejecución completada. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos al Purgatorio (PEN-RECU): ${totalPenRecu}.`
+      );
     }
   }
 
@@ -170,11 +171,13 @@ class InscripcionCronService {
       },
       data: {
         estado: 'FINALIZADO',
-      }
-    })
+      },
+    });
 
     if (inscFinalizadas.count > 0) {
-      logger.info(`Se cambiaron ${inscFinalizadas.count} inscripciones pendientes por recuperación a finalizados.`);
+      logger.info(
+        `Se cambiaron ${inscFinalizadas.count} inscripciones pendientes por recuperación a finalizados.`
+      );
     }
   }
   // =================================================================
@@ -226,13 +229,12 @@ class InscripcionCronService {
 
       // 6. Si hoy ya llegamos (o pasamos) el día de liquidación... ¡Zaz!
       if (hoy >= diaDelJuicioParcial) {
-        
         // Buscamos si tiene derecho a Purgatorio (Recuperaciones pendientes)
         const tieneRecuperacionesPendientes = await prisma.recuperaciones.findFirst({
           where: {
             alumno_id: alumno_id,
-            estado: { in: ['PENDIENTE', 'PROGRAMADA'] }
-          }
+            estado: { in: ['PENDIENTE', 'PROGRAMADA'] },
+          },
         });
 
         const nuevoEstado = tieneRecuperacionesPendientes ? 'PEN-RECU' : 'FINALIZADO';
@@ -248,14 +250,16 @@ class InscripcionCronService {
         await prisma.$transaction([
           prisma.inscripciones.updateMany({
             where: { alumno_id: alumno_id, estado: 'ACTIVO' },
-            data: { estado: nuevoEstado, actualizado_en: new Date() }
-          })
+            data: { estado: nuevoEstado, actualizado_en: new Date() },
+          }),
         ]);
       }
     }
 
     if (totalFinalizados > 0 || totalPenRecu > 0) {
-      logger.info(`[LIQUIDADOR PARCIAL] Ejecución exitosa. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}. Las deudas se mantuvieron en PARCIAL.`);
+      logger.info(
+        `[LIQUIDADOR PARCIAL] Ejecución exitosa. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}. Las deudas se mantuvieron en PARCIAL.`
+      );
     }
   }
 }

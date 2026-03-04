@@ -138,8 +138,6 @@ export const iniciarCronJobs = () => {
     { timezone: 'America/Lima' }
   );
 
-
-
   // ------------------------------------------------------------------
   // TAREA NUEVA: EL LIQUIDADOR DE PARCIALES (Todos los días a las 00:15 AM)
   // Objetivo: Matar inscripciones con pagos parciales justo antes de que el Profeta les genere nueva deuda.
@@ -156,5 +154,4 @@ export const iniciarCronJobs = () => {
     },
     { timezone: 'America/Lima' }
   );
-
 };
