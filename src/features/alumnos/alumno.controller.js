@@ -10,4 +10,11 @@ export const alumnoController = {
       data: resultado,
     });
   }),
+  obtenerMiPerfil: catchAsync(async (req, res) => {
+  const perfil = await alumnoService.obtenerMiPerfil(req.user.id);
+  return apiResponse.success(res, {
+    message: 'Perfil cargado',
+    data: perfil,
+  });
+}),
 };
