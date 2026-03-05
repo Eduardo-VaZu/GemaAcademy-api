@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database.config.js';
 import { logger } from '../../shared/utils/logger.util.js';
+import { notificacionesService } from '../notificaciones/notificaciones.service.js';
 
 class InscripcionCronService {
   async limpiarReservasZombies() {
@@ -61,6 +62,16 @@ class InscripcionCronService {
           await tx.inscripciones.delete({
             where: { id: zombie.id },
           });
+
+          // 2. 🔥 AQUÍ METEMOS EL LOG PARA EL FRONTEND
+          await notificacionesService.crear({
+            alumnoId: zombie.alumno_id,
+            titulo: '🎯 Reserva Zombie Eliminada',
+            mensaje: `El sistema eliminó una inscripción pendiente de pago por exceder los ${minutosLimite} minutos.`,
+            tipo: 'WARNING',
+            categoria: 'SISTEMA'
+          });
+
         });
         logger.info(`[FRANCOTIRADOR] Zombie ${zombie.id} y su deuda eliminados correctamente.`);
       } catch (error) {
@@ -140,6 +151,16 @@ class InscripcionCronService {
           where: { alumno_id: alumno_id, estado: 'PENDIENTE' },
           data: { estado: 'VENCIDA', actualizado_en: new Date() },
         }),
+        // 🔔 Notificación específica para la alumna
+        prisma.notificaciones.create({
+          data: {
+            alumno_id: alumno_id,
+            titulo: '⚠️ Ciclo Finalizado',
+            mensaje: `Tu inscripción pasó a ${nuevoEstado} por falta de pago tras vencer los días de gracia.`,
+            tipo: 'DANGER',
+            categoria: 'SISTEMA'
+          }
+        })
       ]);
     }
 
@@ -181,35 +202,35 @@ class InscripcionCronService {
     }
   }
   // =================================================================
-  // 🗡️ EL LIQUIDADOR DE PAGOS PARCIALES
+  // 🗡️ EL LIQUIDADOR DE PAGOS PARCIALES (Motor Completo)
   // =================================================================
   async liquidarMorososParciales() {
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0); // Limpiamos la hora para comparar solo "Días puros"
 
-    // 1. Obtenemos los días de anticipación con los que trabaja El Profeta (Ej: 5)
+    // 1. Obtenemos los días de anticipación del Profeta
     const paramAnti = await prisma.parametros_sistema.findUnique({
       where: { clave: 'DIAS_ANTICIPACION_RENOVACION' },
     });
     const diasAnticipacionProfeta = paramAnti ? Number.parseInt(paramAnti.valor) : 5;
 
-    // 🔥 LA REGLA DE ORO: El Liquidador siempre ataca exactamente 1 día antes
+    // 🔥 REGLA DE ORO: El Liquidador ataca exactamente 1 día antes que el Profeta genere deuda nueva
     const diasAnticipacionLiquidador = diasAnticipacionProfeta + 1;
 
-    // 2. Buscamos a TODOS los alumnos que tienen una deuda a medias (Literalmente 'PARCIAL')
+    // 2. Buscamos a TODOS los alumnos con deuda a medias ('PARCIAL')
     const morososParciales = await prisma.cuentas_por_cobrar.findMany({
       where: { estado: 'PARCIAL' },
       select: { alumno_id: true },
       distinct: ['alumno_id'],
     });
 
-    if (morososParciales.length === 0) return; // Si no hay morosos a medias, vuelve a dormir
+    if (morososParciales.length === 0) return;
 
     let totalFinalizados = 0;
     let totalPenRecu = 0;
 
     for (const { alumno_id } of morososParciales) {
-      // 3. Buscamos su Fecha Madre para calcular su ciclo personal
+      // 3. Buscamos su Fecha Madre para calcular el ciclo
       const inscripcionMadre = await prisma.inscripciones.findFirst({
         where: { alumno_id: alumno_id, estado: 'ACTIVO' },
         orderBy: { fecha_inscripcion: 'asc' },
@@ -217,19 +238,18 @@ class InscripcionCronService {
 
       if (!inscripcionMadre) continue;
 
-      // 4. Calculamos cuándo termina su mes (Fecha Madre + 30 días)
+      // 4. Calculamos fin de mes (Fecha Madre + 30 días)
       const finCiclo = new Date(inscripcionMadre.fecha_inscripcion);
       finCiclo.setDate(finCiclo.getDate() + 30);
-      finCiclo.setHours(0, 0, 0, 0); // Limpiamos la hora
+      finCiclo.setHours(0, 0, 0, 0);
 
-      // 5. Calculamos el "Día del Juicio" restando los días exactos
-      // Si el Profeta avisa 5 días antes, el Liquidador ataca 6 días antes.
+      // 5. Calculamos el "Día del Juicio"
       const diaDelJuicioParcial = new Date(finCiclo);
       diaDelJuicioParcial.setDate(diaDelJuicioParcial.getDate() - diasAnticipacionLiquidador);
 
-      // 6. Si hoy ya llegamos (o pasamos) el día de liquidación... ¡Zaz!
+      // 6. ¿Llegó el momento de liquidar?
       if (hoy >= diaDelJuicioParcial) {
-        // Buscamos si tiene derecho a Purgatorio (Recuperaciones pendientes)
+        // Buscamos si tiene derecho a Purgatorio (Recuperaciones)
         const tieneRecuperacionesPendientes = await prisma.recuperaciones.findFirst({
           where: {
             alumno_id: alumno_id,
@@ -239,26 +259,40 @@ class InscripcionCronService {
 
         const nuevoEstado = tieneRecuperacionesPendientes ? 'PEN-RECU' : 'FINALIZADO';
 
-        if (nuevoEstado === 'PEN-RECU') {
-          totalPenRecu++;
-        } else {
-          totalFinalizados++;
-        }
-
-        // 7. La Ejecución Letal
-        // Solo afectamos las inscripciones. La deuda se queda intacta (PARCIAL) para cobrarla.
+        // 7. La Ejecución Letal con Notificación vinculada
         await prisma.$transaction([
+          // Matamos inscripciones activas
           prisma.inscripciones.updateMany({
             where: { alumno_id: alumno_id, estado: 'ACTIVO' },
             data: { estado: nuevoEstado, actualizado_en: new Date() },
           }),
+          // 🔔 Notificación para la alumna
+          prisma.notificaciones.create({
+            data: {
+              alumno_id: alumno_id,
+              titulo: '🗡️ Inscripción Liquidada',
+              mensaje: `Tu acceso ha sido marcado como ${nuevoEstado} por saldo pendiente (Pago Parcial) al cierre de ciclo.`,
+              tipo: 'DANGER',
+              categoria: 'SISTEMA'
+            }
+          })
         ]);
+
+        nuevoEstado === 'PEN-RECU' ? totalPenRecu++ : totalFinalizados++;
       }
     }
 
+    // 8. Notificación de Resumen para el Admin
     if (totalFinalizados > 0 || totalPenRecu > 0) {
+      await notificacionesService.crear({
+        titulo: '🛡️ Resumen Liquidador Parcial',
+        mensaje: `Se liquidaron ${totalFinalizados + totalPenRecu} alumnos con pagos incompletos.`,
+        tipo: 'INFO',
+        categoria: 'SISTEMA'
+      });
+
       logger.info(
-        `[LIQUIDADOR PARCIAL] Ejecución exitosa. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}. Las deudas se mantuvieron en PARCIAL.`
+        `[LIQUIDADOR PARCIAL] Ejecución exitosa. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}.`
       );
     }
   }

@@ -46,11 +46,11 @@ export const iniciarCronJobs = () => {
   );
 
   // ------------------------------------------------------------------
-  // TAREA 3: EL PROFETA (Todos los días a las 00:30 AM)
+  // TAREA 3: EL PROFETA (Todos los días a las 00:30 AM)  30 0 * * *
   // Objetivo: Generar la deuda del próximo mes X días antes del vencimiento.
   // ------------------------------------------------------------------
   cron.schedule(
-    '30 0 * * *',
+    '* * * * *',
     async () => {
       logger.info(`[CRON] El Profeta buscando renovaciones futuras...`);
       try {

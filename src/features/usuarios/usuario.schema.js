@@ -31,7 +31,8 @@ const user = {
       .toLowerCase()
       .min(3, 'El username debe tener al menos 3 caracteres')
       .max(50)
-      .regex(/^[a-z0-9._]+$/, 'Solo letras, números, puntos y guiones bajos'),
+      .regex(/^[a-z0-9._]+$/, 'Solo letras, números, puntos y guiones bajos')
+      .optional(),
 
     email: z
       .string()
@@ -69,7 +70,8 @@ const user = {
           message: 'Género debe ser M (Masculino), F (Femenino) u O (Otro)',
         }),
       })
-      .optional(),
+      .optional()
+      .or(z.literal('')),
   }),
 
   alumnoSpecificSchema: z.object({

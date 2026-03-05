@@ -32,6 +32,7 @@ import tipoDocumentosRoutes from './features/tipo_documento/tipo_documento.route
 import beneficioPendiente from './features/beneficios_pendientes/beneficios-pendientes.routes.js';
 import alumnoRoutes from './features/alumnos/alumno.routes.js';
 import publicacionRoutes from './features/publicaciones/publicacion.routes.js';
+import notificacionesRoutes from './features/notificaciones/notificaciones.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -102,6 +103,7 @@ app.use('/api/tipos-documento', tipoDocumentosRoutes);
 app.use('/api/beneficios-pendientes', beneficioPendiente);
 app.use('/api/alumno', alumnoRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
 
 app.use(errorHandler);
 
