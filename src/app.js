@@ -100,7 +100,7 @@ app.use('/api/parametros', parametrosRoutes);
 app.use('/api/cloudinary', cloudinaryRoutes);
 app.use('/api/lesiones', lesionRoutes);
 app.use('/api/tipos-documento', tipoDocumentosRoutes);
-app.use('/api/beneficios-pendientes', beneficioPendiente);
+app.use('/api/beneficioPendiente', beneficioPendiente);
 app.use('/api/alumno', alumnoRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);

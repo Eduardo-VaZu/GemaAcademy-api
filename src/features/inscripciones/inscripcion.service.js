@@ -5,198 +5,187 @@ import * as Validators from './validators/inscripcion.validator.js';
 import * as Logic from './logic/inscripcion.logic.js';
 
 export const inscripcionService = {
-  // =================================================================
-  // 📦 LÓGICA MAESTRA: INSCRIPCIÓN / UPGRADE (Con Switch Legacy/Nuevo)
-  // =================================================================
-  inscribirPaquete: async (data) => {
-    const { alumno_id, horario_ids } = data;
+// =================================================================
+// 🚀 MOTOR MAESTRO DE INSCRIPCIÓN: GEMA ACADEMY (VERSIÓN FINAL)
+// =================================================================
+inscribirPaquete: async (data) => {
+  const { alumno_id, horario_ids } = data;
 
-    try {
-      // 1. Validación de entrada (desde utils)
-      Utils.validarInputInscripcion(horario_ids);
+  try {
+    // 1. Validación de estructura de entrada
+    Utils.validarInputInscripcion(horario_ids);
 
-      return await prisma.$transaction(async (tx) => {
-        // 🛡️ PASO 0.1: Muro de Deuda (desde validators)
-        await Validators.validarMuroDeDeuda(tx, alumno_id);
+    return await prisma.$transaction(async (tx) => {
+      // 🛡️ PASO 0: MUROS DE SEGURIDAD (Deuda y Recuperaciones)
+      await Validators.validarMuroDeDeuda(tx, alumno_id);
+      await Validators.validarSinRecuperacionesPendientes(tx, alumno_id);
 
-        // 🛡️ PASO 0.2: Muro de Recuperaciones (🔥 EL NUEVO FILTRO)
-        await Validators.validarSinRecuperacionesPendientes(tx, alumno_id);
+      // 🕵️‍♂️ PASO 1: DETECTIVE DE RÉGIMEN Y CICLO
+      const esAlumnoLegacy = await Logic.detectarRegimenAlumno(tx, alumno_id);
+      const fechaCorte = await Logic.calcularCicloUpgrade(tx, alumno_id);
+      const esInscripcionAdicional = !!fechaCorte;
 
-        // 🧟 PASO 1: Configuración Anti-Zombie (desde logic/tiempo)
-        const param = await tx.parametros_sistema.findUnique({ where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' } });
-        const fechaLimiteZombie = new Date(Date.now() - (param ? parseInt(param.valor) : 20) * 60 * 1000);
+      // 👮‍♂️ PASO 2: VALIDACIÓN DE CAPACIDAD TOTAL (Combo Máximo Dinámico)
+      const clasesAnteriores = await tx.inscripciones.count({
+        where: { alumno_id: parseInt(alumno_id), estado: 'ACTIVO' }
+      });
+      const cantidadPeticion = horario_ids.length;
+      const cantidadTotalFinal = clasesAnteriores + cantidadPeticion;
 
-        // 🕵️‍♂️ PASO 2: Detective de Régimen (desde logic)
-        const esAlumnoLegacy = await Logic.detectarRegimenAlumno(tx, alumno_id);
-        const fechaCorte = await Logic.calcularCicloUpgrade(tx, alumno_id);
-        const esInscripcionAdicional = !!fechaCorte;
-
-        // =================================================================
-        // 🔥 PASO 2.5: BLOQUEO DE CIERRE DE CICLO (Anti-Limbo)
-        // =================================================================
-        if (esInscripcionAdicional) {
-          const paramAnti = await tx.parametros_sistema.findUnique({ 
-            where: { clave: 'DIAS_ANTICIPACION_RENOVACION' } 
-          });
-          const diasAnticipacion = paramAnti ? Number.parseInt(paramAnti.valor) : 5;
-          
-          const hoy = new Date();
-          const diasRestantes = (fechaCorte.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24);
-
-          if (diasRestantes <= diasAnticipacion) {
-            throw new Error(
-              `⛔ BLOQUEO DE CICLO: Estás a menos de ${Math.ceil(diasRestantes)} días de terminar tu mes. Espera al inicio de tu nuevo ciclo para agregar más horarios.`
-            );
-          }
+      // Buscamos el plan en el catálogo según el total acumulado
+      const conceptoAplicar = await tx.catalogo_conceptos.findFirst({
+        where: {
+          cantidad_clases_semanal: esInscripcionAdicional ? cantidadTotalFinal : cantidadPeticion,
+          activo: true,
+          es_vigente: !esAlumnoLegacy 
         }
-        // =================================================================
-
-        // 👮‍♂️ PASO 3: Obtener Precio según Régimen (desde logic)
-        const cantidadClases = horario_ids.length;
-        const conceptoAplicar = await tx.catalogo_conceptos.findFirst({
-          where: {
-            cantidad_clases_semanal: cantidadClases,
-            activo: true,
-            es_vigente: !esAlumnoLegacy // El switch mágico
-          }
-        });
-
-        if (!conceptoAplicar) {
-          throw new Error(`⛔ BLOQUEO DE PLAN: No existe un plan de precios para un paquete de ${cantidadClases} clases.`);
-        }
-
-        // 🧮 Preparación de precios unitarios para Upgrades
-        let precioUnitarioOficial = 0;
-        if (esInscripcionAdicional) {
-          const codigoUnitario = esAlumnoLegacy ? 'CLASE_UNI_LEGACY' : 'CLASE_UNITARIA_2026';
-          const conceptoUnitario = await tx.catalogo_conceptos.findFirst({
-            where: { codigo_interno: codigoUnitario, activo: true }
-          });
-          precioUnitarioOficial = Number(conceptoUnitario?.precio_base || 0);
-        }
-
-        // 🔄 PASO 4: Procesar cada Horario (Validación y Creación)
-        const inscripcionesCreadas = [];
-        let totalCobrar = 0;
-        let detalleCobro = [];
-
-        for (const idHorario of horario_ids) {
-          // Validar cupos (desde validators)
-          const horario = await Validators.validarAforoHorario(tx, idHorario, fechaLimiteZombie);
-
-          // Calcular costo específico (desde utils)
-          let montoEsteHorario = 0;
-          if (esInscripcionAdicional && fechaCorte) {
-            const clasesRestantes = Utils.contarClasesEnIntervalo(horario.dia_semana, new Date(), fechaCorte);
-            montoEsteHorario = clasesRestantes * precioUnitarioOficial;
-            detalleCobro.push(`Upgrade ${horario.dia_semana} (${clasesRestantes} clases)`);
-          } else {
-            montoEsteHorario = Number(conceptoAplicar.precio_base) / cantidadClases;
-            detalleCobro.push(`Mensualidad ${horario.dia_semana}`);
-          }
-
-          totalCobrar += montoEsteHorario;
-
-          // Crear registro de inscripción
-          const nuevaInscripcion = await tx.inscripciones.create({
-            data: {
-              alumno_id: parseInt(alumno_id),
-              horario_id: idHorario,
-              estado: 'PENDIENTE_PAGO',
-            },
-            include: { horarios_clases: true }
-          });
-          inscripcionesCreadas.push(nuevaInscripcion);
-        }
-
-        // 💸 PASO 5: Generar la Deuda
-        if (totalCobrar > 0) {
-          const nuevaCuenta = await tx.cuentas_por_cobrar.create({
-            data: {
-              alumno_id: parseInt(alumno_id),
-              concepto_id: conceptoAplicar.id,
-              detalle_adicional: [...new Set(detalleCobro)].join(' | '),
-              monto_final: totalCobrar,
-              fecha_vencimiento: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-              estado: 'PENDIENTE'
-            }
-          });
-
-          // --- Lógica de Beneficios Pendientes ---
-          const beneficiosEnCola = await tx.beneficios_pendientes.findMany({
-            where: { alumno_id: parseInt(alumno_id), usado: false },
-            include: { tipos_beneficio: true }
-          });
-
-          for (const pendiente of beneficiosEnCola) {
-            const deudaActual = parseFloat(nuevaCuenta.monto_final);
-            const valorNominal = parseFloat(pendiente.tipos_beneficio.valor_por_defecto);
-
-            let descuentoReal = pendiente.tipos_beneficio.es_porcentaje
-              ? deudaActual * (valorNominal / 100)
-              : valorNominal;
-
-            const descuentoFinal = descuentoReal > deudaActual ? deudaActual : descuentoReal;
-            const nuevoMonto = deudaActual - descuentoFinal;
-
-            // Registrar descuento
-            await tx.descuentos_aplicados.create({
-              data: {
-                cuenta_id: nuevaCuenta.id,
-                tipo_beneficio_id: pendiente.tipo_beneficio_id,
-                monto_nominal_aplicado: valorNominal,
-                monto_dinero_descontado: descuentoFinal,
-                motivo_detalle: pendiente.motivo || "Beneficio aplicado automáticamente en inscripción",
-                aplicado_por: pendiente.asignado_por,
-                fecha_aplicacion: new Date()
-              }
-            });
-
-            // Actualizar cuenta
-            await tx.cuentas_por_cobrar.update({
-              where: { id: nuevaCuenta.id },
-              data: {
-                monto_final: nuevoMonto,
-                estado: nuevoMonto <= 0.01 ? 'PAGADA' : nuevaCuenta.estado
-              }
-            });
-
-            // Quemar beneficio
-            await tx.beneficios_pendientes.update({
-              where: { id: pendiente.id },
-              data: { usado: true }
-            });
-          }
-        }
-
-        const cuentaFinal = await tx.cuentas_por_cobrar.findFirst({
-          where: { alumno_id: parseInt(alumno_id) },
-          orderBy: { creado_en: 'desc' }
-        });
-
-        return {
-          mensaje: esInscripcionAdicional ? 'Upgrade procesado.' : 'Inscripción creada.',
-          total_a_pagar: cuentaFinal ? cuentaFinal.monto_final : totalCobrar,
-          inscripciones: inscripcionesCreadas
-        };
       });
 
-    } catch (error) {
-      // =================================================================
-      // 🚨 CONTEXTO DE ERROR: Impresión para auditoría y depuración
-      // =================================================================
-      console.error('\n❌ [FALLO EN MOTOR DE INSCRIPCIÓN] ==========================');
-      console.error(`👤 Alumno ID: ${alumno_id}`);
-      console.error(`🕒 Horarios solicitados: ${horario_ids.join(', ')}`);
-      console.error(`💥 Motivo del bloqueo: ${error.message}`);
-      console.error('==============================================================\n');
+      // 🔥 FILTRO DE LÍMITE: Si no existe el plan, informamos el tope actual del catálogo
+      if (!conceptoAplicar) {
+        const planMaximo = await tx.catalogo_conceptos.findFirst({
+          where: { activo: true, es_vigente: !esAlumnoLegacy },
+          orderBy: { cantidad_clases_semanal: 'desc' }
+        });
+        const limiteMax = planMaximo ? planMaximo.cantidad_clases_semanal : 0;
 
-      // Relanzamos el error para que el controlador lo atrape y se lo envíe al frontend.
-      // Como todos los errores empiezan con "⛔ BLOQUEO...", el frontend puede leer el 'error.message'
-      // y mostrarlo directamente en un SweetAlert o Toast.
-      throw error;
-    }
-  },
+        const mensajeError = esInscripcionAdicional 
+          ? `⛔ LÍMITE SUPERADO: Ya tienes ${clasesAnteriores} clases activas. No puedes sumar ${cantidadPeticion} más porque el límite máximo de Gema es de ${limiteMax} clases por alumno.`
+          : `⛔ BLOQUEO DE PLAN: No puedes inscribirte a ${cantidadPeticion} clases. El plan más grande que ofrecemos es de ${limiteMax} clases.`;
+        
+        throw new Error(mensajeError);
+      }
+
+      // 🔥 PASO 2.5: BLOQUEO DE CIERRE DE CICLO (Anti-Limbo)
+      if (esInscripcionAdicional) {
+        const paramAnti = await tx.parametros_sistema.findUnique({ where: { clave: 'DIAS_ANTICIPACION_RENOVACION' } });
+        const diasAnticipacion = paramAnti ? Number.parseInt(paramAnti.valor) : 5;
+        const hoy = new Date();
+        const diasRestantes = (fechaCorte.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (diasRestantes <= diasAnticipacion) {
+          throw new Error(`⛔ BLOQUEO DE CICLO: Estás a menos de ${Math.ceil(diasRestantes)} días de terminar tu mes. Espera al inicio de tu nuevo ciclo.`);
+        }
+      }
+
+      // 🧟 PASO 3: CONFIGURACIÓN ANTI-ZOMBIE (Aforo)
+      const paramZ = await tx.parametros_sistema.findUnique({ where: { clave: 'TIEMPO_LIMITE_RESERVA_MIN' } });
+      const fechaLimiteZombie = new Date(Date.now() - (paramZ ? parseInt(paramZ.valor) : 20) * 60 * 1000);
+
+      // 🧮 PASO 4: PREPARACIÓN DE PRECIO UNITARIO (Para Upgrades)
+      let precioUnitarioOficial = 0;
+      if (esInscripcionAdicional) {
+        const codigoUnitario = esAlumnoLegacy ? 'CLASE_UNI_LEGACY' : 'CLASE_UNITARIA_2026';
+        const conceptoUnitario = await tx.catalogo_conceptos.findFirst({
+          where: { codigo_interno: codigoUnitario, activo: true }
+        });
+        precioUnitarioOficial = Number(conceptoUnitario?.precio_base || 0);
+      }
+
+      // 🔄 PASO 5: PROCESAR HORARIOS Y COBRO (Lógica Bipolar: Nuevo vs Upgrade)
+      const inscripcionesCreadas = [];
+      let totalCobrar = 0;
+      let detalleCobro = [];
+
+      for (const idHorario of horario_ids) {
+        const horario = await Validators.validarAforoHorario(tx, idHorario, fechaLimiteZombie);
+        let montoEsteHorario = 0;
+
+        if (esInscripcionAdicional && fechaCorte) {
+          // Caso Upgrade: Clases restantes hasta el 11 de marzo (ejemplo) * Precio Unitario
+          const clasesRestantes = Utils.contarClasesEnIntervalo(horario.dia_semana, new Date(), fechaCorte);
+          montoEsteHorario = clasesRestantes * precioUnitarioOficial;
+          detalleCobro.push(`Upgrade ${horario.dia_semana} (${clasesRestantes} cl)`);
+        } else {
+          // Caso Nuevo: Precio del plan dividido entre horarios elegidos
+          montoEsteHorario = Number(conceptoAplicar.precio_base) / cantidadPeticion;
+          detalleCobro.push(`Mensualidad ${horario.dia_semana}`);
+        }
+
+        totalCobrar += montoEsteHorario;
+
+        const nuevaInscripcion = await tx.inscripciones.create({
+          data: {
+            alumno_id: parseInt(alumno_id),
+            horario_id: idHorario,
+            estado: 'PENDIENTE_PAGO',
+          },
+          include: { horarios_clases: true }
+        });
+        inscripcionesCreadas.push(nuevaInscripcion);
+      }
+
+      // 💸 PASO 6: GENERAR DEUDA Y APLICAR BENEFICIOS
+      if (totalCobrar > 0) {
+        const nuevaCuenta = await tx.cuentas_por_cobrar.create({
+          data: {
+            alumno_id: parseInt(alumno_id),
+            concepto_id: conceptoAplicar.id,
+            detalle_adicional: [...new Set(detalleCobro)].join(' | '),
+            monto_final: totalCobrar,
+            fecha_vencimiento: esInscripcionAdicional ? fechaCorte : new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+            estado: 'PENDIENTE'
+          }
+        });
+
+        // Aplicación de Beneficios (Legacy & 2026)
+        const beneficiosEnCola = await tx.beneficios_pendientes.findMany({
+          where: { alumno_id: parseInt(alumno_id), usado: false },
+          include: { tipos_beneficio: true }
+        });
+
+        let montoActualizado = totalCobrar;
+        for (const pendiente of beneficiosEnCola) {
+          const valorNominal = parseFloat(pendiente.tipos_beneficio.valor_por_defecto);
+          let descuentoReal = pendiente.tipos_beneficio.es_porcentaje 
+                             ? montoActualizado * (valorNominal / 100) 
+                             : valorNominal;
+          const descuentoFinal = descuentoReal > montoActualizado ? montoActualizado : descuentoReal;
+          montoActualizado -= descuentoFinal;
+
+          await tx.descuentos_aplicados.create({
+            data: {
+              cuenta_id: nuevaCuenta.id,
+              tipo_beneficio_id: pendiente.tipo_beneficio_id,
+              monto_nominal_aplicado: valorNominal,
+              monto_dinero_descontado: descuentoFinal,
+              motivo_detalle: pendiente.motivo || "Beneficio automático",
+              aplicado_por: pendiente.asignado_por,
+              fecha_aplicacion: new Date()
+            }
+          });
+          await tx.beneficios_pendientes.update({ where: { id: pendiente.id }, data: { usado: true } });
+        }
+
+        await tx.cuentas_por_cobrar.update({
+          where: { id: nuevaCuenta.id },
+          data: { monto_final: montoActualizado, estado: montoActualizado <= 0.01 ? 'PAGADA' : 'PENDIENTE' }
+        });
+      }
+
+      // 🔔 PASO 7: NOTIFICACIÓN PARA EL DASHBOARD
+      await tx.notificaciones.create({
+        data: {
+          alumno_id: parseInt(alumno_id),
+          titulo: esInscripcionAdicional ? '🚀 Upgrade de Horario' : '✅ Inscripción Exitosa',
+          mensaje: `Se ha generado tu reserva. Total a pagar: S/ ${totalCobrar.toFixed(2)}.`,
+          tipo: 'SUCCESS',
+          categoria: 'SISTEMA'
+        }
+      });
+
+      return {
+        mensaje: esInscripcionAdicional ? 'Upgrade procesado correctamente.' : 'Inscripción exitosa.',
+        total_a_pagar: totalCobrar,
+        inscripciones: inscripcionesCreadas
+      };
+    });
+
+  } catch (error) {
+    console.error(`❌ [FALLO MOTOR] Alumno: ${alumno_id} | ${error.message}`);
+    throw error;
+  }
+},
 
  // =================================================================
   // 🔮 LA LÓGICA DEL PROFETA: Renovaciones Masivas (Reconstruido)

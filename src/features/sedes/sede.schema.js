@@ -43,7 +43,7 @@ export const sedeSchema = {
 
     activo: z.boolean().optional().default(true),
 
-    administrador_id: z.number({
+    administrador_id: z.coerce.number({
       required_error: 'El ID del administrador es requerido',
     }).positive('El ID del administrador debe ser un número positivo'),
 

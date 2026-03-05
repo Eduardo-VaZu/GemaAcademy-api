@@ -2,10 +2,10 @@ import { inscripcionService } from './inscripcion.service.js';
 
 export const inscripcionController = {
 
-  // 🚀 NUEVO: Inscribir Paquete (1 o más horarios)
+  // 🚀 MOTOR DE INSCRIPCIÓN / UPGRADE (Consolidado)
   inscribir: async (req, res) => {
     try {
-      // Esperamos: { "alumno_id": 6, "horario_ids": [1, 2] }
+      // req.body esperado: { "alumno_id": 16, "horario_ids": [1, 2] }
       const nuevaInscripcion = await inscripcionService.inscribirPaquete(req.body);
       
       res.status(201).json({
@@ -15,18 +15,29 @@ export const inscripcionController = {
       });
 
     } catch (error) {
-      // Manejo de errores específicos
-      
-      // 1. Error de duplicado (Prisma P2002)
+      // 1. Error de duplicado de Prisma (P2002)
       if (error.code === 'P2002') {
         return res.status(400).json({
           status: 'error',
-          message: 'El alumno ya está inscrito en uno de los horarios seleccionados.',
+          message: '⛔ El alumno ya está inscrito en uno de los horarios seleccionados.',
         });
       }
 
-      // 2. Errores de Negocio (Sold Out, No hay precio, etc.)
-      // Estos son los que lanzamos con "throw new Error" en el servicio
+      // 2. 🛡️ CAPTURA DE MUROS DE NEGOCIO (Validaciones del Service)
+      // Captura: Límite superado, Muro de Deuda, Bloqueo de Ciclo, etc.
+      if (
+        error.message.includes('⛔') || 
+        error.message.includes('LÍMITE') || 
+        error.message.includes('deuda') ||
+        error.message.includes('recuperaciones')
+      ) {
+        return res.status(400).json({ // 400 Bad Request para lógica de negocio
+          status: 'error',
+          message: error.message,
+        });
+      }
+
+      // 3. Errores de Conflicto (Agotado o Planes inexistentes)
       if (error.message.includes('AGOTADO') || error.message.includes('No existe un plan')) {
         return res.status(409).json({ // 409 Conflict
           status: 'error',
@@ -34,7 +45,7 @@ export const inscripcionController = {
         });
       }
 
-      // 3. Error si un horario no existe
+      // 4. Error si un horario no existe
       if (error.message.includes('no existe')) {
         return res.status(404).json({
           status: 'error',
@@ -42,8 +53,8 @@ export const inscripcionController = {
         });
       }
 
-      // Error genérico
-      console.error(error);
+      // 5. Error genérico (Fallo real del servidor)
+      console.error('💥 Error crítico en inscribir:', error);
       res.status(500).json({
         status: 'error',
         message: 'Error interno al procesar la inscripción',
@@ -52,7 +63,7 @@ export const inscripcionController = {
     }
   },
 
-  // Listar (Igual que antes)
+  // Listar todas las inscripciones (Admin)
   listarInscripciones: async (req, res) => {
     try {
       const lista = await inscripcionService.getAllInscripciones();
@@ -69,11 +80,11 @@ export const inscripcionController = {
     }
   },
 
-  // CORREGIDO: Nombre del servicio corregido a inscripcionService
+  // Listar inscripciones por ID de alumno (Dashboard)
   listarPorAlumno: async (req, res) => {
     try {
       const { alumnoId } = req.params;
-      const data = await inscripcionService.obtenerPorAlumno(alumnoId); //
+      const data = await inscripcionService.obtenerPorAlumno(alumnoId);
       
       res.status(200).json({
         status: 'success',
@@ -87,7 +98,7 @@ export const inscripcionController = {
     }
   },
 
-  // 🆕 NUEVO: Obtener detalle de una inscripción específica
+  // Obtener detalle de una sola inscripción
   obtenerDetalle: async (req, res) => {
     try {
       const { id } = req.params;
@@ -101,7 +112,7 @@ export const inscripcionController = {
     }
   },
 
-  // 🆕 NUEVO: Cancelar o eliminar inscripción
+  // Eliminar o cancelar inscripción (Soft delete o físico según tu service)
   eliminar: async (req, res) => {
     try {
       const { id } = req.params;
@@ -117,7 +128,8 @@ export const inscripcionController = {
       });
     }
   },
-  // 🆕 NUEVO: Finalización Voluntaria por parte del Alumno
+
+  // Finalización voluntaria solicitada por el alumno
   finalizarVoluntaria: async (req, res) => {
     try {
       const { id } = req.params;
@@ -131,7 +143,6 @@ export const inscripcionController = {
         }
       });
     } catch (error) {
-      // Manejamos errores de lógica (si no está activa o no existe)
       res.status(400).json({
         status: 'error',
         message: error.message
