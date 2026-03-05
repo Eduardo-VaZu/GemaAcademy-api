@@ -70,8 +70,7 @@ const user = {
           message: 'Género debe ser M (Masculino), F (Femenino) u O (Otro)',
         }),
       })
-      .optional()
-      .or(z.literal('')),
+      .optional(),
   }),
 
   alumnoSpecificSchema: z.object({
