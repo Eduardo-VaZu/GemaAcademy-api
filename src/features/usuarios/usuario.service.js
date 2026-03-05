@@ -490,6 +490,15 @@ export const usuarioService = {
     };
   },
 
+  getUserByDni: async (dni) => {
+    return await prisma.usuarios.findFirst({
+      where: { numero_documento: dni },
+      include: {
+        alumnos: true // Traemos la info de alumno también por si acaso
+      }
+    });
+  },
+
   async getDetailedExcelReport() {
     try {
       const [alumnos, pagos, deudas] = await Promise.all([

@@ -1,4 +1,6 @@
 import { pagosService } from './pagos.service.js';
+import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
 
 export const pagosController = {
   // 1. REPORTAR PAGO (Con soporte para subida de imagen a Cloudinary)
@@ -28,6 +30,21 @@ export const pagosController = {
       });
     }
   },
+  // =================================================================
+  // 🎟️ NUEVO: VENTA EXPRESS (Taquilla)
+  // =================================================================
+  registrarVentaExpress: catchAsync(async (req, res) => {
+    // Tomamos el ID del admin desde el token (si usas middleware authenticate)
+    // O si lo mandas desde el body, lo tomamos de ahí. (Por defecto 1 como salvavidas)
+    const adminId = req.user?.id || req.body.adminId || 1; 
+
+    const resultado = await pagosService.registrarVentaExpress(req.body, adminId);
+
+    return apiResponse.success(res, {
+      message: resultado.mensaje,
+      data: resultado,
+    });
+  }),
 
   // 2. VALIDAR PAGO (Actualizado con "La Verdad del Admin" 👮‍♂️)
   validarPagoAdmin: async (req, res) => {

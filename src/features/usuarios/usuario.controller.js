@@ -74,4 +74,15 @@ export const usuarioController = {
       data: reportData,
     });
   }),
+
+  getUserByDni: catchAsync(async (req, res) => {
+    const { dni } = req.params;
+    const usuario = await usuarioService.getUserByDni(dni);
+
+    // Si no existe, devolvemos success pero con data en null
+    return apiResponse.success(res, {
+      message: usuario ? 'Usuario encontrado' : 'Usuario no existe',
+      data: usuario || null, 
+    });
+  }),
 };

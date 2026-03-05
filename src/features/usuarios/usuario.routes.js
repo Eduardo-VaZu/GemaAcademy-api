@@ -16,6 +16,13 @@ router.post(
 );
 
 router.get(
+  '/dni/:dni',
+  authenticate,
+  authorize('Administrador', 'Coordinador'),
+  usuarioController.getUserByDni
+);
+
+router.get(
   '/:id',
   authenticate,
   authorize('Coordinador', 'Administrador', 'Alumno'),
