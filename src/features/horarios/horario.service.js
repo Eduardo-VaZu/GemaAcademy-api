@@ -64,7 +64,7 @@ const buildSolapamientoWhere = ({ filtroId, dia_semana, horaInicio, horaFin, exc
 const verificarSolapamientos = async (params) => {
   const { cancha_id, coordinador_id, dia_semana, horaInicio, horaFin, excludeId } = params;
 
-  const [solapamientoCancha, solapamientoCoordinador] = await Promise.all([
+  const queries = [
     prisma.horarios_clases.findFirst({
       where: buildSolapamientoWhere({
         filtroId: { cancha_id },
@@ -74,18 +74,27 @@ const verificarSolapamientos = async (params) => {
         excludeId,
       }),
       select: { id: true },
-    }),
-    prisma.horarios_clases.findFirst({
-      where: buildSolapamientoWhere({
-        filtroId: { coordinador_id },
-        dia_semana,
-        horaInicio,
-        horaFin,
-        excludeId,
-      }),
-      select: { id: true },
-    }),
-  ]);
+    })
+  ];
+
+  if (coordinador_id) {
+    queries.push(
+      prisma.horarios_clases.findFirst({
+        where: buildSolapamientoWhere({
+          filtroId: { coordinador_id },
+          dia_semana,
+          horaInicio,
+          horaFin,
+          excludeId,
+        }),
+        select: { id: true },
+      })
+    );
+  } else {
+    queries.push(Promise.resolve(null));
+  }
+
+  const [solapamientoCancha, solapamientoCoordinador] = await Promise.all(queries);
 
   if (solapamientoCancha) {
     throw new ApiError('Ya existe un horario que se solapa en esta cancha', 400);
