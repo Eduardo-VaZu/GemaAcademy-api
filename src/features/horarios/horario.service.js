@@ -205,7 +205,9 @@ export const horarioService = {
 
     // Merge: usar valor nuevo si viene, si no, conservar el existente
     const cancha_id = data.cancha_id ?? horarioExistente.cancha_id;
-    const coordinador_id = data.coordinador_id ?? horarioExistente.coordinador_id;
+    const coordinador_id = data.coordinador_id === undefined
+      ? horarioExistente.coordinador_id
+      : data.coordinador_id;
     const nivel_id = data.nivel_id ?? horarioExistente.nivel_id;
     const dia_semana = data.dia_semana ?? horarioExistente.dia_semana;
     const nuevoActivo = data.activo ?? horarioExistente.activo;
@@ -229,14 +231,13 @@ export const horarioService = {
           if (!r) throw new ApiError('La cancha especificada no existe', 404);
         })
       );
-    if (data.coordinador_id)
-      validaciones.push(
-        prisma.coordinadores
-          .findUnique({ where: { usuario_id: coordinador_id }, select: { usuario_id: true } })
-          .then((r) => {
-            if (!r) throw new ApiError('El coordinador especificado no existe', 404);
-          })
-      );
+    if (data.coordinador_id) {
+      const r = await prisma.coordinadores.findUnique({
+        where: { usuario_id: coordinador_id },
+        select: { usuario_id: true }
+      });
+      if (!r) throw new ApiError('El coordinador especificado no existe', 404);
+    }
     if (data.nivel_id)
       validaciones.push(
         prisma.niveles_entrenamiento
