@@ -1,37 +1,12 @@
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
+import { alumnoLogic } from './logic/alumno.logic.js';
 
 export const alumnoService = {
   actualizarMiPerfil: async (usuarioId, datos) => {
-    const {
-      email,
-      telefono_personal,
-      tipo_documento_id,
-      numero_documento,
-      fecha_nacimiento,
-      condiciones_medicas,
-      seguro_medico,
-      grupo_sanguineo,
-      direccion_completa,
-      distrito,
-      ciudad,
-      referencia,
-    } = datos;
-
     return await prisma.$transaction(async (tx) => {
-      // 1. Actualizar Tabla: USUARIOS (solo si hay campos)
-      const dataUsuario = {};
-      if (email) dataUsuario.email = email;
-      if (telefono_personal) dataUsuario.telefono_personal = telefono_personal;
-      if (fecha_nacimiento) dataUsuario.fecha_nacimiento = new Date(fecha_nacimiento);
-      if (tipo_documento_id) dataUsuario.tipo_documento_id = tipo_documento_id;
-      if (numero_documento) dataUsuario.numero_documento = numero_documento;
+      await alumnoLogic.actualizarDatosBaseUsuario(tx, usuarioId, datos);
 
-      if (Object.keys(dataUsuario).length > 0) {
-        await tx.usuarios.update({ where: { id: usuarioId }, data: dataUsuario });
-      }
-
-      // 2. Verificar que el alumno existe
       const alumnoActual = await tx.alumnos.findUnique({
         where: { usuario_id: usuarioId },
         select: { usuario_id: true, direccion_id: true },
@@ -41,65 +16,13 @@ export const alumnoService = {
         throw new ApiError('Alumno no encontrado', 404);
       }
 
-      // 3. Actualizar o crear dirección
-      let direccionId = alumnoActual.direccion_id;
-      const hayDatosDireccion = direccion_completa || distrito || referencia;
+      const direccionId = await alumnoLogic.gestionarDireccion(
+        tx,
+        alumnoActual.direccion_id,
+        datos
+      );
 
-      if (hayDatosDireccion) {
-        const dataDir = {
-          ...(direccion_completa && { direccion_completa }),
-          ...(distrito && { distrito }),
-          ...(referencia && { referencia }),
-          ciudad: ciudad || 'Lima',
-        };
-
-        if (direccionId) {
-          await tx.direcciones.update({ where: { id: direccionId }, data: dataDir });
-        } else if (direccion_completa && distrito) {
-          const nuevaDir = await tx.direcciones.create({ data: dataDir });
-          direccionId = nuevaDir.id;
-        }
-      }
-
-      // 4. Actualizar datos médicos del alumno
-      const dataAlumno = {
-        ...(condiciones_medicas && { condiciones_medicas }),
-        ...(seguro_medico && { seguro_medico }),
-        ...(grupo_sanguineo && { grupo_sanguineo }),
-        ...(direccionId && { direccion_id: direccionId }),
-      };
-
-      return await tx.alumnos.update({
-        where: { usuario_id: usuarioId },
-        data: dataAlumno,
-        select: {
-          usuario_id: true,
-          condiciones_medicas: true,
-          seguro_medico: true,
-          grupo_sanguineo: true,
-          usuarios: {
-            select: {
-              id: true,
-              nombres: true,
-              apellidos: true,
-              email: true,
-              telefono_personal: true,
-              fecha_nacimiento: true,
-              tipo_documento_id: true,
-              numero_documento: true,
-            },
-          },
-          direcciones: {
-            select: {
-              id: true,
-              direccion_completa: true,
-              distrito: true,
-              ciudad: true,
-              referencia: true,
-            },
-          },
-        },
-      });
+      return await alumnoLogic.actualizarPerfilMedico(tx, usuarioId, direccionId, datos);
     });
   },
   obtenerMiPerfil: async (usuarioId) => {
@@ -109,10 +32,10 @@ export const alumnoService = {
       include: {
         alumnos: {
           include: {
-            direcciones: true // Traemos calle, distrito y referencia
-          }
-        }
-      }
+            direcciones: true, // Traemos calle, distrito y referencia
+          },
+        },
+      },
     });
 
     if (!perfil) throw new ApiError('Alumno no encontrado', 404);

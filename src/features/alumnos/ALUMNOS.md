@@ -10,8 +10,10 @@ Gestión del perfil de alumno autenticado. Permite al alumno actualizar sus dato
 src/features/alumnos/
 ├── alumno.routes.js       # Endpoints y middlewares
 ├── alumno.controller.js   # Manejo Request/Response (catchAsync)
-├── alumno.service.js      # Lógica de negocio + Prisma
-└── alumno.schema.js       # Schema Zod para validación de body
+├── alumno.service.js      # Lógica de servicio directriz
+├── alumno.schema.js       # Schema Zod para validación de body
+└── logic/
+    └── alumno.logic.js    # Tareas modulares: direcciones y perfiles médicos
 ```
 
 ---
@@ -60,18 +62,19 @@ sequenceDiagram
     participant M as Middlewares
     participant Ctrl as Controller
     participant S as Service
+    participant L as Logic
     participant DB as Prisma/PostgreSQL
 
     C->>R: PATCH /api/alumno/mi-perfil
     R->>M: authenticate → authorize('Alumno') → validate(schema)
     M->>Ctrl: req.user.id + req.body validado
     Ctrl->>S: actualizarMiPerfil(id, datos)
-    S->>DB: $transaction
-    Note over S,DB: 1. Update usuarios (email, tel, fecha)
-    Note over S,DB: 2. Verify alumno exists
-    Note over S,DB: 3. Update/create dirección
-    Note over S,DB: 4. Update datos médicos
-    DB-->>S: alumno actualizado (select)
+    S->>L: Delegación en $transaction
+    L->>DB: 1. actualizarDatosBaseUsuario (email, tel, fecha)
+    L->>DB: 2. gestionarDireccion (Crear o Update)
+    L->>DB: 3. actualizarPerfilMedico
+    DB-->>L: alumno actualizado (select)
+    L-->>S: perfil ensamblado
     S-->>Ctrl: resultado
     Ctrl-->>C: apiResponse.success(200)
 ```
@@ -88,14 +91,12 @@ sequenceDiagram
 
 ## Service (`alumno.service.js`)
 
-### `actualizarMiPerfil` — Update multi-tabla con Transacción
+### `actualizarMiPerfil` — Orquestación con `alumno.logic.js`
 
-Transacción que actualiza selectivamente:
-- **Tabla `usuarios`**: email, teléfono, fecha de nacimiento
-- **Tabla `direcciones`**: crear nueva o actualizar existente
-- **Tabla `alumnos`**: condiciones médicas, seguro, grupo sanguíneo
-
-Usa `select` explícito (§3.2) en el return para devolver solo los datos necesarios. Lanza `ApiError(404)` si el alumno no existe.
+El controlador de `actualizarMiPerfil` fue aligerado cediendo su transacción a múltiples inyecciones de dependencias lógicas `tx` alojadas en `logic/alumno.logic.js`:
+- `actualizarDatosBaseUsuario`: Actualiza la tabla raíz `usuarios` (email, teléfono, fecha de nacimiento)
+- `gestionarDireccion`: Sub-rutina que verifica la pre-existencia y actualiza selectivamente o crea desde cero la sede `direcciones` con retorno de su ID final.
+- `actualizarPerfilMedico`: Desplomadora del return que empalma el ID de dirección con el registro `alumnos` junto a condiciones y perfil selectivo.
 
 ---
 
