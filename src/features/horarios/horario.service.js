@@ -143,15 +143,22 @@ export const horarioService = {
   createHorario: async (data) => {
     const { cancha_id, coordinador_id, nivel_id, dia_semana } = data;
 
-    // Validar existencia de entidades en paralelo (§3.1)
-    const [cancha, coordinador, nivel] = await Promise.all([
+    const validaciones = [
       prisma.canchas.findUnique({ where: { id: cancha_id }, select: { id: true } }),
-      prisma.coordinadores.findUnique({
+      prisma.niveles_entrenamiento.findUnique({ where: { id: nivel_id }, select: { id: true } })
+    ];
+
+    if (coordinador_id) {
+      validaciones.push(prisma.coordinadores.findUnique({
         where: { usuario_id: coordinador_id },
-        select: { usuario_id: true },
-      }),
-      prisma.niveles_entrenamiento.findUnique({ where: { id: nivel_id }, select: { id: true } }),
-    ]);
+        select: { usuario_id: true }
+      }));
+    }
+
+    const resultados = await Promise.all(validaciones);
+    const cancha = resultados[0];
+    const nivel = resultados[1];
+    const coordinador = coordinador_id ? resultados[2] : true;
 
     if (!cancha) throw new ApiError('La cancha especificada no existe', 404);
     if (!coordinador) throw new ApiError('El coordinador especificado no existe', 404);
