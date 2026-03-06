@@ -26,6 +26,7 @@ model alumnos {
   condiciones_medicas   String?
   seguro_medico         String?                 @db.VarChar(100)
   grupo_sanguineo       String?                 @db.VarChar(5)
+  historial             String?                 @db.Text 
   usuarios              usuarios                @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   direcciones           direcciones?            @relation(fields: [direccion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   alumnos_contactos     alumnos_contactos[]
@@ -120,7 +121,7 @@ model direcciones {
 model horarios_clases {
   id                         Int                   @id @default(autoincrement())
   cancha_id                  Int
-  coordinador_id             Int
+  coordinador_id             Int?
   nivel_id                   Int
   dia_semana                 Int
   hora_inicio                DateTime              @db.Time(6)
@@ -130,7 +131,7 @@ model horarios_clases {
   minutos_reserva_especifico Int?
   canchas                    canchas               @relation(fields: [cancha_id], references: [id], onDelete: Cascade)
   niveles_entrenamiento      niveles_entrenamiento @relation(fields: [nivel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  coordinadores              coordinadores         @relation(fields: [coordinador_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  coordinadores              coordinadores?        @relation(fields: [coordinador_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
   inscripciones              inscripciones[]
   recuperaciones             recuperaciones[]
 

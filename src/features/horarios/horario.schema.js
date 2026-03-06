@@ -11,7 +11,7 @@ const horaRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export const horarioSchema = {
   createHorarioSchema: z.object({
     cancha_id: coercePositiveInt('ID de cancha'),
-    coordinador_id: coercePositiveInt('ID de coordinador'),
+    coordinador_id: coercePositiveInt('ID de coordinador').optional(),
     nivel_id: coercePositiveInt('ID de nivel'),
     dia_semana: z.coerce
       .number({ invalid_type_error: 'Día de la semana debe ser numérico' })
