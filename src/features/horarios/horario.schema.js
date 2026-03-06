@@ -6,12 +6,22 @@ const coercePositiveInt = (label) =>
     .int(`${label} debe ser entero`)
     .positive(`${label} debe ser positivo`);
 
+const nullableCoercePositiveInt = (label) =>
+  z.preprocess(
+    (val) => (val === null || val === "" || val === undefined ? null : val),
+    z.coerce
+      .number({ invalid_type_error: `${label} debe ser numérico` })
+      .int(`${label} debe ser entero`)
+      .positive(`${label} debe ser positivo`)
+      .nullable() // Permite NULL al final
+  );
+
 const horaRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export const horarioSchema = {
   createHorarioSchema: z.object({
     cancha_id: coercePositiveInt('ID de cancha'),
-    coordinador_id: coercePositiveInt('ID de coordinador').optional(),
+    coordinador_id: nullableCoercePositiveInt('ID de coordinador').optional(),
     nivel_id: coercePositiveInt('ID de nivel'),
     dia_semana: z.coerce
       .number({ invalid_type_error: 'Día de la semana debe ser numérico' })
@@ -32,7 +42,7 @@ export const horarioSchema = {
   updateHorarioSchema: z
     .object({
       cancha_id: coercePositiveInt('ID de cancha').optional(),
-      coordinador_id: coercePositiveInt('ID de coordinador').optional(),
+      coordinador_id: nullableCoercePositiveInt('ID de coordinador').optional(),
       nivel_id: coercePositiveInt('ID de nivel').optional(),
       dia_semana: z.coerce.number().int().min(1).max(7).optional(),
       hora_inicio: z.string().regex(horaRegex, 'Formato inválido (HH:MM)').optional(),
