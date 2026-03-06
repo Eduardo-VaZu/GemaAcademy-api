@@ -24,27 +24,35 @@ class CumpleanosService {
 
     logger.info(`[FESTEJERO] Encontrados ${cumpleaneros.length} cumpleañeros hoy.`);
 
-    const promesasEnvio = cumpleaneros.map(async (usuario) => {
-      let wpEnviado = false;
-      let emailEnviado = false;
+    const LIMITE_CONCURRENCIA = 10;
+    const resultados = [];
 
-      if (usuario.telefono_personal) {
-        const mensaje = `¡Hola ${usuario.nombres}! 🎉 De parte de toda la familia de GemaAcademy queremos desearte un muy ¡Feliz Cumpleaños! 🎂 Que disfrutes mucho tu día.`;
-        wpEnviado = await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
-      }
+    for (let i = 0; i < cumpleaneros.length; i += LIMITE_CONCURRENCIA) {
+      const lote = cumpleaneros.slice(i, i + LIMITE_CONCURRENCIA);
 
-      if (usuario.email) {
-        emailEnviado = await emailService.sendBirthdayEmail(usuario.email, usuario.nombres);
-      }
+      const promesasLote = lote.map(async (usuario) => {
+        let wpEnviado = false;
+        let emailEnviado = false;
 
-      return {
-        id: usuario.id,
-        nombre: usuario.nombres,
-        exito: wpEnviado || emailEnviado,
-      };
-    });
+        if (usuario.telefono_personal) {
+          const mensaje = `¡Hola ${usuario.nombres}! 🎉 De parte de toda la familia de GemaAcademy queremos desearte un muy ¡Feliz Cumpleaños! 🎂 Que disfrutes mucho tu día.`;
+          wpEnviado = await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
+        }
 
-    const resultados = await Promise.allSettled(promesasEnvio);
+        if (usuario.email) {
+          emailEnviado = await emailService.sendBirthdayEmail(usuario.email, usuario.nombres);
+        }
+
+        return {
+          id: usuario.id,
+          nombre: usuario.nombres,
+          exito: wpEnviado || emailEnviado,
+        };
+      });
+
+      const chunkResults = await Promise.allSettled(promesasLote);
+      resultados.push(...chunkResults);
+    }
 
     const exitosos = resultados.filter((r) => r.status === 'fulfilled' && r.value.exito).length;
     logger.info(

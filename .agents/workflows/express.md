@@ -1,264 +1,256 @@
 ---
-trigger: always_on
+description: 
 ---
 
-# GemaAcademy API - Guía de Desarrollo & Arquitectura "Antigravity"
+# GemaAcademy API - Guía "Antigravity"
 
-Este documento define las reglas estrictas de desarrollo para el proyecto GemaAcademy API. El objetivo principal es la velocidad extrema ("Antigravity"), la escalabilidad y la limpieza del código usando Clean Architecture (Vertical Slicing).
+Reglas estrictas: velocidad extrema, escalabilidad, Clean Architecture (Vertical Slicing).
 
-## 1. Stack Tecnológico
-- **Runtime:** Node.js (ES Modules).
-- **Framework:** Express.js.
-- **ORM:** Prisma (PostgreSQL).
-- **Validación:** Zod.
-- **Logging:** Winston.
-- **Entorno:** Docker / Docker Compose.
+## 1. Stack
+Node.js (ESM) · Express · Prisma (PostgreSQL) · Zod · Winston · Docker
 
 ## 2. Arquitectura: Vertical Slicing
-No agrupamos por "capas" técnicas (Controllers, Services), agrupamos por Features (Dominios).
-
-**Estructura de Directorios:**
-Todo el código relacionado con una entidad debe vivir en su propia carpeta dentro de `src/features/`.
-Cuando un feature crece, se crean **sub-packages** para mantener cada archivo enfocado y legible.
+Agrupamos por **Features**, no por capas técnicas. Cada entidad vive en `src/features/`.
 
 ```text
 src/
-├── config/                          # Configuración de servicios externos y entorno
-│   ├── cloudinary.config.js
-│   ├── cookie.config.js
-│   ├── database.config.js
-│   └── secret.config.js
-│
-├── shared/                          # Packages GLOBALES (transversales a todos los features)
-│   ├── middlewares/                  # Middlewares reutilizables (auth, validate, error, etc.)
-│   │   ├── auth.middleware.js
-│   │   ├── authorize.middleware.js
-│   │   ├── error.middleware.js
-│   │   ├── rateLimit.middleware.js
-│   │   ├── upload.middleware.js
-│   │   └── validate.middleware.js
-│   ├── services/                    # Integraciones con APIs externas reutilizables
-│   │   ├── brevo.email.service.js
-│   │   └── twilio.whatsapp.service.js
-│   ├── utils/                       # Utilidades puras sin lógica de negocio
-│   │   ├── catchAsync.util.js
-│   │   ├── error.util.js
-│   │   ├── logger.util.js
-│   │   └── response.util.js
-│   └── validation/                  # Schemas Zod compartidos entre features
-│       └── common.validation.js
-│
-├── features/
-│   ├── [nombre-entidad]/            # Ej: inscripciones, usuarios
-│   │   ├── [entidad].routes.js      # Definición de endpoints
-│   │   ├── [entidad].controller.js  # Manejo de Request/Response HTTP
-│   │   ├── [entidad].service.js     # Lógica de negocio principal y llamadas a Prisma
-│   │   ├── [entidad].schema.js      # (Opcional) Schemas Zod locales del feature
-│   │   │
-│   │   ├── validators/              # (Opcional) Validación imperativa propia del dominio
-│   │   │   └── [entidad].validator.js
-│   │   ├── utils/                   # (Opcional) Helpers puros del feature
-│   │   │   └── [entidad].util.js
-│   │   ├── logic/                   # (Opcional) Lógica compleja extraída del service
-│   │   │   └── [entidad].logic.js
-│   │   ├── services/                # (Opcional) Servicios auxiliares del dominio
-│   │   │   └── [nombre].service.js
-│   │   └── middlewares/             # (Opcional) Middlewares exclusivos del feature
-│   │       └── [entidad].middleware.js
+├── config/                     # cloudinary, cookie, database, secret .config.js
+├── shared/
+│   ├── middlewares/             # auth, authorize, error, rateLimit, upload, validate
+│   ├── services/                # brevo.email.service.js, twilio.whatsapp.service.js
+│   ├── utils/                   # catchAsync, error, logger, response .util.js
+│   └── validation/              # common.validation.js (Zod compartidos)
+├── features/[entidad]/
+│   ├── [entidad].routes.js      # Endpoints
+│   ├── [entidad].controller.js  # Request/Response HTTP
+│   ├── [entidad].service.js     # Lógica de negocio + Prisma
+│   ├── [entidad].schema.js      # Schemas Zod locales
+│   ├── validators/              # (Opcional) Validación imperativa
+│   ├── utils/                   # (Opcional) Helpers del feature
+│   ├── logic/                   # (Opcional) Lógica extraída del service
+│   ├── services/                # (Opcional) Servicios auxiliares
+│   └── middlewares/             # (Opcional) Middlewares exclusivos
 ```
 
-### 2.1 Packages Globales (`shared/`)
-Contienen código **transversal** que no pertenece a ningún dominio específico.
+### 2.1 `shared/` — Código transversal agnóstico al dominio
 
-| Package | Propósito | Convención de Nombrado |
+| Package | Propósito | Naming |
 |---|---|---|
-| `shared/middlewares/` | Middlewares que protegen rutas de cualquier feature (auth, validate, error) | `[nombre].middleware.js` |
-| `shared/services/` | Integraciones con APIs externas reutilizables (Brevo, Twilio) | `[proveedor].[tipo].service.js` |
-| `shared/utils/` | Funciones puras sin lógica de negocio (logger, catchAsync, response) | `[nombre].util.js` |
-| `shared/validation/` | Schemas Zod reutilizados por ≥2 features (email, phone, id) | `[dominio].validation.js` |
+| `middlewares/` | Auth, validate, error | `[nombre].middleware.js` |
+| `services/` | APIs externas (Brevo, Twilio) | `[proveedor].[tipo].service.js` |
+| `utils/` | Funciones puras | `[nombre].util.js` |
+| `validation/` | Schemas Zod usados por ≥2 features | `[dominio].validation.js` |
 
-> **Regla:** Todo archivo en `shared/` debe ser **agnóstico al dominio**. Si menciona "inscripción", "pago" o "usuario" en su lógica interna, NO pertenece aquí.
+> Si menciona "inscripción", "pago" o "usuario" en su lógica → NO pertenece a `shared/`.
 
-### 2.2 Sub-packages dentro de un Feature
-Cuando un feature crece más allá de los 4 archivos base, se pueden crear sub-carpetas para mantener la legibilidad:
+### 2.2 Sub-packages de Feature
+Crear solo cuando el feature crece más allá de los 4 archivos base:
 
-| Sub-package | Cuándo crearlo | Convención de Nombrado |
+| Sub-package | Criterio | Naming |
 |---|---|---|
-| `validators/` | El feature tiene validación imperativa (no Zod) que excede ~30 líneas | `[entidad].validator.js` |
-| `utils/` | Helpers de formato, cálculo o transformación propios del feature | `[entidad].util.js` |
-| `logic/` | El service supera ~300 líneas; se extrae lógica de negocio compleja | `[entidad].logic.js` |
-| `services/` | Servicios auxiliares del dominio (crons, notificaciones, integraciones) | `[nombre-descriptivo].service.js` |
-| `middlewares/` | Middleware que SOLO aplica a este feature (poco frecuente) | `[entidad].middleware.js` |
+| `validators/` | Validación imperativa >30 líneas | `[entidad].validator.js` |
+| `utils/` | Helpers de formato/cálculo propios | `[entidad].util.js` |
+| `logic/` | Service supera ~300 líneas | `[entidad].logic.js` |
+| `services/` | Crons, notificaciones, integraciones | `[nombre].service.js` |
+| `middlewares/` | Middleware exclusivo del feature | `[entidad].middleware.js` |
 
-> **Regla de oro:** No crear sub-packages vacíos o con un solo archivo de <20 líneas. Si el archivo es pequeño, puede vivir en la raíz del feature.
+> No crear sub-packages vacíos o con <20 líneas.
 
-### 2.3 Criterios: ¿`shared/` o Feature-local?
+### 2.3 ¿`shared/` o Feature-local?
+- ¿Lo usan ≥2 features? → `shared/`
+- ¿Es infra transversal (auth, error, logging)? → `shared/`
+- Si no → Feature-local (promover a `shared/` cuando un segundo feature lo necesite)
 
-```
-¿Lo usan ≥2 features?  ──── SÍ ────► shared/
-         │
-         NO
-         │
-         ▼
-¿Es infraestructura transversal
-(auth, error, logging, rate-limit)?  ── SÍ ──► shared/
-         │
-         NO
-         │
-         ▼
-    Feature-local (empieza local;
-    promociónalo a shared/ cuando
-    un segundo feature lo necesite)
-```
+### 2.4 Organización de Archivos (Obligatorio)
+Cada archivo: **propósito único**. Criterios de reorganización:
 
-## 3. Reglas de Optimización "Antigravity" (Performance Crítico)
+| Criterio | Acción |
+|---|---|
+| Service/Controller >300 líneas | Extraer a `logic/` o sub-servicio |
+| Schema/Util >150 líneas | Dividir por dominio |
+| Función usada por otro feature | Mover a `shared/` |
+| Naming incorrecto (§2.1/§2.2) | Renombrar |
+| Archivo sin imports (dead file) | Eliminar |
+| Lógica de negocio en controller | Mover al service |
+| Lógica de infra en service | Extraer a `services/` |
 
-### 3.1 Cero Bloqueo en Bucles (Regla de Oro)
-**PROHIBIDO** realizar llamadas `await` (BD o API externa) dentro de un bucle `for`, `forEach`, `map` o `while` de forma secuencial.
+**Responsabilidad por archivo:**
+- **routes.js** — Solo rutas + middlewares. **controller.js** — Solo `catchAsync` → service → `apiResponse` (~5 líneas/handler).
+- **service.js** — Lógica de negocio + Prisma (>300 líneas → `logic/`). **schema.js** — Solo Zod (>150 → dividir).
 
-❌ **MAL (Bloqueante):**
+## 3. Optimización "Antigravity"
+
+### 3.1 Cero `await` en Bucles
+**PROHIBIDO** `await` secuencial dentro de `for`/`forEach`/`map`/`while`.
+
 ```javascript
-for (const item of items) {
-  await prisma.inscripcion.create({ ... }); // Detiene el servidor por cada iteración
-}
-```
+// ❌ MAL
+for (const item of items) { await prisma.inscripcion.create({...}); }
 
-✅ **BIEN (Antigravity):**
-Usa `Promise.all` para concurrencia o métodos de escritura por lotes (`createMany`).
-```javascript
-// Opción A: Escritura en Lote (Preferido)
+// ✅ Opción A: Lote (preferido)
 await prisma.inscripcion.createMany({ data: listaDeInscripciones });
-
-// Opción B: Concurrencia (Si createMany no es posible)
+// ✅ Opción B: Concurrencia
 await Promise.all(items.map(item => servicio.procesarItem(item)));
 ```
 
-### 3.2 Prisma Selectivo (Lean Queries)
-Nunca traigas objetos completos de la base de datos si no los necesitas. Reduce el uso de memoria y ancho de banda.
-
-✅ **BIEN:**
+> **Límite:** Para >50 elementos, usar `p-limit` para no saturar el pool de Prisma:
 ```javascript
-const user = await prisma.usuario.findUnique({
-  where: { id },
-  select: { id: true, nombre: true, email: true } // Solo lo necesario
-});
+import pLimit from 'p-limit';
+const limit = pLimit(10);
+await Promise.all(items.map(item => limit(() => servicio.procesarItem(item))));
 ```
 
-### 3.3 Transacciones Inteligentes
-Para operaciones que modifican múltiples tablas (ej. Inscribir alumno + Actualizar cupo + Generar deuda), usa SIEMPRE `prisma.$transaction`.
+### 3.2 Prisma Selectivo
+Nunca traer objetos completos. Siempre usar `select` con solo los campos necesarios.
 
-## 4. Estándares de Código y Controladores
+### 3.3 Transacciones
+Operaciones multi-tabla → SIEMPRE `prisma.$transaction`.
 
-### 4.1 Manejo de Errores (Clean Code)
-No uses bloques `try/catch` explícitos en los controladores (a menos que dependas de errores de motor tipo P2025 específicos). Envuelve las funciones del controlador con el utilitario `catchAsync`.
+## 4. Estándares de Código
+
+### 4.1 Manejo de Errores
+No `try/catch` en controllers (salvo errores Prisma tipo P2025). Usar `catchAsync`:
 
 ```javascript
-// feature.controller.js
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
+import { apiResponse } from '../../shared/utils/response.util.js';
 
 export const getItem = catchAsync(async (req, res) => {
   const data = await featureService.getData(req.params.id);
-  successResponse(res, data);
+  apiResponse.success(res, data, 'Item obtenido');
 });
 ```
 
-### 4.2 Responses Estandarizados
-Usa siempre los utilitarios de respuesta para mantener consistencia en el JSON devuelto al cliente.
+### 4.2 Responses
 - **Éxito:** `apiResponse.success(res, data, message)`
-- **Error:** Generalmente manejado por el middleware de error global.
+- **Error:** Manejado por middleware de error global.
+
+### 4.3 Legibilidad: Extracción de Métodos (Obligatorio)
+Refactorizar cuando una función cumple CUALQUIERA: >40 líneas, >3 niveles de anidación, >1 responsabilidad, o tiene comentarios `// Paso N:`.
+
+**Reglas:** Una función = una tarea. Nombre describe **qué** hace (verbo infinitivo: `calcularDeuda`, `validarCupos`). Si hay <5 funciones extraídas → mismo archivo, si más → `logic/[entidad].logic.js`.
+
+```javascript
+// ❌ MAL — monolítico: valida + calcula + persiste + notifica en una función
+export const inscribirAlumno = async (data) => {
+  const curso = await prisma.curso.findUnique({ where: { id: data.cursoId } });
+  if (!curso || curso.cupos_disponibles <= 0) throw new AppError('Sin cupos');
+  const precioFinal = curso.precio * (1 - (data.esBecado ? 0.5 : 0));
+  const inscripcion = await prisma.$transaction(async (tx) => { /* crear + update + deuda */ });
+  await emailService.enviarConfirmacion(data.email, inscripcion);
+  return inscripcion;
+};
+
+// ✅ BIEN — cada función hace una sola cosa
+export const inscribirAlumno = async (data) => {
+  const curso = await obtenerCursoConCupos(data.cursoId);
+  const precio = calcularPrecioConDescuento(curso.precio, data.esBecado);
+  const inscripcion = await ejecutarInscripcion(data, curso, precio);
+  await notificarInscripcion(data.email, inscripcion);
+  return inscripcion;
+};
+```
+
+> En §12: reportar como **"§4.3 Legibilidad — función monolítica"**.
 
 ## 5. Seguridad y Validación
 
-### 5.1 Validación Temprana (Fail Fast)
-Toda entrada de datos (`req.body`, `req.query`, `req.params`) debe ser validada por un middleware de Zod ANTES de llegar al controlador.
-Si la data es inválida, el servidor debe rechazarla inmediatamente (400 Bad Request) sin procesar lógica.
+### 5.1 Fail Fast
+Toda entrada (`req.body`, `req.query`, `req.params`) validada por middleware Zod ANTES del controller. Data inválida → 400 inmediato.
 
-### 5.2 Autenticación y Contexto
-El middleware `authenticate` verifica el JWT e inyecta el usuario en `req.user`. No vuelvas a consultar la BD por el usuario en el controlador si `req.user` ya tiene la info necesaria (id, rol, email).
+### 5.2 Autenticación
+`authenticate` verifica JWT e inyecta `req.user`. No re-consultar BD si `req.user` ya tiene id, rol, email.
 
-## 6. Convenciones de Nombres (Naming)
-- **Variables y Funciones:** `camelCase` (ej. `crearUsuario`, `isActive`).
-- **Archivos:** `kebab-case` (ej. `usuario.controller.js`, `auth.routes.js`).
-- **Base de Datos:** `snake_case` (según schema de Prisma).
-- **Idioma:** Código y Lógica de Negocio en **Español**. Librerías y Keywords en **Inglés**.
+## 6. Naming
+- Variables/Funciones: `camelCase` · Archivos: `kebab-case` · BD: `snake_case`
+- Lógica de negocio en **Español**, keywords/librerías en **Inglés**.
 
-## 7. Git & Flujo de Trabajo
-- **Commits Semánticos:** `feat:`, `fix:`, `perf:`, `refactor:`, `docs:`.
-- **Pre-commit:** El código debe pasar ESLint y Prettier.
+## 7. Git
+Commits semánticos (`feat:`, `fix:`, `perf:`, `refactor:`, `docs:`). Pre-commit: ESLint + Prettier.
 
 ---
 
-## 8. Reglas Avanzadas de Base de Datos y Prisma (Agregado)
+## 8. BD y Prisma Avanzado
 
-### 8.1 Adiós al N+1 (Prohibido queries en bucle)
-Jamás obtengas una lista de registros y luego iteres sobre ellos para hacer un `await prisma.xyz.findUnique()` por cada uno. Prisma permite usar `include` o `select` anidados para que PostgreSQL resuelva todo en un solo JOIN veloz.
+### 8.1 Prohibido N+1
+No iterar para hacer `findUnique()` por cada registro. Usar `include`/`select` anidados para resolver en un solo JOIN.
 
-### 8.2 Paginación por Cursor (Keyset Pagination) Obligatoria
-Para listas que crecerán masivamente (millones de filas), está **PROHIBIDO** usar `skip` (offset) y `take` (limit) profundos. Se debe usar Paginación por Cursor (`cursor` en Prisma, basado en `id` o fecha) para que los índices de PostgreSQL respondan en 10ms sin importar la página en la que estés.
+### 8.2 Paginación por Cursor
+**PROHIBIDO** `skip/take` profundos en tablas grandes. Usar `cursor` (basado en `id` o fecha).
 
-## 9. Control de Concurrencia (Race Conditions)
+> **Excepción:** `skip/take` permitido en tablas <10,000 filas o admin panels. Documentar con `// OFFSET OK: tabla acotada`.
 
-### 9.1 Bloqueo Optimista (Optimistic Locking) para Cupos y Dinero
-Cuando múltiples peticiones intenten disminuir/aumentar un cupo limitante a la vez (ej. Inscripción a curso sin cupos), el código debe prevenir inscripciones "fantasma". Se debe usar actualización condicional de Prisma:
+## 9. Concurrencia
+
+### 9.1 Optimistic Locking (Cupos/Dinero)
+Update atómico condicional para prevenir race conditions:
 
 ```javascript
-// Antigravity: Update atómico asegurando cupo restante.
 const updated = await prisma.curso.updateMany({
   where: { id: cursoId, cupos_disponibles: { gt: 0 } },
   data: { cupos_disponibles: { decrement: 1 } }
 });
-if (updated.count === 0) throw new Error("Cupos agotados o curso no encontrado");
+if (updated.count === 0) throw new Error("Cupos agotados");
 ```
 
-## 10. Resiliencia y Logging (Observabilidad)
+## 10. Resiliencia y Logging
 
-### 10.1 Logging Estructurado No Bloqueante
-Prohibido usar `console.log` para trazas de sistema en caliente, frena el Event Loop levemente. Todo log vital en producción debe hacerse con Winston.
+### 10.1 Logging
+Prohibido `console.log` en producción. Usar Winston para todo log estructurado.
 
-### 10.2 Timeout y Retries para APIs Externas
-Toda llamada `fetch` o `axios` a proveedores externos (ej. Envío de correos, pasarelas de pago) debe tener un Timeout estricto de máximo 5 segundos. La API de GemaAcademy no debe quedar paralizada si SendGrid demora en contestar.
+### 10.2 Timeout y Retries
+Timeout de **5s** en toda llamada a APIs externas. Patrón de retries:
+- Máximo **3 reintentos** con backoff exponencial (`500ms → 1s → 2s`)
+- Solo reintentar errores transitorios (timeouts, 502/503/504). No reintentar 4xx.
 
-## 11. Caché e Inmutabilidad Esencial
+```javascript
+async function fetchConRetry(url, opts, retries = 3) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const r = await fetch(url, { ...opts, signal: AbortSignal.timeout(5000) });
+      if (r.ok) return r;
+      if (r.status < 500) throw new Error(`${r.status}`);
+    } catch (e) { if (i === retries) throw e; await new Promise(w => setTimeout(w, 500 * 2**i)); }
+  }
+}
+```
 
-### 11.1 Cacheo de Catálogos Constantes
-Datos maestros estáticos (lista de sedes, lista de países, nomencladores) no deben consultarse a Prisma en cada request. Deben cargarse en memoria (Memory Cache) al iniciar el servidor y reutilizarse infinitamente.
+## 11. Caché
+
+### 11.1 Catálogos en Memoria
+Datos estáticos (sedes, países) → cargar en Memory Cache al iniciar. No consultar Prisma por request.
+
+**Invalidación:** TTL (ej. 60 min) · Endpoint admin `POST /admin/cache/invalidate/:key` · Invalidar en escritura tras `update`/`create`.
 
 ## 12. Workflow: Análisis de Features
 
-Cuando el usuario solicite analizar un feature (`analiza el feature de @[src/features/X]`), sigue estos pasos:
+Cuando el usuario solicite analizar un feature (`analiza el feature de @[src/features/X]`):
 
-### 12.1 Leer todos los archivos del feature
-Lee todos los archivos dentro del directorio del feature (routes, controller, service, schema, constants, etc).
+1. **Leer** todos los archivos del feature
+2. **Diagnosticar** violaciones contra §2-§11:
+   - §2.4 Estructura: archivos >300 líneas, naming incorrecto, lógica en controller, dead files, funciones que deberían estar en `shared/`
+   - §3.1 Cero Bloqueo (await en bucle)
+   - §3.2 Prisma Selectivo (sin select)
+   - §3.3 Transacciones (multi-tabla sin $transaction)
+   - §4.1 Errores (try/catch sin catchAsync)
+   - §4.2 Responses (res.json sin apiResponse)
+   - §4.3 Legibilidad (funciones monolíticas >40 líneas)
+   - §5.1 Validación redundante
+   - §5.2 Rutas sin auth
+   - Seguridad, bugs, código muerto, DRY
+3. **Generar** `implementation_plan.md` con tabla de violaciones, cambios por archivo (incluyendo los cambios necesarios en `shared/` si se extrae código común), plan de verificación
+4. **Esperar** aprobación vía `notify_user`
+5. **Ejecutar** cambios aprobados (Si la refactorización lo requiere, asegurar que los cambios y el código extraído también se agreguen correctamente en la carpeta `shared/`)
+6. **Documentar** — Crear `FEATURE.md` dentro del feature con:
+   - Estructura de archivos y responsabilidades
+   - Modelo de datos (Mermaid ER)
+   - Endpoints (método, ruta, auth, descripción)
+   - Flujo de datos (diagrama secuencial)
+   - Schemas Zod (qué valida, dónde se usa)
+   - Service detallado (cada función con lógica clave)
+   - Cadena de middlewares por ruta
 
-### 12.2 Diagnosticar violaciones
-Compara el código contra estas directrices y genera una tabla de violaciones:
-- §3.1 Cero Bloqueo (await en bucle)
-- §3.2 Prisma Selectivo (include: true, sin select)
-- §3.3 Transacciones (operaciones multi-tabla sin $transaction)
-- §4.1 Manejo de Errores (try/catch explícito en vez de catchAsync)
-- §4.2 Responses Estandarizados (res.json manual en vez de apiResponse)
-- §5.1 Validación Temprana (parseInt/isNaN redundante, validación que Zod ya cubre)
-- §5.2 Autenticación (rutas sin authenticate/authorize)
-- Seguridad, bugs, código muerto, DRY
+> Esta documentación se genera SIEMPRE al finalizar, sin que el usuario lo pida.
 
-### 12.3 Generar plan de implementación
-Crea un `implementation_plan.md` como artifact con:
-- Tabla de violaciones
-- Cambios propuestos por archivo
-- Plan de verificación
-
-### 12.4 Esperar aprobación y ejecutar
-Usa `notify_user` para que el usuario revise y apruebe.
-
-### 12.5 Generar documentación técnica del feature
-Después de ejecutar los cambios, **SIEMPRE** crea un archivo `[NOMBRE_FEATURE].md` **dentro del directorio del feature** (`src/features/X/FEATURE.md`) con:
-
-- **Estructura de Archivos** — lista de archivos y su responsabilidad
-- **Modelo de Datos** — diagrama Mermaid ER de las tablas involucradas
-- **Endpoints** — tabla con método, ruta, auth requerida, descripción
-- **Flujo de Datos** — diagrama secuencial de cómo fluye un request
-- **Schemas Zod** — tabla explicando cada schema (qué valida, dónde se usa)
-- **Service detallado** — cada función explicada con lógica de negocio clave
-- **Cadena de Middlewares** — qué middlewares protegen cada ruta
-
-> IMPORTANTE: Esta documentación se genera SIEMPRE al finalizar el análisis/refactorización de un feature, sin necesidad de que el usuario lo pida explícitamente.
+## 13. Testing
+Funciones en `*.logic.js`, `*.validator.js`, `*.util.js` → unitarias (happy path, edge cases, errores). Endpoints → integración (HTTP status, JSON conforme a `apiResponse`, auth bloquea). Dir: `__tests__/`, naming: `[entidad].[tipo].test.js`, runner: Vitest/Jest. Mockear Prisma y servicios externos.

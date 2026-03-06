@@ -3,12 +3,9 @@ import jwt from 'jsonwebtoken';
 import { tokenUtils } from './utils/token.util.js';
 import { prisma } from '../../config/database.config.js';
 import { ApiError } from '../../shared/utils/error.util.js';
-import {
-  JWT_SECRET,
-  JWT_EXPIRES_IN,
-  REFRESH_TOKEN_EXPIRATION_DAYS,
-} from '../../config/secret.config.js';
+import { JWT_SECRET } from '../../config/secret.config.js';
 import { emailService } from '../../shared/services/brevo.email.service.js';
+import { authLogic } from './logic/auth.logic.js';
 
 export const authService = {
   /**
@@ -44,17 +41,7 @@ export const authService = {
       throw new ApiError('Credenciales inválidas', 401);
     }
 
-    if (!usuario.activo) {
-      throw new ApiError('Usuario inactivo', 403);
-    }
-
-    if (!usuario.credenciales_usuario) {
-      throw new ApiError('Usuario sin credenciales configuradas', 403);
-    }
-
-    if (usuario.credenciales_usuario.bloqueado) {
-      throw new ApiError('Usuario bloqueado. Contacte al administrador', 403);
-    }
+    authLogic.validarEstadoUsuario(usuario);
 
     const passwordValida = await bcrypt.compare(
       password,
@@ -65,19 +52,7 @@ export const authService = {
       throw new ApiError('Credenciales inválidas', 401);
     }
 
-    const accessToken = jwt.sign(
-      {
-        id: usuario.id,
-        username: usuario.username,
-        rol_id: usuario.rol_id,
-        rol_nombre: usuario.roles.nombre,
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
-    const refreshToken = tokenUtils.generateRefreshToken();
-    const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
+    const { accessToken, refreshToken, expiresAt } = authLogic.generarSesionTokens(usuario);
 
     await Promise.all([
       prisma.credenciales_usuario.update({
@@ -93,19 +68,11 @@ export const authService = {
       }),
     ]);
 
+    const esLoginNuevo = true;
     return {
       accessToken,
       refreshToken,
-      user: {
-        id: usuario.id,
-        username: usuario.username,
-        email: usuario.email,
-        nombres: usuario.nombres,
-        apellidos: usuario.apellidos,
-        rol: usuario.roles.nombre,
-        alumnos: usuario.alumnos,
-        debeCompletarEmail: !usuario.email,
-      },
+      user: authLogic.construirInformacionPerfilUsuario(usuario, esLoginNuevo),
     };
   },
 
@@ -238,16 +205,13 @@ export const authService = {
 
     const { usuarios: usuario } = tokenRecord;
 
-    if (!usuario.activo) {
-      throw new ApiError('Usuario inactivo', 403);
-    }
+    authLogic.validarEstadoUsuario(usuario);
 
-    if (usuario.credenciales_usuario?.bloqueado) {
-      throw new ApiError('Cuenta bloqueada. Contacte al administrador', 403);
-    }
-
-    const newRefreshToken = tokenUtils.generateRefreshToken();
-    const expiresAt = tokenUtils.getRefreshTokenExpiration(REFRESH_TOKEN_EXPIRATION_DAYS);
+    const {
+      accessToken,
+      refreshToken: newRefreshToken,
+      expiresAt,
+    } = authLogic.generarSesionTokens(usuario);
 
     await prisma.$transaction([
       prisma.refresh_tokens.update({
@@ -263,27 +227,11 @@ export const authService = {
       }),
     ]);
 
-    const accessToken = jwt.sign(
-      {
-        id: usuario.id,
-        email: usuario.email,
-        rol_id: usuario.rol_id,
-        rol_nombre: usuario.roles.nombre,
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
-
+    const esLoginNuevo = false;
     return {
       accessToken,
       refreshToken: newRefreshToken,
-      user: {
-        id: usuario.id,
-        email: usuario.email,
-        nombres: usuario.nombres,
-        apellidos: usuario.apellidos,
-        rol: usuario.roles.nombre,
-      },
+      user: authLogic.construirInformacionPerfilUsuario(usuario, esLoginNuevo),
     };
   },
 
@@ -361,7 +309,7 @@ export const authService = {
       select: { id: true, email: true, nombres: true },
     });
 
-    if (!user || !user.email) {
+    if (!user?.email) {
       throw new ApiError('Usuario no encontrado o no tiene correo asociado', 404);
     }
 

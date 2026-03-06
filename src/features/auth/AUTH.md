@@ -12,9 +12,12 @@ src/features/auth/
 ├── auth.controller.js     # Manejo Request/Response + helpers de cookies
 ├── auth.service.js        # Lógica de negocio + JWT + Prisma
 ├── auth.schema.js         # Schemas Zod (login, email, password)
+├── logic/
+│   └── auth.logic.js          # Helpers de negocio y criptografía pura dependientes del dominio
+├── services/
+│   └── token-cleanup.service.js # Cron de limpieza periódica de tokens expirados
 └── utils/
-    ├── token.util.js          # Generación y validación de refresh tokens
-    └── cleanupTokens.util.js  # Cron de limpieza de tokens expirados
+    └── token.util.js          # Generación estéril de refresh tokens
 ```
 
 ---

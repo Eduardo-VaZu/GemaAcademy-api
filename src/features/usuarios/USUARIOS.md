@@ -10,12 +10,19 @@ Gestión completa de usuarios del sistema: registro con datos por rol, perfil, a
 src/features/usuarios/
 ├── usuario.routes.js              # Endpoints y middlewares
 ├── usuario.controller.js          # Manejo Request/Response (catchAsync)
-├── usuario.service.js             # Lógica de negocio + Prisma
-├── usuario.schema.js              # Schemas Zod (register, update, params)
+├── usuario.service.js             # Lógica base de CRUD puro y enrutamiento hacia helpers de negocio
+├── usuario.schema.js              # Archivo de re-exportación y ensamble de Schemas Zod
+├── logic/
+│   └── registro.logic.js          # Refactorización de partes pesadas de creaciones multi-tablas (createRoleSpecificData, etc)
+├── schemas/
+│   ├── common.schema.js           # Schemas comunes parametrizados
+│   └── roles.schema.js            # Schemas segmentados extensivos
 ├── validators/
 │   └── usuario.validator.js       # Validación manual de datos por rol (preview)
 └── services/
-    └── cumpleanos.service.js      # Cron: saludo de cumpleaños (WhatsApp + Email)
+    ├── dashboard.service.js       # Consultas analíticas pesadas
+    ├── reporte.service.js         # Recopilación cross-relacional para Excel
+    └── cumpleanos.service.js      # Cron: saludo de cumpleaños limitado por bloqueos de red (p-limit fallback)
 ```
 
 ---
@@ -94,10 +101,10 @@ flowchart TD
 flowchart TD
     A["Validar rol, documento, username"] --> B["$transaction"]
     B --> C["1. Crear usuario (temp_username)"]
-    C --> D["2. Generar username final"]
-    D --> E["3. Hash password + crear credenciales"]
-    E --> F["4. createRoleSpecificData (según rol)"]
-    F --> G["5. Crear contacto emergencia (si alumno)"]
+    C --> D["2. registroLogic.generarFallbackUsername"]
+    D --> E["3. Hash password + crear credenciales (registroLogic.crearCredenciales)"]
+    E --> F["4. registroLogic.createRoleSpecificData"]
+    F --> G["5. registroLogic.crearContactoEmergencia"]
     G --> H["Enviar email async (no bloquea)"]
 ```
 
@@ -120,13 +127,11 @@ Transacción que puede actualizar:
 
 Acepta nombre de rol (case-insensitive) o ID numérico.
 
-### `getDashboardStats` — Conteo por rol
+### Utilidades Sub-Delegadas (`logic/registro.logic.js` y `services/`)
 
-Usa `groupBy` + join con roles para retornar `{ alumno: 45, coordinador: 3, administrador: 2 }`.
+Las analíticas de tableros fueron relegadas a `services/dashboard.service.js` para optimizarse sin empaquetar el CRUD principal, lo mismo para extracciones matriciales enviadas a `services/reporte.service.js`.
 
-### `createRoleSpecificData` (helper privado)
-
-Pattern Strategy: mapa `{ alumno: fn, coordinador: fn, administrador: fn }` crea los datos específicos según rol dentro de la transacción.
+La creación multi-entidad fue refactorizada a `logic/registro.logic.js`, usando el Pattern Strategy con un mapa `{ alumno: fn, coordinador: fn, administrador: fn }` para crear los datos específicos dependiendo del rol por inyección de dependencias `tx`.
 
 ---
 
