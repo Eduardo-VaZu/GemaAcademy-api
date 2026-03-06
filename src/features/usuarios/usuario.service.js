@@ -1,6 +1,7 @@
 import { ApiError } from '../../shared/utils/error.util.js';
 import { VALID_ROLES } from '../roles/roles.constants.js';
 import { registroLogic } from './logic/registro.logic.js';
+import { prisma } from '../../config/database.config.js';
 
 import { dashboardService } from './services/dashboard.service.js';
 import { reporteService } from './services/reporte.service.js';
@@ -143,7 +144,7 @@ export const usuarioService = {
     if (user.email) {
       emailService
         .sendCredentialsEmail(user.email, user.nombres, user.username, user.finalProvidedPassword)
-        .catch(() => {});
+        .catch(() => { });
     }
 
     return {
@@ -259,9 +260,9 @@ export const usuarioService = {
 
     const direccion =
       direccion_completa !== undefined ||
-      distrito !== undefined ||
-      ciudad !== undefined ||
-      referencia !== undefined
+        distrito !== undefined ||
+        ciudad !== undefined ||
+        referencia !== undefined
         ? { direccion_completa, distrito, ciudad, referencia }
         : null;
 
