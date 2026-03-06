@@ -121,11 +121,11 @@ const formatearHorario = (h) => ({
     id: h.niveles_entrenamiento.id,
     nombre: h.niveles_entrenamiento.nombre,
   },
-  coordinador: {
+  coordinador: h.coordinadores ? {
     id: h.coordinadores.usuario_id,
     nombre_completo: `${h.coordinadores.usuarios.nombres} ${h.coordinadores.usuarios.apellidos}`,
     especializacion: h.coordinadores.especializacion,
-  },
+  } : null,
 });
 
 export const horarioService = {
