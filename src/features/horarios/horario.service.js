@@ -125,7 +125,11 @@ const formatearHorario = (h) => ({
     id: h.coordinadores.usuario_id,
     nombre_completo: `${h.coordinadores.usuarios.nombres} ${h.coordinadores.usuarios.apellidos}`,
     especializacion: h.coordinadores.especializacion,
-  } : null,
+  } : {
+    id: null,
+    nombre_completo: 'Sin asignar',
+    especializacion: null
+  },
 });
 
 export const horarioService = {
