@@ -33,5 +33,30 @@ export const notificacionesService = {
       where: { id: Number.parseInt(id) },
       data: { leido: true }
     });
-  }
+  },
+  // 🔥 1. Ahora filtra por el ID del usuario
+  obtenerPorUsuario: async (usuarioId) => {
+    return await prisma.notificaciones.findMany({
+      where: { 
+        usuario_id: usuarioId // <- EL FILTRO CLAVE
+      },
+      include: {
+        alumnos: {
+          include: { usuarios: { select: { nombres: true, apellidos: true } } }
+        }
+      },
+      orderBy: { creado_en: 'desc' },
+      take: 50
+    });
+  },
+
+  // 🔥 2. Nueva función hiper-rápida solo para contar
+  obtenerConteoNoLeidas: async (usuarioId) => {
+    return await prisma.notificaciones.count({
+      where: {
+        usuario_id: usuarioId,
+        leido: false
+      }
+    });
+  },
 };
