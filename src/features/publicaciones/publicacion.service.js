@@ -30,9 +30,8 @@ const subirImagen = async (fileObject) => {
 
 export const publicacionService = {
   createPublicacion: async (data, imagenFile) => {
-    // 🔥 CAMBIO: Usamos findFirst porque usuario_id NO es el @id de la tabla administrador
-    const admin = await prisma.administrador.findFirst({
-      where: { usuario_id: Number(data.autor_id) }, 
+    const admin = await prisma.administrador.findUnique({
+      where: { usuario_id: data.autor_id },
       select: { usuario_id: true },
     });
 
