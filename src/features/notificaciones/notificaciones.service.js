@@ -34,11 +34,15 @@ export const notificacionesService = {
       data: { leido: true }
     });
   },
-  // 🔥 1. Ahora filtra por el ID del usuario
+
+  // 🔥 SOLUCIÓN: Busca tanto en usuario_id como en alumno_id
   obtenerPorUsuario: async (usuarioId) => {
     return await prisma.notificaciones.findMany({
       where: { 
-        usuario_id: usuarioId // <- EL FILTRO CLAVE
+        OR: [
+          { usuario_id: usuarioId },
+          { alumno_id: usuarioId }
+        ]
       },
       include: {
         alumnos: {
@@ -50,11 +54,14 @@ export const notificacionesService = {
     });
   },
 
-  // 🔥 2. Nueva función hiper-rápida solo para contar
+  // 🔥 SOLUCIÓN: Aplica el mismo OR para el contador de la campanita
   obtenerConteoNoLeidas: async (usuarioId) => {
     return await prisma.notificaciones.count({
       where: {
-        usuario_id: usuarioId,
+        OR: [
+          { usuario_id: usuarioId },
+          { alumno_id: usuarioId }
+        ],
         leido: false
       }
     });
