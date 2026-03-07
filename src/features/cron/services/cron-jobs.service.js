@@ -9,6 +9,15 @@ import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 import { asistenciaCronService } from '../../asistencia/asistencia-cron.service.js';
 
+
+// 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA PARA LOS LOGS 🔥
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const TZ_LIMA = 'America/Lima';
+
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
 
@@ -50,7 +59,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Generar la deuda del próximo mes X días antes del vencimiento.
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * *',
+    '30 0 * * *',
     async () => {
       logger.info(`[CRON] El Profeta buscando renovaciones futuras...`);
       try {

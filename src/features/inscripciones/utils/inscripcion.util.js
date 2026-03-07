@@ -1,3 +1,11 @@
+// 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA 🔥
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const TZ_LIMA = 'America/Lima';
+
 /**
  * Cuenta cuántas veces cae un día específico de la semana entre dos fechas.
  * @param {number} diaSemana - Día buscado (0-6, donde 0 es domingo o según configuración).
@@ -7,14 +15,17 @@
  */
 export const contarClasesEnIntervalo = (diaSemana, inicio, fin) => {
   let contador = 0;
-  let puntero = new Date(inicio);
-  puntero.setHours(12, 0, 0, 0); // Evitar problemas de zona horaria
-  let finFijo = new Date(fin);
-  finFijo.setHours(23, 59, 59, 999);
+  
+  // 🔥 CAMBIO CON DAYJS: Anclamos el inicio a las 12:00 PM hora Lima
+  let puntero = dayjs(inicio).tz(TZ_LIMA).hour(12).minute(0).second(0).millisecond(0);
+  
+  // 🔥 CAMBIO CON DAYJS: Anclamos el fin al último milisegundo del día en hora Lima
+  let finFijo = dayjs(fin).tz(TZ_LIMA).endOf('day');
 
-  while (puntero <= finFijo) {
-    if (puntero.getDay() === diaSemana) contador++;
-    puntero.setDate(puntero.getDate() + 1);
+  // 🔥 CAMBIO CON DAYJS: Evaluamos usando isBefore e isSame de dayjs
+  while (puntero.isBefore(finFijo) || puntero.isSame(finFijo, 'day')) {
+    if (puntero.day() === diaSemana) contador++;
+    puntero = puntero.add(1, 'day'); // 🔥 Sumamos 1 día de forma segura
   }
   return contador;
 };
@@ -26,10 +37,8 @@ export const validarInputInscripcion = (horario_ids) => {
   if (!horario_ids || !Array.isArray(horario_ids) || horario_ids.length === 0) {
     throw new Error('Debes seleccionar al menos un horario.');
   }
-
-
-  
 };
+
 /**
  * Calcula el rango de búsqueda para las inscripciones que deben renovarse.
  * @param {number} diasAnticipacion - Días antes del vencimiento para generar la deuda.
@@ -38,19 +47,23 @@ export const calcularRangoRenovacion = (diasAnticipacion) => {
   const diasCiclo = 30;
   const diasAtras = diasCiclo - diasAnticipacion;
 
-  const inicio = new Date();
-  inicio.setDate(inicio.getDate() - diasAtras);
-  inicio.setHours(0, 0, 0, 0);
+  // 🔥 CAMBIO CON DAYJS: Buscamos "hoy" en Lima, restamos los días, y vamos al inicio del día (00:00:00)
+  const inicioLima = dayjs().tz(TZ_LIMA).subtract(diasAtras, 'day').startOf('day');
+  
+  // 🔥 CAMBIO CON DAYJS: El final del rango es exactamente al terminar ese día (23:59:59)
+  const finLima = inicioLima.endOf('day');
 
-  const fin = new Date(inicio);
-  fin.setHours(23, 59, 59, 999);
-
-  return { inicio, fin };
+  // 🔥 CAMBIO CON DAYJS: Convertimos a Date nativo con .toDate() para Prisma
+  return { 
+    inicio: inicioLima.toDate(), 
+    fin: finLima.toDate() 
+  };
 };
 
 /**
  * Calcula la fecha de vencimiento para la nueva deuda de renovación.
  */
 export const calcularFechaVencimiento = (diasAnticipacion) => {
-  return new Date(Date.now() + diasAnticipacion * 24 * 60 * 60 * 1000);
+  // 🔥 CAMBIO CON DAYJS: Sumamos los días de anticipación y mandamos la hora al FINAL del día (23:59:59) de Lima
+  return dayjs().tz(TZ_LIMA).add(diasAnticipacion, 'day').endOf('day').toDate();
 };

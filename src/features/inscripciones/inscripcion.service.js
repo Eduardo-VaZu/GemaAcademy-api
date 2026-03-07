@@ -4,6 +4,14 @@ import * as Utils from './utils/inscripcion.util.js';
 import * as Validators from './validators/inscripcion.validator.js';
 import * as Logic from './logic/inscripcion.logic.js';
 
+// 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA PARA LOS LOGS 🔥
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const TZ_LIMA = 'America/Lima';
+
 export const inscripcionService = {
 // =================================================================
 // 🚀 MOTOR MAESTRO DE INSCRIPCIÓN: GEMA ACADEMY (VERSIÓN FINAL)

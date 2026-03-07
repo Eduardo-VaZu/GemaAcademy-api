@@ -2,6 +2,14 @@ import { prisma } from '../../config/database.config.js';
 import { logger } from '../../shared/utils/logger.util.js';
 import { notificacionesService } from '../notificaciones/notificaciones.service.js';
 
+/// 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA 🔥
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc.js';
+import timezone from 'dayjs/plugin/timezone.js';
+dayjs.extend(utc);
+dayjs.extend(timezone);
+const TZ_LIMA = 'America/Lima';
+
 class InscripcionCronService {
   async limpiarReservasZombies() {
     const param = await prisma.parametros_sistema.findUnique({
@@ -81,7 +89,8 @@ class InscripcionCronService {
   }
 
   async gestionarVencimientos() {
-    const hoy = new Date();
+    // 🔥 CAMBIO AQUÍ: Obtenemos "hoy" anclado al inicio del día en la hora de Lima
+    const hoyLima = dayjs().tz(TZ_LIMA).startOf('day');
 
     // 1. Obtenemos los días de gracia del sistema
     const paramTolerancia = await prisma.parametros_sistema.findUnique({
@@ -114,11 +123,15 @@ class InscripcionCronService {
       if (!inscripcionMadre) continue;
 
       // 4. LA REGLA DE ORO: Fecha Madre + 30 días del ciclo normal + Días de Tolerancia
-      const fechaLimiteMuerte = new Date(inscripcionMadre.fecha_inscripcion);
-      fechaLimiteMuerte.setDate(fechaLimiteMuerte.getDate() + 30 + diasGracia);
+      // 🔥 CAMBIO AQUÍ: Calculamos la fecha límite y la anclamos al inicio de su día en Lima
+      const fechaLimiteMuerte = dayjs(inscripcionMadre.fecha_inscripcion)
+        .tz(TZ_LIMA)
+        .add(30 + diasGracia, 'day')
+        .startOf('day');
 
       // Si la fecha límite aún no llega (está en el futuro), se salva por hoy
-      if (fechaLimiteMuerte > hoy) {
+      // 🔥 CAMBIO AQUÍ: Comparamos usando isAfter de dayjs
+      if (fechaLimiteMuerte.isAfter(hoyLima)) {
         continue;
       }
 
@@ -144,12 +157,14 @@ class InscripcionCronService {
         // Matamos TODAS sus inscripciones activas mandándolas al estado que le tocó
         prisma.inscripciones.updateMany({
           where: { alumno_id: alumno_id, estado: 'ACTIVO' },
-          data: { estado: nuevoEstado, actualizado_en: new Date() },
+          // 🔥 CAMBIO AQUÍ: Convertimos de nuevo a Date nativo para Prisma
+          data: { estado: nuevoEstado, actualizado_en: dayjs().toDate() },
         }),
         // Marcamos las deudas pendientes de este alumno como VENCIDA
         prisma.cuentas_por_cobrar.updateMany({
           where: { alumno_id: alumno_id, estado: 'PENDIENTE' },
-          data: { estado: 'VENCIDA', actualizado_en: new Date() },
+          // 🔥 CAMBIO AQUÍ: Convertimos de nuevo a Date nativo para Prisma
+          data: { estado: 'VENCIDA', actualizado_en: dayjs().toDate() },
         }),
         // 🔔 Notificación específica para la alumna
         prisma.notificaciones.create({
@@ -205,8 +220,8 @@ class InscripcionCronService {
   // 🗡️ EL LIQUIDADOR DE PAGOS PARCIALES (Motor Completo)
   // =================================================================
   async liquidarMorososParciales() {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0); // Limpiamos la hora para comparar solo "Días puros"
+    // 🔥 CAMBIO AQUÍ: Obtenemos el inicio del día (00:00:00) EXACTAMENTE en la hora de Lima
+    const hoyLimaInicioDia = dayjs().tz(TZ_LIMA).startOf('day');
 
     // 1. Obtenemos los días de anticipación del Profeta
     const paramAnti = await prisma.parametros_sistema.findUnique({
@@ -239,16 +254,19 @@ class InscripcionCronService {
       if (!inscripcionMadre) continue;
 
       // 4. Calculamos fin de mes (Fecha Madre + 30 días)
-      const finCiclo = new Date(inscripcionMadre.fecha_inscripcion);
-      finCiclo.setDate(finCiclo.getDate() + 30);
-      finCiclo.setHours(0, 0, 0, 0);
+      // 🔥 CAMBIO AQUÍ: Sumamos 30 días y calculamos el inicio de ese día en hora de Lima
+      const finCiclo = dayjs(inscripcionMadre.fecha_inscripcion)
+        .tz(TZ_LIMA)
+        .add(30, 'day')
+        .startOf('day');
 
       // 5. Calculamos el "Día del Juicio"
-      const diaDelJuicioParcial = new Date(finCiclo);
-      diaDelJuicioParcial.setDate(diaDelJuicioParcial.getDate() - diasAnticipacionLiquidador);
+      // 🔥 CAMBIO AQUÍ: Restamos los días de anticipación usando dayjs
+      const diaDelJuicioParcial = finCiclo.subtract(diasAnticipacionLiquidador, 'day');
 
       // 6. ¿Llegó el momento de liquidar?
-      if (hoy >= diaDelJuicioParcial) {
+      // 🔥 CAMBIO AQUÍ: Comparamos directamente con el valor absoluto en milisegundos (.valueOf())
+      if (hoyLimaInicioDia.valueOf() >= diaDelJuicioParcial.valueOf()) {
         // Buscamos si tiene derecho a Purgatorio (Recuperaciones)
         const tieneRecuperacionesPendientes = await prisma.recuperaciones.findFirst({
           where: {
@@ -264,7 +282,8 @@ class InscripcionCronService {
           // Matamos inscripciones activas
           prisma.inscripciones.updateMany({
             where: { alumno_id: alumno_id, estado: 'ACTIVO' },
-            data: { estado: nuevoEstado, actualizado_en: new Date() },
+            // 🔥 CAMBIO AQUÍ: Convertimos de nuevo a Date nativo para Prisma
+            data: { estado: nuevoEstado, actualizado_en: dayjs().toDate() },
           }),
           // 🔔 Notificación para la alumna
           prisma.notificaciones.create({

@@ -113,6 +113,8 @@ export const usuarioService = {
         data: { username: finalUsername },
       });
 
+      nuevoUsuario.username = finalUsername;
+      
       const passwordToHash = await registroLogic.crearCredenciales(
         tx,
         nuevoUsuario.id,
