@@ -20,7 +20,12 @@ export class apiResponse {
     return res.status(204).send();
   }
 
-  static error(res, { status = 500, message = 'Error interno del servidor', details } = {}) {
+  static error(res, optionsOrMessage, statusCodeOverride) {
+    const isString = typeof optionsOrMessage === 'string';
+    const message = isString ? optionsOrMessage : (optionsOrMessage?.message || 'Error interno del servidor');
+    const status = isString ? (statusCodeOverride || 500) : (optionsOrMessage?.status || 500);
+    const details = isString ? undefined : optionsOrMessage?.details;
+
     return res.status(status).json({
       success: 'error',
       message,
