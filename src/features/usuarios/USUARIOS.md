@@ -1,169 +1,90 @@
-# Feature: Usuarios — Documentación Técnica
+# Feature: Usuarios
 
-Gestión completa de usuarios del sistema: registro con datos por rol, perfil, actualización y estadísticas. Feature más complejo del proyecto por la lógica condicional de roles (Alumno, Coordinador, Administrador).
+Módulo encargado de la gestión de usuarios, perfiles (alumnos, administradores, coordinadores), roles y estadísticas relacionadas.
 
----
-
-## Estructura de Archivos
-
-```
+## 1. Estructura de Archivos y Responsabilidades
+```text
 src/features/usuarios/
-├── usuario.routes.js              # Endpoints y middlewares
-├── usuario.controller.js          # Manejo Request/Response (catchAsync)
-├── usuario.service.js             # Lógica base de CRUD puro y enrutamiento hacia helpers de negocio
-├── usuario.schema.js              # Archivo de re-exportación y ensamble de Schemas Zod
+├── usuario.routes.js       # Definición de endpoints y enrutamiento.
+├── usuario.controller.js   # Manejo de requests/responses HTTP y formateo con apiResponse.
+├── usuario.service.js      # Lógica transaccional simple y delegación a capa logic.
+├── usuario.schema.js       # Exporta esquemas Zod unificados del feature.
 ├── logic/
-│   └── registro.logic.js          # Refactorización de partes pesadas de creaciones multi-tablas (createRoleSpecificData, etc)
+│   ├── usuario.logic.js    # Lógica de negocio core para la creación y actualización.
+│   └── registro.logic.js   # Lógica interna auxiliar para generación de credenciales y datos.
 ├── schemas/
-│   ├── common.schema.js           # Schemas comunes parametrizados
-│   └── roles.schema.js            # Schemas segmentados extensivos
-├── validators/
-│   └── usuario.validator.js       # Validación manual de datos por rol (preview)
-└── services/
-    ├── dashboard.service.js       # Consultas analíticas pesadas
-    ├── reporte.service.js         # Recopilación cross-relacional para Excel
-    └── cumpleanos.service.js      # Cron: saludo de cumpleaños limitado por bloqueos de red (p-limit fallback)
+│   ├── common.schema.js    # Esquemas Zod compartidos de usuario.
+│   ├── roles.schema.js     # Esquemas Zod específicos por rol.
+│   ├── register.schema.js  # Esquema Zod de creación unificada de usuario.
+│   └── update.schema.js    # Esquema Zod de actualización de perfil.
+├── services/
+│   ├── dashboard.service.js# Lógica de extracción de estadísticas.
+│   ├── reporte.service.js  # Lógica de reportabilidad en Excel.
+│   └── cumpleanos.service.js# Servicio de felicitación de cumpleaños por medios externos.
+└── validators/
+    └── usuario.validator.js# Funciones utilitarias imperativas para validación de roles.
 ```
 
----
-
-## Modelo de Datos
-
+## 2. Modelo de Datos
 ```mermaid
 erDiagram
-    usuarios ||--|| credenciales_usuario : "auth"
-    usuarios ||--o| alumnos : "si rol=alumno"
-    usuarios ||--o| coordinadores : "si rol=coordinador"
-    usuarios ||--o| administrador : "si rol=admin"
-    usuarios }o--|| roles : "tiene"
-    alumnos |o--o| direcciones : "vive en"
-    alumnos ||--o{ alumnos_contactos : "emergencia"
-
-    usuarios {
-        int id PK
-        string username UK
-        string email
-        string nombres
-        string apellidos
-        int rol_id FK
-        int tipo_documento_id
-        string numero_documento
-        date fecha_nacimiento
-        string telefono_personal
-        string genero
-        boolean activo
-    }
+    usuarios ||--o| roles : "posee"
+    usuarios ||--o| credenciales_usuario : "tiene"
+    usuarios ||--o| alumnos : "es"
+    usuarios ||--o| coordinadores : "es"
+    usuarios ||--o| administrador : "es"
+    
+    alumnos ||--o{ alumnos_contactos : "registra"
+    alumnos ||--o{ direcciones : "tiene"
 ```
 
----
+## 3. Endpoints y Cadena de Middlewares
+| Método | Ruta | Middlewares | Descripción |
+|---|---|---|---|
+| POST | `/register` | `validate(registerUserSchema)` | Registra un nuevo usuario en la plataforma. |
+| POST | `/validate-role` | `validate(validateRoleSchema)` | Valida que el payload para un rol sea correcto. |
+| GET | `/dni/:dni` | `authenticate`, `authorize('Administrador', 'Coordinador')` | Obtiene un usuario por su DNI. |
+| GET | `/:id` | `authenticate`, `authorize('Coordinador', 'Administrador', 'Alumno')`, `validateParams(idParamSchema)` | Obtiene el perfil completo de un usuario por ID. |
+| GET | `/role/:rol` | `validateParams(rolParamSchema)` | Obtiene la lista de usuarios agrupados por rol dado. |
+| GET | `/count/usuarios-stats` | `authenticate`, `authorize('Administrador')` | Kpis y métricas para el dashboard de administración. |
+| PUT | `/:id` | `authenticate`, `validateParams(idParamSchema)`, `validate(updateUserSchema)` | Actualiza un perfil dado. |
+| GET | `/reporte/detallado` | `authenticate`, `authorize('Administrador')` | Genera los datos para el reporte en Excel de alumnos. |
 
-## Endpoints
-
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| `POST` | `/api/usuarios/register` | No | Registrar nuevo usuario (con datos por rol) |
-| `POST` | `/api/usuarios/validate-role` | No | Validar datos de rol sin crear (preview) |
-| `GET` | `/api/usuarios/:id` | Coord/Admin/Alumno | Obtener perfil completo |
-| `GET` | `/api/usuarios/role/:rol` | No | Listar usuarios por rol |
-| `GET` | `/api/usuarios/count/usuarios-stats` | No | Dashboard con conteo por rol |
-| `PUT` | `/api/usuarios/:id` | Auth | Actualizar perfil de alumno |
-
----
-
-## Schemas Zod (`usuario.schema.js`)
-
-| Schema | Uso | Qué valida |
-|--------|-----|-----------|
-| `registerUserSchema` | `POST /register` | Datos base + `superRefine` que valida `datosRolEspecifico` según `rol_id` |
-| `updateUserSchema` | `PUT /:id` | Campos opcionales: password, dirección, contacto emergencia, datos médicos |
-| `idParamSchema` | `GET/PUT /:id` | Transforma `:id` string → int positivo |
-| `rolParamSchema` | `GET /role/:rol` | String 1-50 chars |
-| `validateRoleSchema` | `POST /validate-role` | `rol_id` (enum/int) + `datosRolEspecifico` (record) |
-
-### `registerUserSchema` — Validación condicional por rol
-
+## 4. Flujo de Datos (Creación de Usuario)
 ```mermaid
-flowchart TD
-    A["req.body.rol_id"] --> B{¿Tipo?}
-    B -->|string 'alumno'| C["alumnoSpecificSchema → dirección, grupo_sanguineo, etc."]
-    B -->|string 'coordinador'| D["coordinadorSpecificSchema → especialización"]
-    B -->|string 'administrador'| E["administradorSpecificSchema → cargo (obligatorio)"]
-    B -->|number| F["Defer a service (busca rol por ID)"]
+sequenceDiagram
+    participant C as Cliente
+    participant R as Routes
+    participant Z as Zod (Middleware)
+    participant Ctrl as Controller
+    participant Svc as Service
+    participant Log as usuario.logic
+    participant DB as Prisma (DB)
+    participant Mail as email.service
+
+    C->>R: POST /register (userData)
+    R->>Z: Validar esquema de entrada
+    Z-->>R: Válido
+    R->>Ctrl: usuarioController.register
+    Ctrl->>Svc: usuarioService.createUser(userData)
+    Svc->>Log: usuarioLogic.procesarCreacionUsuario()
+    Log->>DB: Begin $transaction
+    DB->>DB: Crear usuarios
+    DB->>DB: Generar credenciales
+    DB->>DB: Crear metadata del Rol
+    DB-->>Log: Retornar usuario
+    Log-->>Svc: Retorno
+    Svc->>Mail: sendCredentialsEmail() (Asíncrono)
+    Svc-->>Ctrl: mapped user
+    Ctrl-->>C: 201 Created (apiResponse)
 ```
 
----
+## 5. Schemas Zod Estructurales
+- **registerUserSchema**: Valida los datos base de usuarios de forma robusta y emplea `.superRefine` transversalmente contra los modulos en `roles.schema.js`.
+- **updateUserSchema**: Valida los campos de actualización garantizando pre-condiciones como "al menos 1 campo enviado".
 
-## Service (`usuario.service.js`)
-
-### `createUser` — Registro con Transacción
-
-```mermaid
-flowchart TD
-    A["Validar rol, documento, username"] --> B["$transaction"]
-    B --> C["1. Crear usuario (temp_username)"]
-    C --> D["2. registroLogic.generarFallbackUsername"]
-    D --> E["3. Hash password + crear credenciales (registroLogic.crearCredenciales)"]
-    E --> F["4. registroLogic.createRoleSpecificData"]
-    F --> G["5. registroLogic.crearContactoEmergencia"]
-    G --> H["Enviar email async (no bloquea)"]
-```
-
-- El username se genera post-create porque usa el `id` del usuario
-- El email se envía con `.catch(() => {})` para no bloquear la respuesta
-
-### `getUserById` — Perfil selectivo
-
-Usa `select` explícito (§3.2) con relaciones condicionales: roles, alumnos→direcciones, coordinadores, administrador→sedes. Lanza 404 si no existe.
-
-### `updateStudentProfile` — Update multi-tabla
-
-Transacción que puede actualizar:
-- Contraseña (hash bcrypt)
-- Datos médicos del alumno
-- Dirección (crear o actualizar)
-- Contacto de emergencia principal
-
-### `getUsersByRol` — Búsqueda flexible
-
-Acepta nombre de rol (case-insensitive) o ID numérico.
-
-### Utilidades Sub-Delegadas (`logic/registro.logic.js` y `services/`)
-
-Las analíticas de tableros fueron relegadas a `services/dashboard.service.js` para optimizarse sin empaquetar el CRUD principal, lo mismo para extracciones matriciales enviadas a `services/reporte.service.js`.
-
-La creación multi-entidad fue refactorizada a `logic/registro.logic.js`, usando el Pattern Strategy con un mapa `{ alumno: fn, coordinador: fn, administrador: fn }` para crear los datos específicos dependiendo del rol por inyección de dependencias `tx`.
-
----
-
-## Validation (`validators/usuario.validator.js`)
-
-Módulo de validación manual usado por el endpoint `POST /validate-role` para pre-validar datos de rol sin crear el usuario. Contiene:
-
-| Función | Uso |
-|---------|-----|
-| `validateRoleSpecificData` | Valida campos requeridos y específicos por rol |
-| `isValidRole`, `normalizeRole` | Utilidades de normalización |
-| `getBdRoleName` | Convierte rol a formato BD (PascalCase) |
-| `canCreateUserRole` | Verifica permisos de creación |
-
----
-
-## Cumpleaños (`services/cumpleanos.service.js`)
-
-Cron job que:
-1. Busca cumpleañeros del día con `$queryRaw` (EXTRACT month/day)
-2. Envía WhatsApp (Twilio) + Email (Brevo) en paralelo con `Promise.allSettled`
-3. Registra resultados con Winston logger
-
----
-
-## Cadena de Middlewares
-
-| Ruta | Cadena |
-|------|--------|
-| `POST /register` | `validate(registerUserSchema)` → controller |
-| `POST /validate-role` | `validate(validateRoleSchema)` → controller |
-| `GET /:id` | `authenticate` → `authorize('Coordinador', 'Administrador', 'Alumno')` → `validateParams` → controller |
-| `GET /role/:rol` | `validateParams(rolParamSchema)` → controller |
-| `GET /count/usuarios-stats` | → controller (público) |
-| `PUT /:id` | `authenticate` → `validateParams` → `validate(updateUserSchema)` → controller |
+## 6. Service y Logic Detallado
+- **usuario.service.js**: Expone métodos simplificados y mapea hacia servicios especialistas.
+- **usuarioLogic.procesarCreacionUsuario**: Función central. Gestiona la transacción principal. Normaliza roles, revisa existencia de credenciales y delega la creación del rol específico.
+- **usuarioLogic.procesarActualizacionPerfilAlumno**: Upserts complejos sobre la entidad del alumno, gestionando actualizaciones atómicas sobre datos médicos, relacionales y contacto.
+- **cumpleanosService.ejecutarSaludosCumpleanos**: Función cron o manual. Extrae de DB usuarios en su día y procesa notificaciones en lotes usando `p-limit` para regular el I/O por WhatsApp y Email.

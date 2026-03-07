@@ -2,6 +2,7 @@ import { prisma } from '../../../config/database.config.js';
 import { twilioProvider } from '../../../shared/services/twilio.whatsapp.service.js';
 import { emailService } from '../../../shared/services/brevo.email.service.js';
 import { logger } from '../../../shared/utils/logger.util.js';
+import pLimit from 'p-limit';
 
 class CumpleanosService {
   async ejecutarSaludosCumpleanos() {
@@ -24,13 +25,10 @@ class CumpleanosService {
 
     logger.info(`[FESTEJERO] Encontrados ${cumpleaneros.length} cumpleañeros hoy.`);
 
-    const LIMITE_CONCURRENCIA = 10;
-    const resultados = [];
+    const limite = pLimit(10);
 
-    for (let i = 0; i < cumpleaneros.length; i += LIMITE_CONCURRENCIA) {
-      const lote = cumpleaneros.slice(i, i + LIMITE_CONCURRENCIA);
-
-      const promesasLote = lote.map(async (usuario) => {
+    const promesas = cumpleaneros.map((usuario) =>
+      limite(async () => {
         let wpEnviado = false;
         let emailEnviado = false;
 
@@ -48,11 +46,10 @@ class CumpleanosService {
           nombre: usuario.nombres,
           exito: wpEnviado || emailEnviado,
         };
-      });
+      })
+    );
 
-      const chunkResults = await Promise.allSettled(promesasLote);
-      resultados.push(...chunkResults);
-    }
+    const resultados = await Promise.allSettled(promesas);
 
     const exitosos = resultados.filter((r) => r.status === 'fulfilled' && r.value.exito).length;
     logger.info(

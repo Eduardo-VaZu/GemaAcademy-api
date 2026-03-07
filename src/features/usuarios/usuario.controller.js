@@ -1,7 +1,6 @@
 import { usuarioService } from './usuario.service.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
-import { validateRoleSpecificData } from './validators/usuario.validator.js';
 
 export const usuarioController = {
   register: catchAsync(async (req, res) => {
@@ -23,21 +22,8 @@ export const usuarioController = {
   }),
 
   validateRole: catchAsync(async (req, res) => {
-    const { rol_id, datosRolEspecifico } = req.body;
-
-    const validationResult = validateRoleSpecificData(
-      typeof rol_id === 'string' ? rol_id : '',
-      datosRolEspecifico || {}
-    );
-
-    return apiResponse.success(res, {
-      data: {
-        rol: rol_id,
-        valido: validationResult.valid,
-        mensajes:
-          validationResult.errors.length > 0 ? validationResult.errors : ['Rol y datos válidos'],
-      },
-    });
+    const data = await usuarioService.validateRole(req.body);
+    return apiResponse.success(res, { data });
   }),
 
   getUsersByRol: catchAsync(async (req, res) => {
@@ -82,7 +68,7 @@ export const usuarioController = {
     // Si no existe, devolvemos success pero con data en null
     return apiResponse.success(res, {
       message: usuario ? 'Usuario encontrado' : 'Usuario no existe',
-      data: usuario || null, 
+      data: usuario || null,
     });
   }),
 };

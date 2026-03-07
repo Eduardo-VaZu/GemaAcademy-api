@@ -1,4 +1,5 @@
 import { prisma } from '../../../config/database.config.js';
+import { logger } from '../../../shared/utils/logger.util.js';
 
 export const reporteService = {
   /**
@@ -98,9 +99,7 @@ export const reporteService = {
         })),
       };
     } catch (error) {
-      // Defer Error throw a un nivel utilitario o al log (mantenido de la versión original)
-      // eslint-disable-next-line no-console
-      console.error('Error detallado en Prisma:', error);
+      logger.error('Error detallado en Prisma al generar reporte detallado:', error);
       throw error;
     }
   },
