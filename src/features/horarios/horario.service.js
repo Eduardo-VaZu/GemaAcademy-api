@@ -97,9 +97,11 @@ const verificarSolapamientos = async (params) => {
   const [solapamientoCancha, solapamientoCoordinador] = await Promise.all(queries);
 
   if (solapamientoCancha) {
+    console.error(`ERROR OVERLAP CANCHA. Details -> params:`, params, `| Found ID:`, solapamientoCancha.id);
     throw new ApiError('Ya existe un horario que se solapa en esta cancha', 400);
   }
   if (solapamientoCoordinador) {
+    console.error(`ERROR OVERLAP COORD. Details -> params:`, params, `| Found ID:`, solapamientoCoordinador.id);
     throw new ApiError(
       'El coordinador ya tiene un horario asignado que se solapa con este rango',
       400
