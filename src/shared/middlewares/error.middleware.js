@@ -52,6 +52,6 @@ export const errorHandler = (err, req, res, next) => {
   // Error genérico
   return apiResponse.error(res, {
     status: 500,
-    message: process.env.NODE_ENV === 'production' ? 'Error interno del servidor' : err.message,
+    message: err.message || 'Error interno del servidor',
   });
 };

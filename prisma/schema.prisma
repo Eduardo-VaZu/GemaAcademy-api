@@ -339,7 +339,7 @@ model parametros_sistema {
   valor          String
   descripcion    String?
   creado_en      DateTime @default(now())
-  actualizado_en DateTime @updatedAt
+actualizado_en DateTime @default(now()) @updatedAt @db.Timestamp(6)
 }
 
 model beneficios_pendientes {
