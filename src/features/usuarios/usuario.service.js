@@ -409,24 +409,10 @@ export const usuarioService = {
     return usuarios;
   },
   getUserByDni: async (dni) => {
-    // 🔥 Usamos findFirst porque buscamos por numero_documento (no es la PK)
     return await prisma.usuarios.findFirst({
-      where: { 
-        numero_documento: dni,
-        activo: true // Opcional: solo traerlo si está activo
-      },
-      select: {
-        id: true,
-        username: true,
-        nombres: true,
-        apellidos: true,
-        email: true,
-        numero_documento: true,
-        rol: {
-          select: {
-            nombre: true
-          }
-        }
+      where: { numero_documento: dni },
+      include: {
+        alumnos: true // Traemos la info de alumno también por si acaso
       }
     });
   },
