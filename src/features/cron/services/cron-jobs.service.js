@@ -9,7 +9,6 @@ import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 import { asistenciaCronService } from '../../asistencia/asistencia-cron.service.js';
 
-
 // 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA PARA LOS LOGS 🔥
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
@@ -160,6 +159,23 @@ export const iniciarCronJobs = () => {
         await inscripcionCronService.liquidarMorososParciales();
       } catch (error) {
         logger.error('[CRON ERROR] Falló el Liquidador de Parciales:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
+  // ------------------------------------------------------------------
+  // TAREA NUEVA: RECORDATORIO 22 DÍAS (Todos los días a las 10:00 AM)
+  // Objetivo: Enviar WhatsApp a morosos parciales exactamente 22 días después de su inscripción
+  // ------------------------------------------------------------------
+  cron.schedule(
+    '0 10 * * *',
+    async () => {
+      logger.info(`[CRON] Buscando morosos parciales para recordatorio del día 22...`);
+      try {
+        await inscripcionCronService.alertaMorososParcialesWhatsApp();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló el Recordatorio 22 Días:', error);
       }
     },
     { timezone: 'America/Lima' }

@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database.config.js';
 import { logger } from '../../shared/utils/logger.util.js';
 import { notificacionesService } from '../notificaciones/notificaciones.service.js';
+import { twilioProvider } from '../../shared/services/twilio.whatsapp.service.js';
 
 /// 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA 🔥
 import dayjs from 'dayjs';
@@ -77,9 +78,8 @@ class InscripcionCronService {
             titulo: '🎯 Reserva Zombie Eliminada',
             mensaje: `El sistema eliminó una inscripción pendiente de pago por exceder los ${minutosLimite} minutos.`,
             tipo: 'WARNING',
-            categoria: 'SISTEMA'
+            categoria: 'SISTEMA',
           });
-
         });
         logger.info(`[FRANCOTIRADOR] Zombie ${zombie.id} y su deuda eliminados correctamente.`);
       } catch (error) {
@@ -173,9 +173,9 @@ class InscripcionCronService {
             titulo: '⚠️ Ciclo Finalizado',
             mensaje: `Tu inscripción pasó a ${nuevoEstado} por falta de pago tras vencer los días de gracia.`,
             tipo: 'DANGER',
-            categoria: 'SISTEMA'
-          }
-        })
+            categoria: 'SISTEMA',
+          },
+        }),
       ]);
     }
 
@@ -292,9 +292,9 @@ class InscripcionCronService {
               titulo: '🗡️ Inscripción Liquidada',
               mensaje: `Tu acceso ha sido marcado como ${nuevoEstado} por saldo pendiente (Pago Parcial) al cierre de ciclo.`,
               tipo: 'DANGER',
-              categoria: 'SISTEMA'
-            }
-          })
+              categoria: 'SISTEMA',
+            },
+          }),
         ]);
 
         nuevoEstado === 'PEN-RECU' ? totalPenRecu++ : totalFinalizados++;
@@ -307,11 +307,73 @@ class InscripcionCronService {
         titulo: '🛡️ Resumen Liquidador Parcial',
         mensaje: `Se liquidaron ${totalFinalizados + totalPenRecu} alumnos con pagos incompletos.`,
         tipo: 'INFO',
-        categoria: 'SISTEMA'
+        categoria: 'SISTEMA',
       });
 
       logger.info(
         `[LIQUIDADOR PARCIAL] Ejecución exitosa. Alumnos a FINALIZADO: ${totalFinalizados} | Alumnos a PEN-RECU: ${totalPenRecu}.`
+      );
+    }
+  }
+
+  // =================================================================
+  // 📲 RECORDATORIO WHATSAPP: 22 Días (Pagos Parciales)
+  // =================================================================
+  async alertaMorososParcialesWhatsApp() {
+    // Obtenemos el inicio del día (00:00:00) EXACTAMENTE en la hora de Lima
+    const hoyLimaInicioDia = dayjs().tz(TZ_LIMA).startOf('day');
+
+    const morososParciales = await prisma.cuentas_por_cobrar.findMany({
+      where: { estado: 'PARCIAL' },
+      select: { alumno_id: true },
+      distinct: ['alumno_id'],
+    });
+
+    if (morososParciales.length === 0) return;
+
+    let totalEnviados = 0;
+
+    for (const { alumno_id } of morososParciales) {
+      const inscripcionMadre = await prisma.inscripciones.findFirst({
+        where: { alumno_id: alumno_id, estado: 'ACTIVO' },
+        orderBy: { fecha_inscripcion: 'asc' },
+        include: {
+          alumnos: {
+            include: { usuarios: true },
+          },
+        },
+      });
+
+      if (!inscripcionMadre) continue;
+
+      // Calculamos exactamente los 22 días desde la fecha madre
+      const diaAviso22 = dayjs(inscripcionMadre.fecha_inscripcion)
+        .tz(TZ_LIMA)
+        .add(22, 'day')
+        .startOf('day');
+
+      // Si hoy es exactamente el día 22, enviamos el WhatsApp
+      if (hoyLimaInicioDia.valueOf() === diaAviso22.valueOf()) {
+        const usuario = inscripcionMadre.alumnos.usuarios;
+        if (usuario && usuario.telefono_personal) {
+          const mensaje = `Hola ${usuario.nombres}, te recordamos que tienes un saldo pendiente (pago parcial) en tu mensualidad de Gema Academy. Para evitar la suspensión de tus accesos, por favor regularízalo antes del cierre de tu ciclo.`;
+
+          try {
+            await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
+            totalEnviados++;
+          } catch (err) {
+            logger.error(
+              `[WHATSAPP ERROR] No se pudo enviar el recordatorio del día 22 a ${usuario.telefono_personal}`,
+              err
+            );
+          }
+        }
+      }
+    }
+
+    if (totalEnviados > 0) {
+      logger.info(
+        `[RECORDATORIO 22 DIAS] Se enviaron ${totalEnviados} mensajes de WhatsApp a morosos parciales.`
       );
     }
   }
