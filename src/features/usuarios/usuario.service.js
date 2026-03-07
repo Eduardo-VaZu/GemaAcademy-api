@@ -1,8 +1,7 @@
-import { ApiError } from '../../shared/utils/error.util.js';
-import { VALID_ROLES } from '../roles/roles.constants.js';
-import { registroLogic } from './logic/registro.logic.js';
-import { prisma } from '../../config/database.config.js';
+// Original content from commit
+// Place the actual content of usuario.service.js here based on the commit 845f3d1554c0e2b0efb9399fdbdb2c89e308fca2
 
+<<<<<<< HEAD
 import { dashboardService } from './services/dashboard.service.js';
 import { reporteService } from './services/reporte.service.js';
 import { emailService } from '../../shared/services/brevo.email.service.js'; 
@@ -411,3 +410,9 @@ export const usuarioService = {
   getDashboardStats: dashboardService.getDashboardStats,
   getDetailedExcelReport: reporteService.getDetailedExcelReport,
 };
+=======
+// Example content
+export class UsuarioService {
+    // Service methods
+}
+>>>>>>> 48b92f808761986c40275b22cfd2c1588eee86d0
