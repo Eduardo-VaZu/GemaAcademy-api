@@ -5,6 +5,8 @@ import { prisma } from '../../config/database.config.js';
 
 import { dashboardService } from './services/dashboard.service.js';
 import { reporteService } from './services/reporte.service.js';
+import { emailService } from '../../shared/services/brevo.email.service.js'; 
+
 export const usuarioService = {
   createUser: async (userData) => {
     const {
@@ -136,7 +138,7 @@ export const usuarioService = {
       }
 
       // Hack para scope léxico: password autogenerado u originado
-      user.finalProvidedPassword = passwordToHash;
+      nuevoUsuario.finalProvidedPassword = passwordToHash;
 
       return nuevoUsuario;
     });

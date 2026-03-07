@@ -2,17 +2,22 @@
  * Determina si el alumno es Legacy (antiguo) basándose en su último pago aprobado.
  */
 export const detectarRegimenAlumno = async (tx, alumnoId) => {
-  const ultimoPago = await tx.pagos.findFirst({
-    where: {
-      cuentas_por_cobrar: { alumno_id: parseInt(alumnoId) },
-      estado_validacion: 'APROBADO',
-    },
-    orderBy: { fecha_pago: 'desc' },
-    include: { cuentas_por_cobrar: { include: { catalogo_conceptos: true } } },
+  // 1. Buscamos al alumno directamente por su ID y sacamos solo su historial
+  const alumno = await tx.alumnos.findUnique({
+    where: { usuario_id: parseInt(alumnoId) },
+    select: { historial: true },
   });
 
-  // Si tiene un plan pagado y ese plan no es vigente, es Legacy
-  return ultimoPago?.cuentas_por_cobrar?.catalogo_conceptos?.es_vigente === false;
+  // 2. Si no existe o su historial está vacío (null), por defecto es alumno NUEVO (false)
+  if (!alumno || !alumno.historial) {
+    return false;
+  }
+
+  // 3. Verificamos si en su historial dice "Antiguo". 
+  // Lo pasamos a mayúsculas para que no falle si el admin escribe "antiguo", "Antiguo" o "ANTIGUO".
+  const esLegacy = alumno.historial.toUpperCase().includes('ANTIGUO');
+
+  return esLegacy;
 };
 
 /**
