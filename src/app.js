@@ -33,6 +33,7 @@ import beneficioPendiente from './features/beneficios_pendientes/beneficios-pend
 import alumnoRoutes from './features/alumnos/alumno.routes.js';
 import publicacionRoutes from './features/publicaciones/publicacion.routes.js';
 import notificacionesRoutes from './features/notificaciones/notificaciones.routes.js';
+import metodosPago from './features/metodosPago/metodo_pago.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -104,6 +105,7 @@ app.use('/api/beneficioPendiente', beneficioPendiente);
 app.use('/api/alumno', alumnoRoutes);
 app.use('/api/publicaciones', publicacionRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/metodos-pago', metodosPago);
 
 app.use(errorHandler);
 
