@@ -16,6 +16,11 @@ export const actualizarPerfilSchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)')
       .transform((val) => new Date(val))
       .optional(),
+    genero: z
+      .enum(['M', 'F'], {
+        errorMap: () => ({ message: 'El género debe ser M o F' }),
+      })
+      .optional(),
 
     condiciones_medicas: z.string().max(500, 'Máximo 500 caracteres').optional(),
 
