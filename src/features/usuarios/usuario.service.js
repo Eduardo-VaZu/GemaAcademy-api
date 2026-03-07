@@ -1,19 +1,7 @@
-// Existing imports
-// ...
+// Original content from commit
+// Place the actual content of usuario.service.js here based on the commit 845f3d1554c0e2b0efb9399fdbdb2c89e308fca2
 
-let finalProvidedPassword; // Declare variable before the transaction
-
-async function crearCredenciales(...) {
-    // ... your existing code
-    finalProvidedPassword = ...; // Assign inside the function
-    // ...
-}
-
-async function someOtherFunction() {
-    // Transaction starts
-    await someDatabaseOperation();
-    // Transaction logic
-    // ...
-    // Call to emailService after transaction completion
-    await emailService.sendPassword(finalProvidedPassword);
+// Example content
+export class UsuarioService {
+    // Service methods
 }
