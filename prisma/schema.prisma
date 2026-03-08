@@ -188,12 +188,11 @@ model pagos {
 }
 
 model coordinadores {
-  usuario_id              Int                       @id
-  especializacion         String?                   @db.VarChar(100)
-  horarios_clases         horarios_clases[]
-  usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  registros_asistencia    registros_asistencia[]
-  reprogramaciones_clases reprogramaciones_clases[]
+  usuario_id           Int                  @id
+  especializacion      String?              @db.VarChar(100)
+  horarios_clases      horarios_clases[]
+  usuarios             usuarios             @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  registros_asistencia registros_asistencia[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -244,7 +243,7 @@ model reprogramaciones_clases {
   creado_en           DateTime? @default(now()) @db.Timestamp(6)
 
   horarios_clases      horarios_clases        @relation(fields: [horario_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  coordinadores        coordinadores?         @relation(fields: [creado_por], references: [usuario_id], onDelete: SetNull, onUpdate: Cascade)
+  usuarios             usuarios?              @relation(fields: [creado_por], references: [id], onDelete: SetNull, onUpdate: Cascade)
   registros_asistencia registros_asistencia[]
 
   @@unique([horario_id, fecha_origen, fecha_destino], map: "unica_reprogramacion_origen_destino")
@@ -310,8 +309,9 @@ model usuarios {
   alumnos              alumnos?
   credenciales_usuario credenciales_usuario?
   coordinadores        coordinadores?
-  refresh_tokens       refresh_tokens[]
-  notificaciones       notificaciones[]
+  refresh_tokens          refresh_tokens[]
+  notificaciones          notificaciones[]
+  reprogramaciones_clases reprogramaciones_clases[]
   roles                roles                 @relation(fields: [rol_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   tipos_documento      tipos_documento?      @relation(fields: [tipo_documento_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
