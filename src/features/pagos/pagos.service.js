@@ -27,6 +27,12 @@ export const pagosService = {
     return await prisma.$transaction(async (tx) => {
       // 🛡️ PASO A: VALIDAR LA DEUDA
       const deuda = await Validators.validarDeudaParaPago(tx, deuda_id);
+      // 🔥 NUEVA REGLA: LOS UPGRADES NO ACEPTAN PAGOS PARCIALES
+      const esUpgrade = deuda.detalle_adicional && deuda.detalle_adicional.includes('Upgrade');
+      // Usamos una tolerancia de 0.01 céntimos por si hay problemas de redondeo en JS
+      if (esUpgrade && parseFloat(monto) < (parseFloat(deuda.monto_final) - 0.01)) {
+        throw new Error(`⛔ PAGO DENEGADO: Los Upgrades de horario no aceptan pagos a medias. Debes cancelar el monto total exacto de S/ ${deuda.monto_final}.`);
+      }
 
       // 💳 PASO B: RESOLVER EL MÉTODO DE PAGO
       const metodoPagoId = await Logic.resolverMetodoPagoId(tx, metodo_pago);
