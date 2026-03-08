@@ -63,31 +63,68 @@ const validarFechasYHorarios = async (params) => {
     );
   }
 
-  return { fechaOrigenDate, fechaDestinoDate };
-};
-
-/**
- * Extrae toda la población afectada de un horario específico.
- * Filtra estrictamente a los usuarios `ACTIVO`, ignorando bajas o suspendidos.
- *
- * @param {number} horarioOrigenId
- * @returns {Promise<Array>} Array de inscripciones activas
- */
-const obtenerAlumnosAfectados = async (horarioOrigenId) => {
-  const inscripciones = await prisma.inscripciones.findMany({
-    where: {
-      horario_id: horarioOrigenId,
-      estado: 'ACTIVO',
-    },
-    select: { id: true, alumno_id: true },
-  });
-
-  if (inscripciones.length === 0) {
-    throw new ApiError('No hay alumnos inscritos en el horario de origen para reprogramar', 404);
+  // 4. Validar que la nueva fecha no interfiera con el cronograma semanal regular del mismo horario
+  const diaDestino = fechaDestinoDate.getUTCDay() === 0 ? 7 : fechaDestinoDate.getUTCDay();
+  if (diaDestino !== horarioOrigen.dia_semana) {
+     // A date shift to a non-regular day is fine, but if it is the SAME day of week, it might clash
+    const diffTime = Math.abs(fechaDestinoDate - fechaOrigenDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    if (diffDays % 7 === 0) {
+        throw new ApiError(`No puedes mover una clase al mismo día de otra semana (${fechaDestinoStr}), ya que los alumnos ya tienen su clase regular programada para ese día.`, 400);
+    }
   }
 
-  return inscripciones;
+  // 5. Validar si los alumnos del horario origen tienen ya una clase programada ese día en OTRO nivel/horario (opcional, pero sugerido para Evitar cruces por Alumno)
+  // Obtenemos los alumnos del horario
+  const inscripcionesOrigen = await prisma.inscripciones.findMany({
+    where: { horario_id: origenId, estado: 'ACTIVO' },
+    select: { id: true, alumno_id: true }
+  });
+
+  const alumnoIds = inscripcionesOrigen.map(i => i.alumno_id);
+
+  // Verificamos si tienen asistencias para el DESTINO
+  const interferencias = await prisma.registros_asistencia.findMany({
+    where: {
+      fecha: fechaDestinoDate,
+      inscripciones: {
+        alumno_id: { in: alumnoIds },
+        estado: 'ACTIVO' // Clases activas ese día nuevo
+      }
+    },
+    include: {
+      inscripciones: {
+        include: { alumnos: { include: { usuarios: { select: { nombres: true, apellidos: true } } } } }
+      }
+    }
+  });
+
+  if (interferencias.length > 0) {
+      // Extraer nombres únicos para el msj
+      const nombresConflictivos = [...new Set(interferencias.map(int => `${int.inscripciones.alumnos.usuarios.nombres} ${int.inscripciones.alumnos.usuarios.apellidos}`))];
+      throw new ApiError(
+          `Cruce de horarios detectado en la fecha destino (${fechaDestinoStr}). Los siguientes alumnos ya tienen otra clase programada ese día: ${nombresConflictivos.join(', ')}`,
+          400
+      );
+  }
+
+  // 6. Validar que existan registros a mover en la fecha ORIGEN
+  const registrosOrigen = await prisma.registros_asistencia.count({
+      where: {
+          fecha: fechaOrigenDate,
+          inscripciones: { horario_id: origenId }
+      }
+  });
+
+  if (registrosOrigen === 0) {
+      throw new ApiError(`No hay registros de asistencia (clases programadas) para la fecha origen (${fechaOrigenStr}) en este horario. Revisa si el mes ya fue generado.`, 400);
+  }
+
+  return { fechaOrigenDate, fechaDestinoDate, inscripciones: inscripcionesOrigen };
 };
+
+// ELIMINADO: const obtenerAlumnosAfectados = async (horarioOrigenId) => ...
+// La obtención de inscripciones ahora se hace dentro de validarFechasYHorarios para evitar doble query.
 
 export const claseService = {
   /**
@@ -101,15 +138,13 @@ export const claseService = {
     motivo,
     usuario_admin_id,
   }) => {
-    // 1. Validaciones
-    const { fechaOrigenDate, fechaDestinoDate } = await validarFechasYHorarios({
+    // 1. Validaciones y Obtención de Afectados
+    const { fechaOrigenDate, fechaDestinoDate, inscripciones } = await validarFechasYHorarios({
       origenId: horario_origen_id,
       fechaOrigenStr: fecha_origen,
       fechaDestinoStr: fecha_destino,
     });
 
-    // 2. Obtención de Afectados
-    const inscripciones = await obtenerAlumnosAfectados(horario_origen_id);
     const dateOrigenStr = fechaOrigenDate.toLocaleDateString();
     const dateDestinoStr = fechaDestinoDate.toLocaleDateString();
 
@@ -152,20 +187,20 @@ export const claseService = {
         procesados++;
       }
 
-      // 4. Inserciones masivas (skip duplicates para la idempotencia al anular la original)
+      // 4. Inserciones masivas
       const inscripcionIds = inscripciones.map((i) => i.id);
       
-      // Eliminamos el UPDATE de registros_asistencia, solo creamos uno nuevo REPROGRAMADO
-      await tx.registros_asistencia.deleteMany({
+      // En lugar de deleteMany, usamos updateMany para cambiar el estado de la clase original a REPROGRAMADO
+      // Esto evita el P2025 "referencia a datos no existentes" si algo falla en el ciclo natural.
+      await tx.registros_asistencia.updateMany({
         where: {
           inscripcion_id: { in: inscripcionIds },
           fecha: fechaOrigenDate,
+        },
+        data: {
+            estado: 'REPROGRAMADO',
+            comentario: `Reprogramación masiva hacia ${fecha_destino}: ${motivo}`
         }
-      });
-
-      // Insertamos el registro que cierra el hueco
-      await tx.registros_asistencia.createMany({
-        data: anulaciones,
       });
 
       // Insertamos el nuevo registro que aparecerá en el destino
