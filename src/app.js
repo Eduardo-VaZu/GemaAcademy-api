@@ -45,6 +45,9 @@ app.use(helmet());
 const corsOriginList = Array.isArray(CORS_ORIGIN) ? CORS_ORIGIN : [CORS_ORIGIN].filter(Boolean);
 const normalizeOrigin = (origin) => origin.replace(/\/$/, '');
 
+// Healthcheck route BEFORE CORS so it doesn't get blocked by strict origin policies
+app.use('/health', healthRoutes);
+
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -80,7 +83,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/roles', rolesRoutes);
 app.use('/api/horarios', horarioRoutes);
