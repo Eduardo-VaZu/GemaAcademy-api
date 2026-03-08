@@ -4,13 +4,27 @@ import { apiResponse } from '../../shared/utils/response.util.js';
 
 export const claseController = {
   reprogramarMasivo: catchAsync(async (req, res) => {
-    const { horario_origen_id, fecha_origen, horario_destino_id, fecha_destino, motivo } = req.body;
+    const {
+      horario_origen_id,
+      fecha_origen,
+      cancha_id,
+      coordinador_id,
+      nivel_id,
+      hora_inicio,
+      hora_fin,
+      fecha_destino,
+      motivo,
+    } = req.body;
     const usuario_admin_id = req.user.id; // Asumimos que viene del token (admin)
 
     const resultado = await claseService.reprogramarMasivamente({
       horario_origen_id,
       fecha_origen,
-      horario_destino_id,
+      cancha_id,
+      coordinador_id,
+      nivel_id,
+      hora_inicio,
+      hora_fin,
       fecha_destino,
       motivo,
       usuario_admin_id,
