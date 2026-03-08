@@ -7,7 +7,6 @@ export const claseController = {
     const {
       horario_origen_id,
       fecha_origen,
-      horario_destino_id,
       fecha_destino,
       motivo,
     } = req.body;
@@ -16,7 +15,6 @@ export const claseController = {
     const resultado = await claseService.reprogramarMasivamente({
       horario_origen_id,
       fecha_origen,
-      horario_destino_id,
       fecha_destino,
       motivo,
       usuario_admin_id,
@@ -32,5 +30,11 @@ export const claseController = {
     const { horario_id } = req.params;
     const detalle = await claseService.obtenerDetalleClase(horario_id);
     return apiResponse.success(res, { data: detalle });
+  }),
+
+  obtenerFechasDisponibles: catchAsync(async (req, res) => {
+    const { horario_id } = req.params;
+    const fechas = await claseService.obtenerFechasDisponibles(horario_id);
+    return apiResponse.success(res, { data: fechas });
   }),
 };
