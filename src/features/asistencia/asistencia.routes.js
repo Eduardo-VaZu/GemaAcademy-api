@@ -16,6 +16,16 @@ const router = Router();
 // ======================================================
 router.use(authenticate);
 
+
+// ======================================================
+// 📊 RUTAS DE ESTADÍSTICAS
+// ======================================================
+router.get(
+  '/alumno/:alumnoId/estadisticas',
+  authorize('Administrador', 'Coordinador', 'Alumno'),
+  validateParams(asistenciaSchema.alumnoIdParamSchema),
+  asistenciaController.obtenerEstadisticasAlumno
+);
 // Listado general de asistencias (Solo Admin/Coordinador)
 router.get('/', authorize('Administrador', 'Coordinador'), asistenciaController.listarTodas);
 

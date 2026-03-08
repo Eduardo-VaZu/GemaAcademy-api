@@ -97,7 +97,21 @@ const listarClasesHoy = catchAsync(async (req, res) => {
     message: 'Agenda del día recuperada exitosamente.',
     data: clases,
   });
+  
 });
+
+const obtenerEstadisticasAlumno = catchAsync(async (req, res) => {
+  const { alumnoId } = req.params; // Viene validado desde tu ruta
+
+  const estadisticas = await asistenciaService.obtenerEstadisticasAlumno(alumnoId);
+
+  // ✅ Llamada correcta a tu utilidad de respuestas
+  return apiResponse.success(res, {
+    data: estadisticas,
+    message: 'Estadísticas de rendimiento del alumno calculadas.',
+  });
+});
+
 
 export const asistenciaController = {
   //marcarAsistencia,
@@ -106,4 +120,5 @@ export const asistenciaController = {
   listarClasesHoy,
   listarAgenda,
   marcarAsistenciaMasiva,
+  obtenerEstadisticasAlumno,
 };

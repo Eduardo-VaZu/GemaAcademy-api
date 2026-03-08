@@ -529,4 +529,69 @@ export const asistenciaService = {
       }
     });
   },
+  obtenerEstadisticasAlumno: async (alumnoId) => {
+    // 1. Traemos TODOS los registros del alumno
+    const registros = await prisma.registros_asistencia.findMany({
+      where: {
+        inscripciones: {
+          alumno_id: parseInt(alumnoId),
+        }
+      }
+    });
+
+    // 2. Inicializamos los contadores
+    let presente = 0;
+    let falta = 0;
+    let programada = 0;
+    let justificado_lesion = 0;
+
+    // 3. Clasificamos cada clase según tu regla de negocio
+    registros.forEach(reg => {
+      // Agrupamos también las recuperaciones completadas para ser justos
+      if (reg.estado === 'PRESENTE' || reg.estado === 'COMPLETADA_PRESENTE') {
+        presente++;
+      } else if (reg.estado === 'FALTA' || reg.estado === 'COMPLETADA_FALTA') {
+        falta++;
+      } else if (reg.estado === 'PROGRAMADA') {
+        programada++;
+      } else if (reg.estado === 'JUSTIFICADO_LESION') {
+        justificado_lesion++;
+      }
+    });
+
+    // 4. EL NÚCLEO DE LA EVALUACIÓN (Solo Presentes y Faltas)
+    const clasesEvaluables = presente + falta;
+
+    // 5. Matemáticas de porcentajes (evitando dividir por cero)
+    const porcentajePresente = clasesEvaluables > 0 ? Math.round((presente / clasesEvaluables) * 100) : 0;
+    const porcentajeFalta = clasesEvaluables > 0 ? Math.round((falta / clasesEvaluables) * 100) : 0;
+
+    // 6. Armamos la respuesta perfecta para el Frontend
+    return {
+      porcentaje_asistencia_real: porcentajePresente, // El dato principal
+      totales: {
+        evaluadas: clasesEvaluables,
+        ignoradas: programada + justificado_lesion,
+        historico_completo: registros.length
+      },
+      detalle: {
+        PRESENTE: {
+          cantidad: presente,
+          porcentaje: porcentajePresente
+        },
+        FALTA: {
+          cantidad: falta,
+          porcentaje: porcentajeFalta
+        },
+        PROGRAMADA: {
+          cantidad: programada,
+          porcentaje: null // Se ignora en el cálculo
+        },
+        JUSTIFICADO_LESION: {
+          cantidad: justificado_lesion,
+          porcentaje: null // Se ignora en el cálculo
+        }
+      }
+    };
+  },
 };
