@@ -63,10 +63,17 @@ const obtenerHistorial = catchAsync(async (req, res) => {
     return apiResponse.success(res, { data: historial, message: 'Historial de recuperaciones obtenido.' });
 });
 
+const listarTodas = catchAsync(async (req, res) => {
+    const recuperaciones = await recuperacionService.obtenerTodas();
+    return apiResponse.success(res, { data: recuperaciones, message: 'Lista completa de recuperaciones obtenida.' });
+});
+
 export const recuperacionController = {
     obtenerPendientes,
     validarElegibilidad,
     agendarRecuperacion,
     cancelarRecuperacion,
     obtenerHistorial,
+    listarTodas,
+    
 };

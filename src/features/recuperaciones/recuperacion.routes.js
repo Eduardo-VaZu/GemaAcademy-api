@@ -7,6 +7,12 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get(
+    '/', 
+    authorize('Administrador'), 
+    recuperacionController.listarTodas
+);
+
 // GET /api/recuperaciones/pendientes
 router.get(
     '/pendientes',

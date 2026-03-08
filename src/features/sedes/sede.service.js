@@ -306,4 +306,47 @@ export const sedeService = {
       return { success: true, message: 'Sede, canchas y dirección eliminadas correctamente' };
     });
   },
+  obtenerOcupacionDashboard: async () => {
+    // 1. Traemos solo las columnas necesarias (muy optimizado)
+    const sedes = await prisma.sedes.findMany({
+      where: { activo: true },
+      select: {
+        id: true,
+        nombre: true,
+        canchas: {
+          select: {
+            horarios_clases: {
+              select: {
+                inscripciones: {
+                  where: { estado: { in: ['ACTIVO', 'PENDIENTE_PAGO'] } },
+                  select: { alumno_id: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // 2. Procesamos con la regla: 1 alumno = 1 conteo por Sede
+    const resultado = sedes.map(sede => {
+      const alumnosUnicos = new Set(); // El Set ignora los IDs duplicados
+
+      sede.canchas.forEach(cancha => {
+        cancha.horarios_clases.forEach(horario => {
+          horario.inscripciones.forEach(insc => {
+            alumnosUnicos.add(insc.alumno_id);
+          });
+        });
+      });
+
+      return {
+        nombre: sede.nombre,
+        valor: alumnosUnicos.size // El tamaño del Set es la cantidad real de alumnos
+      };
+    });
+
+    // Retornamos solo las sedes que tienen al menos 1 alumno
+    return resultado.filter(r => r.valor > 0);
+  },
 };
