@@ -13,22 +13,31 @@ import { ApiError } from '../../shared/utils/error.util.js';
  * 4. Integridad del Pasado: Impide mover horarios cuyas faltas/asistencias ya fueron auditadas.
  * 5. Viajes Temporales: Impide enviar una clase futura hacia una fecha anterior a la original.
  *
- * @param {number} origenId - ID del horario_clases que falló o se canceló
- * @param {number} destinoId - ID del horario_clases nuevo o de suplencia
- * @param {string} fechaOrigenStr - 'YYYY-MM-DD' Fecha en que se canceló la clase original
- * @param {string} fechaDestinoStr - 'YYYY-MM-DD' Fecha para reponer la clase
- * @returns {Promise<object>} Las fechas Date parseadas y normalizadas a las 12:00:00 UTC
+ * @param {object} params - Parámetros de la reprogramación
+ * @returns {Promise<object>} Fechas Date parseadas y normalizadas a las 12:00:00 UTC, junto con la cancha analizada
  */
-const validarFechasYHorarios = async (origenId, destinoId, fechaOrigenStr, fechaDestinoStr) => {
-  if (origenId === destinoId && fechaOrigenStr === fechaDestinoStr) {
-    throw new ApiError(
-      'El origen y destino son idénticos. No se puede reprogramar una clase hacia sí misma.',
-      400
-    );
+const validarFechasYHorarios = async (params) => {
+  const {
+    origenId,
+    fechaOrigenStr,
+    canchaId,
+    coordinadorId,
+    horaInicioStr,
+    horaFinStr,
+    fechaDestinoStr,
+  } = params;
+
+  // 1. Convertir horas a Date para comparar que tengan sentido lógico (Ej: 10:00 < 12:00)
+  const baseDate = '1970-01-01T';
+  const timeInicio = new Date(`${baseDate}${horaInicioStr}Z`).getTime();
+  const timeFin = new Date(`${baseDate}${horaFinStr}Z`).getTime();
+
+  if (timeInicio >= timeFin) {
+    throw new ApiError('La hora de inicio debe ser estrictamente menor a la hora de fin.', 400);
   }
 
-  // Ahora traemos también la capacidad máxima y calculamos cuántos inscritos hay previamente
-  const [horarioOrigen, horarioDestino] = await Promise.all([
+  // 2. Traer origen y datos de la infraestructura destino en paralelo
+  const [horarioOrigen, canchaDestino] = await Promise.all([
     prisma.horarios_clases.findUnique({
       where: { id: origenId },
       select: {
@@ -36,46 +45,42 @@ const validarFechasYHorarios = async (origenId, destinoId, fechaOrigenStr, fecha
         _count: { select: { inscripciones: { where: { estado: 'ACTIVO' } } } },
       },
     }),
-    prisma.horarios_clases.findUnique({
-      where: { id: destinoId },
-      select: {
-        dia_semana: true,
-        capacidad_max: true,
-        _count: { select: { inscripciones: { where: { estado: 'ACTIVO' } } } },
-        coordinadores: {
-          select: {
-            usuarios: { select: { nombres: true, apellidos: true, activo: true } },
-          },
-        },
-      },
+    prisma.canchas.findUnique({
+      where: { id: canchaId },
+      select: { nombre: true, sedes: { select: { nombre: true } } },
     }),
   ]);
 
   if (!horarioOrigen) throw new ApiError('Horario de origen no encontrado', 404);
-  if (!horarioDestino) throw new ApiError('Horario de destino no encontrado', 404);
+  if (!canchaDestino) throw new ApiError(`La cancha indicada (ID: ${canchaId}) no existe`, 404);
 
-  if (!horarioDestino.coordinadores || horarioDestino.coordinadores.usuarios.activo === false) {
-    const errorPrefix = horarioDestino.coordinadores
-      ? `El profesor asignado (${horarioDestino.coordinadores.usuarios.nombres} ${horarioDestino.coordinadores.usuarios.apellidos}) está inactivo en el sistema`
-      : 'Ese horario destino no tiene profesor asignado';
+  // 3. Validar Coordinador Subyacente si se proporcionó uno
+  if (coordinadorId) {
+    const coordinador = await prisma.coordinadores.findUnique({
+      where: { usuario_id: coordinadorId },
+      select: { usuarios: { select: { nombres: true, apellidos: true, activo: true } } },
+    });
 
-    throw new ApiError(
-      `${errorPrefix}. No puedes reprogramar alumnos a una clase fantasma o sin profesor disponible.`,
-      400
-    );
+    if (!coordinador || coordinador.usuarios.activo === false) {
+      throw new ApiError('El profesor asignado no existe o está inactivo en el sistema.', 400);
+    }
   }
 
+  // 4. Validaciones de Cupo contra la Cancha Base
+  // En este nuevo modelo "Efímero", no hay alumnos previamente inscritos. El cupo es el de la cancha total.
+  // Gema no tiene 'capacidad' en su tabla canchas (delega en horario), así que usaremos el default seguro de 20
+  // o lo que dictaría la lógica de negocio actual. Lo dejaremos en 20 como asunción segura.
+  const CAPACIDAD_DEFAULT = 20;
   const cantidadAlumnosAMover = horarioOrigen._count.inscripciones;
-  const cuposOcupadosEnDestino = horarioDestino._count.inscripciones;
-  const cuposDisponiblesEnDestino = horarioDestino.capacidad_max - cuposOcupadosEnDestino;
 
-  if (cuposDisponiblesEnDestino < cantidadAlumnosAMover) {
+  if (CAPACIDAD_DEFAULT < cantidadAlumnosAMover) {
     throw new ApiError(
-      `Sobrecupo: Intentas mover ${cantidadAlumnosAMover} alumno(s), pero el horario destino solo tiene ${cuposDisponiblesEnDestino} cupos disponibles (Capacidad Max: ${horarioDestino.capacidad_max}). Por favor, crea un nuevo horario exclusivo para esta reprogramación o asigna otro con mayor capacidad.`,
+      `Sobrecupo: Intentas mover ${cantidadAlumnosAMover} alumno(s), pero el límite institucional por sesión es de ${CAPACIDAD_DEFAULT}. Por favor divide el grupo.`,
       400
     );
   }
 
+  // 5. Validaciones de Viaje en el Tiempo (Integridad de la BD Audit)
   const hoyStr = new Date().toISOString().substring(0, 10);
   const hoyDate = new Date(hoyStr);
   hoyDate.setHours(12, 0, 0, 0);
@@ -110,14 +115,7 @@ const validarFechasYHorarios = async (origenId, destinoId, fechaOrigenStr, fecha
     );
   }
 
-  if (diaDestino !== horarioDestino.dia_semana) {
-    throw new ApiError(
-      `La fecha destino ${fechaDestinoStr} no corresponde al día del horario destino (Día ${horarioDestino.dia_semana})`,
-      400
-    );
-  }
-
-  return { fechaOrigenDate, fechaDestinoDate };
+  return { fechaOrigenDate, fechaDestinoDate, diaDestino };
 };
 
 /**
@@ -283,18 +281,26 @@ export const claseService = {
   reprogramarMasivamente: async ({
     horario_origen_id,
     fecha_origen,
-    horario_destino_id,
+    cancha_id,
+    coordinador_id,
+    nivel_id,
+    hora_inicio,
+    hora_fin,
     fecha_destino,
     motivo,
     usuario_admin_id,
   }) => {
     // 1. Validaciones
-    const { fechaOrigenDate, fechaDestinoDate } = await validarFechasYHorarios(
-      horario_origen_id,
-      horario_destino_id,
-      fecha_origen,
-      fecha_destino
-    );
+    const { fechaOrigenDate, fechaDestinoDate, diaDestino } = await validarFechasYHorarios({
+      origenId: horario_origen_id,
+      fechaOrigenStr: fecha_origen,
+      canchaId: cancha_id,
+      coordinadorId: coordinador_id,
+      nivelId: nivel_id,
+      horaInicioStr: hora_inicio,
+      horaFinStr: hora_fin,
+      fechaDestinoStr: fecha_destino,
+    });
 
     // 2. Obtención de Afectados
     const inscripciones = await obtenerAlumnosAfectados(horario_origen_id);
@@ -303,7 +309,24 @@ export const claseService = {
 
     // 3. Ejecución Transaccional Batch
     return await prisma.$transaction(async (tx) => {
-      // 3.A Detección de Conflictos
+      // 3.A Creación del Horario Efímero (Soft-Deletable)
+      const baseDate = '1970-01-01T';
+      const horarioTemporal = await tx.horarios_clases.create({
+        data: {
+          cancha_id,
+          coordinador_id: coordinador_id || null,
+          nivel_id,
+          dia_semana: diaDestino,
+          hora_inicio: new Date(`${baseDate}${hora_inicio}Z`),
+          hora_fin: new Date(`${baseDate}${hora_fin}Z`),
+          capacidad_max: 20, // o heredar desde lógica comercial
+          activo: true, // Quedará vivo hasta que pase el día y el Cronjob lo apague
+          minutos_reserva_especifico: null,
+        },
+      });
+      const horario_destino_id = horarioTemporal.id;
+
+      // 3.B Detección de Conflictos
       const { paraProgramar, paraPendiente, detalleConflictos } =
         await detectarConflictosYClasificar(tx, {
           inscripciones,

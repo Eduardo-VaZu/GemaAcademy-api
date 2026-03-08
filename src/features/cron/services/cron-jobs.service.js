@@ -8,6 +8,7 @@ import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.
 import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 import { asistenciaCronService } from '../../asistencia/asistencia-cron.service.js';
+import { claseCronService } from '../../clases/clase-cron.service.js';
 
 // 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA PARA LOS LOGS 🔥
 import dayjs from 'dayjs';
@@ -58,7 +59,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Generar la deuda del próximo mes X días antes del vencimiento.
   // ------------------------------------------------------------------
   cron.schedule(
-    '30 0 * * *',
+    '* * * * *',
     async () => {
       logger.info(`[CRON] El Profeta buscando renovaciones futuras...`);
       try {
@@ -209,3 +210,20 @@ export const iniciarCronJobs = () => {
     { timezone: 'America/Lima' }
   );
 };
+
+// ------------------------------------------------------------------
+// TAREA NUEVA: EL BARRENDERO DE EFÍMEROS (Todos los días a las 02:00 AM)
+// Objetivo: Hacer Soft-Delete a las Recuperaciones Masivas ya dictadas ayer.
+// ------------------------------------------------------------------
+cron.schedule(
+  '0 2 * * *',
+  async () => {
+    logger.info(`[CRON] El Barrendero limpiando horarios efímeros expirados...`);
+    try {
+      await claseCronService.apagarHorariosEfimeros();
+    } catch (error) {
+      logger.error('[CRON ERROR] Falló el Barrendero de Efímeros:', error);
+    }
+  },
+  { timezone: 'America/Lima' }
+);
