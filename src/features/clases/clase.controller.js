@@ -7,7 +7,6 @@ export const claseController = {
     const {
       horario_origen_id,
       fecha_origen,
-      horario_destino_id,
       fecha_destino,
       motivo,
     } = req.body;
@@ -16,7 +15,6 @@ export const claseController = {
     const resultado = await claseService.reprogramarMasivamente({
       horario_origen_id,
       fecha_origen,
-      horario_destino_id,
       fecha_destino,
       motivo,
       usuario_admin_id,

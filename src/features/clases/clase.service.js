@@ -15,43 +15,19 @@ const validarFechasYHorarios = async (params) => {
   const {
     origenId,
     fechaOrigenStr,
-    destinoId,
     fechaDestinoStr,
   } = params;
 
-  // 1. Traer origen y destino en paralelo
-  const [horarioOrigen, horarioDestino] = await Promise.all([
-    prisma.horarios_clases.findUnique({
-      where: { id: origenId },
-      select: {
-        dia_semana: true,
-        _count: { select: { inscripciones: { where: { estado: 'ACTIVO' } } } },
-      },
-    }),
-    prisma.horarios_clases.findUnique({
-      where: { id: destinoId },
-      select: { 
-        id: true,
-        dia_semana: true,
-        capacidad_max: true,
-        _count: { select: { inscripciones: { where: { estado: 'ACTIVO' } } } },
-      },
-    }),
-  ]);
+  // 1. Traer origen
+  const horarioOrigen = await prisma.horarios_clases.findUnique({
+    where: { id: origenId },
+    select: {
+      dia_semana: true,
+      _count: { select: { inscripciones: { where: { estado: 'ACTIVO' } } } },
+    },
+  });
 
   if (!horarioOrigen) throw new ApiError('Horario de origen no encontrado', 404);
-  if (!horarioDestino) throw new ApiError('Horario de destino no encontrado', 404);
-
-  // 2. Validaciones de Cupo Destination
-  const cupoDisponible = horarioDestino.capacidad_max - horarioDestino._count.inscripciones;
-  const cantidadAlumnosAMover = horarioOrigen._count.inscripciones;
-
-  if (cupoDisponible < cantidadAlumnosAMover) {
-    throw new ApiError(
-      `Sobrecupo: Intentas mover ${cantidadAlumnosAMover} alumno(s), pero el horario destino solo tiene ${cupoDisponible} cupo(s) disponible(s). Por favor divide el grupo.`,
-      400
-    );
-  }
 
   // 3. Validaciones de Viaje en el Tiempo
   const hoyStr = new Date().toISOString().substring(0, 10);
@@ -79,18 +55,10 @@ const validarFechasYHorarios = async (params) => {
   }
 
   const diaOrigen = fechaOrigenDate.getUTCDay() === 0 ? 7 : fechaOrigenDate.getUTCDay();
-  const diaDestino = fechaDestinoDate.getUTCDay() === 0 ? 7 : fechaDestinoDate.getUTCDay();
 
   if (diaOrigen !== horarioOrigen.dia_semana) {
     throw new ApiError(
       `La fecha origen ${fechaOrigenStr} no corresponde al día del horario origen (Día ${horarioOrigen.dia_semana})`,
-      400
-    );
-  }
-
-  if (diaDestino !== horarioDestino.dia_semana) {
-    throw new ApiError(
-      `La fecha destino ${fechaDestinoStr} no corresponde al día del horario destino (Día ${horarioDestino.dia_semana})`,
       400
     );
   }
@@ -129,7 +97,6 @@ export const claseService = {
   reprogramarMasivamente: async ({
     horario_origen_id,
     fecha_origen,
-    horario_destino_id,
     fecha_destino,
     motivo,
     usuario_admin_id,
@@ -138,7 +105,6 @@ export const claseService = {
     const { fechaOrigenDate, fechaDestinoDate } = await validarFechasYHorarios({
       origenId: horario_origen_id,
       fechaOrigenStr: fecha_origen,
-      destinoId: horario_destino_id,
       fechaDestinoStr: fecha_destino,
     });
 
@@ -161,16 +127,16 @@ export const claseService = {
           inscripcion_id: inscripcion.id,
           fecha: fechaOrigenDate,
           estado: 'REPROGRAMADO',
-          comentario: `Reprogramado hacia el horario [ID:${horario_destino_id}] (${fecha_destino}): ${motivo}`,
+          comentario: `Reprogramación masiva hacia ${fecha_destino}: ${motivo}`,
           registrado_por: usuario_admin_id,
         });
 
-        // B) Crear el espacio esperado de asistencia en ese nuevo Horario (anclado a la insc. original, pero visible al destino gracias a la tag)
+        // B) Crear el espacio temporal esperado de asistencia en el mismo Horario para el nuevo día
         nuevasClases.push({
           inscripcion_id: inscripcion.id,
           fecha: fechaDestinoDate,
           estado: 'PENDIENTE',
-          comentario: `[REPG_MASIVA:${horario_destino_id}] Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
+          comentario: `[REPG_MASIVA] Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
           registrado_por: usuario_admin_id,
         });
 

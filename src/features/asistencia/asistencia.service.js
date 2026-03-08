@@ -203,8 +203,22 @@ export const asistenciaService = {
     return await prisma.horarios_clases.findMany({
       where: {
         coordinador_id: coordinadorId,
-        dia_semana: diaSemana,
         activo: true,
+        OR: [
+          { dia_semana: diaSemana },
+          { // Incluir horarios que no sean de este día pero que tengan reprogramación masiva hoy
+            inscripciones: {
+              some: {
+                registros_asistencia: {
+                  some: {
+                    fecha: fechaConsulta,
+                    comentario: { contains: '[REPG_MASIVA]' }
+                  }
+                }
+              }
+            }
+          }
+        ]
       },
       include: {
         niveles_entrenamiento: true,
@@ -314,48 +328,10 @@ export const asistenciaService = {
         };
       });
 
-      // NUEVA LÓGICA: Alumnos por reprogramación masiva hacia este horario
-      let masivasFormat = [];
-      if (fecha) {
-        const alumnosMasivos = await prisma.registros_asistencia.findMany({
-          where: {
-            fecha: new Date(fecha),
-            comentario: { contains: `[REPG_MASIVA:${horario.id}]` }
-          },
-          include: {
-            inscripciones: {
-              include: {
-                alumnos: {
-                  include: {
-                    usuarios: {
-                      select: { id: true, nombres: true, apellidos: true, numero_documento: true },
-                    },
-                  },
-                },
-              }
-            }
-          }
-        });
-        
-        masivasFormat = alumnosMasivos.map((am) => ({
-          id: `insc-repg-${am.id}`,
-          estado: 'REPROGRAMACION',
-          alumnos: am.inscripciones.alumnos,
-          registros_asistencia: [
-            {
-              id: am.id, // THE REAL ID para que al marcar asistencia actualice directamente la base de datos
-              fecha: am.fecha,
-              estado: am.estado,
-              comentario: am.comentario,
-            }
-          ]
-        }));
-      }
-
       // 🌟 Combinamos las inscripciones de forma segura en un NUEVO objeto
       horariosProcesados.push({
         ...horario,
-        inscripciones: [...horario.inscripciones, ...recuperadoresFormat, ...masivasFormat],
+        inscripciones: [...horario.inscripciones, ...recuperadoresFormat],
       });
     }
 
@@ -363,9 +339,9 @@ export const asistenciaService = {
     return horariosProcesados.map((h) => {
       // Filtramos los registros "Fantasma" de las inscripciones regulares
       h.inscripciones.forEach((insc) => {
-        if (insc.estado !== 'RECUPERACION' && insc.estado !== 'REPROGRAMACION') {
+        if (insc.estado !== 'RECUPERACION') {
           insc.registros_asistencia = insc.registros_asistencia.filter(
-            (reg) => !reg.comentario?.includes('[RECUPERACION]') && !reg.comentario?.includes('[REPG_MASIVA:')
+            (reg) => !reg.comentario?.includes('[RECUPERACION]')
           );
         }
       });
