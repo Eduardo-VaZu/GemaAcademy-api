@@ -300,12 +300,14 @@ export const asistenciaService = {
               },
             },
             registros_asistencia: {
-              where: {
-                OR: [
-                  fecha ? { fecha: new Date(fecha) } : {},
-                  { reprogramacion_clase_id: { not: null } }
-                ]
-              },
+              where: fecha
+                ? {
+                  OR: [
+                    { fecha: new Date(fecha) },
+                    { reprogramacion_clase_id: { not: null } }
+                  ]
+                }
+                : undefined,
               orderBy: { fecha: 'asc' },
               select: {
                 id: true,
