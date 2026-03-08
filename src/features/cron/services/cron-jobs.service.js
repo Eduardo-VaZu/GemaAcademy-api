@@ -182,6 +182,23 @@ export const iniciarCronJobs = () => {
     { timezone: 'America/Lima' }
   );
 
+  // ------------------------------------------------------------------
+  // TAREA NUEVA: ALERTA VENCIMIENTO INMINENTE (Todos los días a las 10:15 AM) 15 10 * * *
+  // Objetivo: Enviar WhatsApp 1 día antes de que se cumplan los 30 días + tolerancia.
+  // ------------------------------------------------------------------
+  cron.schedule(
+    '15 10 * * *',
+    async () => {
+      logger.info(`[CRON] Buscando alumnos con vencimiento inminente...`);
+      try {
+        await inscripcionCronService.alertaVencimientoInminenteWhatsApp();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló la Alerta de Vencimiento Inminente:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
   // Cron para actualizar registros de asistencias sin marcar a la 1 am
   cron.schedule(
     '0 1 * * *',

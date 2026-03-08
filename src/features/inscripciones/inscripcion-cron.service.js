@@ -168,7 +168,7 @@ class InscripcionCronService {
         // 🔥 PENALIDAD: Pierde su estatus de alumno antiguo (Se le marca como "Nuevo" en su historial)
         prisma.alumnos.update({
           where: { usuario_id: alumno_id },
-          data: { historial: 'Nuevo' }
+          data: { historial: 'Nuevo' },
         }),
         // 🔔 Notificación específica para la alumna
         prisma.notificaciones.create({
@@ -220,7 +220,7 @@ class InscripcionCronService {
       );
     }
   }
- // =================================================================
+  // =================================================================
   // 🗡️ EL LIQUIDADOR DE PAGOS PARCIALES (Motor Completo)
   // =================================================================
   async liquidarMorososParciales() {
@@ -292,7 +292,7 @@ class InscripcionCronService {
           // 🔥 PENALIDAD: Pierde su estatus de alumno antiguo por moroso (La deuda PARCIAL se queda intacta)
           prisma.alumnos.update({
             where: { usuario_id: alumno_id },
-            data: { historial: 'Nuevo' }
+            data: { historial: 'Nuevo' },
           }),
           // 🔔 Notificación para la alumna
           prisma.notificaciones.create({
@@ -383,6 +383,71 @@ class InscripcionCronService {
     if (totalEnviados > 0) {
       logger.info(
         `[RECORDATORIO 22 DIAS] Se enviaron ${totalEnviados} mensajes de WhatsApp a morosos parciales.`
+      );
+    }
+  }
+
+  // =================================================================
+  // 📲 ALERTA VENCIMIENTO INMINENTE: 29 Días + Tolerancia - 1 (WhatsApp)
+  // =================================================================
+  async alertaVencimientoInminenteWhatsApp() {
+    const hoyLimaInicioDia = dayjs().tz(TZ_LIMA).startOf('day');
+
+    const paramTolerancia = await prisma.parametros_sistema.findUnique({
+      where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' },
+    });
+
+    const rebeldes = await prisma.cuentas_por_cobrar.findMany({
+      where: { estado: 'PENDIENTE' },
+      select: { alumno_id: true },
+      distinct: ['alumno_id'],
+    });
+
+    if (rebeldes.length === 0) return;
+
+    let totalEnviados = 0;
+
+    for (const { alumno_id } of rebeldes) {
+      const inscripcionMadre = await prisma.inscripciones.findFirst({
+        where: { alumno_id: alumno_id, estado: 'ACTIVO' },
+        orderBy: { fecha_inscripcion: 'asc' },
+        include: {
+          alumnos: {
+            include: { usuarios: true },
+          },
+        },
+      });
+
+      if (!inscripcionMadre) continue;
+
+      const fechaLimiteMuerte = dayjs(inscripcionMadre.fecha_inscripcion)
+        .tz(TZ_LIMA)
+        .add(30 + paramTolerancia, 'day')
+        .startOf('day');
+
+      const diaAlerta = fechaLimiteMuerte.subtract(1, 'day');
+
+      if (hoyLimaInicioDia.valueOf() === diaAlerta.valueOf()) {
+        const usuario = inscripcionMadre.alumnos.usuarios;
+        if (usuario && usuario.telefono_personal) {
+          const mensaje = `¡Atención ${usuario.nombres}! Tu inscripción en Gema Academy está por vencer mañana. Para no perder tu cupo y tus beneficios de alumno antiguo, por favor regulariza tu pago pendiente hoy mismo.`;
+
+          try {
+            await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
+            totalEnviados++;
+          } catch (err) {
+            logger.error(
+              `[WHATSAPP ERROR] No se pudo enviar la alerta de vencimiento inminente a ${usuario.telefono_personal}`,
+              err
+            );
+          }
+        }
+      }
+    }
+
+    if (totalEnviados > 0) {
+      logger.info(
+        `[ALERTA VENCIMIENTO] Se enviaron ${totalEnviados} mensajes de advertencia de expiración.`
       );
     }
   }
