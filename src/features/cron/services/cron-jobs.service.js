@@ -170,7 +170,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Enviar WhatsApp a morosos parciales exactamente 22 días después de su inscripción
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * *',
+    '0 10 * * *',
     async () => {
       logger.info(`[CRON] Buscando morosos parciales para recordatorio del día 22...`);
       try {
