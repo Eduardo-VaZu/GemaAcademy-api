@@ -337,20 +337,6 @@ export const asistenciaService = {
 
     // TRANSFORMACIÓN: Limpiamos la data usando el nuevo arreglo procesado
     return horariosProcesados.map((h) => {
-      // Obtenemos un posible override de horario si es una reprogramación masiva en la fecha consultada
-      let overriddenTime = null;
-      for (const insc of h.inscripciones) {
-        if (!insc.registros_asistencia) continue;
-        const reg = insc.registros_asistencia.find(r => r.comentario?.includes('[REPG_MASIVA|'));
-        if (reg) {
-          const match = reg.comentario.match(/\[REPG_MASIVA\|(\d{2}:\d{2})-(\d{2}:\d{2})\]/);
-          if (match) {
-            overriddenTime = { start: match[1], end: match[2] };
-            break;
-          }
-        }
-      }
-
       // Filtramos los registros "Fantasma" de las inscripciones regulares
       h.inscripciones.forEach((insc) => {
         if (insc.estado !== 'RECUPERACION') {
@@ -372,8 +358,8 @@ export const asistenciaService = {
 
       return {
         ...h,
-        hora_inicio: overriddenTime ? overriddenTime.start : formatTime(h.hora_inicio),
-        hora_fin: overriddenTime ? overriddenTime.end : formatTime(h.hora_fin),
+        hora_inicio: formatTime(h.hora_inicio),
+        hora_fin: formatTime(h.hora_fin),
       };
     });
   },
