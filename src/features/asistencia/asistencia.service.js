@@ -144,6 +144,7 @@ export const asistenciaService = {
         },
       },
       include: {
+        reprogramaciones_clases: true,
         inscripciones: {
           include: {
             horarios_clases: {
@@ -206,7 +207,7 @@ export const asistenciaService = {
         activo: true,
         OR: [
           { dia_semana: diaSemana },
-          { // Incluir horarios que no sean de este día pero que tengan reprogramación masiva hoy
+          {
             inscripciones: {
               some: {
                 registros_asistencia: {
@@ -261,6 +262,28 @@ export const asistenciaService = {
       activo: true,
     };
 
+    if (fecha) {
+      const fechaConsulta = new Date(fecha);
+      fechaConsulta.setHours(0, 0, 0, 0);
+      const diaSemana = fechaConsulta.getDay();
+
+      whereCondition.OR = [
+        { dia_semana: diaSemana },
+        {
+          inscripciones: {
+            some: {
+              registros_asistencia: {
+                some: {
+                  fecha: fechaConsulta,
+                  reprogramacion_clase_id: { not: null }
+                }
+              }
+            }
+          }
+        }
+      ];
+    }
+
     const horarios = await prisma.horarios_clases.findMany({
       where: whereCondition,
       include: {
@@ -277,7 +300,12 @@ export const asistenciaService = {
               },
             },
             registros_asistencia: {
-              where: fecha ? { fecha: new Date(fecha) } : {},
+              where: {
+                OR: [
+                  fecha ? { fecha: new Date(fecha) } : {},
+                  { reprogramacion_clase_id: { not: null } }
+                ]
+              },
               orderBy: { fecha: 'asc' },
               select: {
                 id: true,
