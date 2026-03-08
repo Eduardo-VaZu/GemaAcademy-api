@@ -172,7 +172,6 @@ export const claseService = {
           fecha: fechaDestinoDate,
           estado: 'PENDIENTE',
           comentario: `[REPG_MASIVA] Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
-          registrado_por: usuario_admin_id,
         });
 
         // C) Notificar al alumno de que su clase cambió
