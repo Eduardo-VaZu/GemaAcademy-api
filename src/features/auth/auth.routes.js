@@ -7,8 +7,8 @@ import { authSchema } from './auth.schema.js';
 import { loginLimiter } from '../../shared/middlewares/rateLimit.middleware.js';
 
 const router = Router();
-
-router.post('/login', loginLimiter, validate(authSchema.loginSchema), authController.login);
+// loginLimiter,
+router.post('/login', validate(authSchema.loginSchema), authController.login);
 router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 
