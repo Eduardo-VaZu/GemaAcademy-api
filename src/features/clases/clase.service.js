@@ -114,14 +114,18 @@ const validarFechasYHorarios = async (params) => {
   });
 
   for (const hc of horariosCancha) {
-    if (hc.id === origenId && diffDays === 0) continue; // Mismo día y misma clase (se está vaciando el slot original)
+    // Si estamos moviendo la clase dentro del MISMO día (solo cambiando la hora),
+    // ignoramos el choque con la clase original (porque esa clase original se va a anular).
+    // Pero si la movemos a OTRO día distinto que coincide con su día regular futuro,
+    // DEBE lanzar error porque sobreescribiríamos la clase normal que los alumnos ya tienen.
+    if (hc.id === origenId && diffDays === 0) continue;
 
     const startMins = hc.hora_inicio.getUTCHours() * 60 + hc.hora_inicio.getUTCMinutes();
     const endMins = hc.hora_fin.getUTCHours() * 60 + hc.hora_fin.getUTCMinutes();
 
     if (inicioMinutos < endMins && finMinutos > startMins) {
       if (hc.id === origenId) {
-        throw new ApiError(`No puedes mover la clase a este horario porque coincide con la clase regular de este mismo grupo programada para ese día.`, 400);
+        throw new ApiError(`No puedes mover la clase a este horario porque coincide con la clase regular normal de este mismo grupo programada para ese día.`, 400);
       }
       throw new ApiError(`La cancha seleccionada está ocupada en ese horario por la clase de nivel ${hc.niveles_entrenamiento.nombre} (${hc.hora_inicio.toISOString().substring(11, 16)} - ${hc.hora_fin.toISOString().substring(11, 16)}).`, 400);
     }
@@ -155,7 +159,7 @@ const validarFechasYHorarios = async (params) => {
     }
   }
 
-  // 6. Validar si los alumnos del horario origen tienen ya una clase programada ese día en OTRO nivel/horario (opcional, pero sugerido para Evitar cruces por Alumno)
+  // 6. Validar si los alumnos del horario origen tienen ya una clase programada ese día en OTRO nivel/horario
   // Obtenemos los alumnos del horario
   const inscripcionesOrigen = await prisma.inscripciones.findMany({
     where: { horario_id: origenId, estado: 'ACTIVO' },
@@ -165,7 +169,7 @@ const validarFechasYHorarios = async (params) => {
   const alumnoIds = inscripcionesOrigen.map(i => i.alumno_id);
 
   // Verificamos si tienen asistencias para el DESTINO
-  const interferencias = await prisma.registros_asistencia.findMany({
+  const posiblesInterferencias = await prisma.registros_asistencia.findMany({
     where: {
       fecha: fechaDestinoDate,
       inscripciones: {
@@ -175,18 +179,45 @@ const validarFechasYHorarios = async (params) => {
     },
     include: {
       inscripciones: {
-        include: { alumnos: { include: { usuarios: { select: { nombres: true, apellidos: true } } } } }
+        include: { 
+          alumnos: { include: { usuarios: { select: { nombres: true, apellidos: true } } } },
+          horarios_clases: { select: { hora_inicio: true, hora_fin: true } }
+        }
       }
     }
   });
 
-  if (interferencias.length > 0) {
-    // Extraer nombres únicos para el msj
-    const nombresConflictivos = [...new Set(interferencias.map(int => `${int.inscripciones.alumnos.usuarios.nombres} ${int.inscripciones.alumnos.usuarios.apellidos}`))];
-    throw new ApiError(
-      `Cruce de horarios detectado en la fecha destino (${fechaDestinoStr})`,
-      400
-    );
+  if (posiblesInterferencias.length > 0) {
+    const nombresConflictivos = new Set();
+    
+    for (const int of posiblesInterferencias) {
+      // 1. Extraer los tiempos de esta sesión interviniente
+      let stInterferencia, enInterferencia;
+      
+      const overrideMatch = int.comentario?.match(/\[REPG_MASIVA\|(\d{2}:\d{2})-(\d{2}:\d{2})\]/);
+      if (overrideMatch) {
+         const [hI, mI] = overrideMatch[1].split(':').map(Number);
+         const [hF, mF] = overrideMatch[2].split(':').map(Number);
+         stInterferencia = hI * 60 + mI;
+         enInterferencia = hF * 60 + mF;
+      } else {
+         const hc = int.inscripciones.horarios_clases;
+         stInterferencia = hc.hora_inicio.getUTCHours() * 60 + hc.hora_inicio.getUTCMinutes();
+         enInterferencia = hc.hora_fin.getUTCHours() * 60 + hc.hora_fin.getUTCMinutes();
+      }
+
+      // 2. Comprobar si choca matemáticamente con la sesión propuesta
+      if (inicioMinutos < enInterferencia && finMinutos > stInterferencia) {
+         nombresConflictivos.add(`${int.inscripciones.alumnos.usuarios.nombres} ${int.inscripciones.alumnos.usuarios.apellidos}`);
+      }
+    }
+
+    if (nombresConflictivos.size > 0) {
+      throw new ApiError(
+        `Cruce de horarios detectado para ciertos alumnos en la fecha destino (${fechaDestinoStr}) en el rango de ${horaInicioFinal}-${horaFinFinal}.`,
+        400
+      );
+    }
   }
 
   // 6. Validar que existan registros a mover en la fecha ORIGEN
@@ -287,9 +318,20 @@ export const claseService = {
         }
       });
 
+      // Limpiamos los "fantasmas" previos: Si ya se había reprogramado algo para esta fecha_destino y 
+      // generó registros PENDIENTES o duplicados, los borramos para evitar la violación del Unique Constraint.
+      await tx.registros_asistencia.deleteMany({
+        where: {
+          inscripcion_id: { in: inscripcionIds },
+          fecha: fechaDestinoDate,
+          estado: 'PENDIENTE'
+        }
+      });
+
       // Insertamos el nuevo registro que aparecerá en el destino
       await tx.registros_asistencia.createMany({
         data: nuevasClases,
+        skipDuplicates: true // Protección extra contra constraint unique si hubiera registros no pendientes huérfanos
       });
 
       // Activamos notificaciones
