@@ -114,15 +114,16 @@ const validarFechasYHorarios = async (params) => {
   });
 
   for (const hc of horariosCancha) {
-    if (hc.id === origenId && diffDays === 0) continue; // Mismo día y misma clase (se está vaciando el slot original)
+    // Si la clase a evaluar en la cancha es la MISMA clase de origen,
+    // significa que estamos moviendo la clase a sí misma en su propio día regular
+    // de otra semana. Como la clase original de ESA nueva semana igual se va a dictar (o sobreescribir),
+    // debemos ignorar el choque con ella misma.
+    if (hc.id === origenId) continue;
 
     const startMins = hc.hora_inicio.getUTCHours() * 60 + hc.hora_inicio.getUTCMinutes();
     const endMins = hc.hora_fin.getUTCHours() * 60 + hc.hora_fin.getUTCMinutes();
 
     if (inicioMinutos < endMins && finMinutos > startMins) {
-      if (hc.id === origenId) {
-        throw new ApiError(`No puedes mover la clase a este horario porque coincide con la clase regular de este mismo grupo programada para ese día.`, 400);
-      }
       throw new ApiError(`La cancha seleccionada está ocupada en ese horario por la clase de nivel ${hc.niveles_entrenamiento.nombre} (${hc.hora_inicio.toISOString().substring(11, 16)} - ${hc.hora_fin.toISOString().substring(11, 16)}).`, 400);
     }
   }
@@ -314,9 +315,20 @@ export const claseService = {
         }
       });
 
+      // Limpiamos los "fantasmas" previos: Si ya se había reprogramado algo para esta fecha_destino y 
+      // generó registros PENDIENTES o duplicados, los borramos para evitar la violación del Unique Constraint.
+      await tx.registros_asistencia.deleteMany({
+        where: {
+          inscripcion_id: { in: inscripcionIds },
+          fecha: fechaDestinoDate,
+          estado: 'PENDIENTE'
+        }
+      });
+
       // Insertamos el nuevo registro que aparecerá en el destino
       await tx.registros_asistencia.createMany({
         data: nuevasClases,
+        skipDuplicates: true // Protección extra contra constraint unique si hubiera registros no pendientes huérfanos
       });
 
       // Activamos notificaciones
