@@ -1,5 +1,5 @@
-import { prisma } from '../../../config/database.config.js';
-import { logger } from '../../../shared/utils/logger.util.js';
+import { prisma } from '../../config/database.config.js';
+import { logger } from '../../shared/utils/logger.util.js';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
