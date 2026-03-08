@@ -9,6 +9,32 @@ export const claseSchema = {
     fecha_origen: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha origen debe tener formato YYYY-MM-DD'),
+    cancha_id: z.union([
+      z.number().int().positive('ID de cancha inválido'),
+      z.string().regex(/^\d+$/, 'ID de cancha debe ser numérico').transform(Number),
+    ]),
+    coordinador_id: z
+      .union([
+        z.number().int().positive('ID de coordinador inválido'),
+        z.string().regex(/^\d+$/, 'ID de coordinador debe ser numérico').transform(Number),
+      ])
+      .optional(),
+    nivel_id: z.union([
+      z.number().int().positive('ID de nivel inválido'),
+      z.string().regex(/^\d+$/, 'ID de nivel debe ser numérico').transform(Number),
+    ]),
+    hora_inicio: z
+      .string()
+      .regex(
+        /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/,
+        'Hora inicio debe tener formato HH:mm o HH:mm:ss'
+      ),
+    hora_fin: z
+      .string()
+      .regex(
+        /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/,
+        'Hora fin debe tener formato HH:mm o HH:mm:ss'
+      ),
     fecha_destino: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha destino debe tener formato YYYY-MM-DD'),
