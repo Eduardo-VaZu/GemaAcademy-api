@@ -21,6 +21,7 @@ export const pagosController = {
         data: resultado,
       });
     } catch (error) {
+      console.error('❌ [ERROR AL REPORTAR PAGO]:', error.message);
       // Diferenciamos errores de "no encontrado" vs errores de lógica
       const statusCode = error.message.includes('no existe') ? 404 : 400;
 
