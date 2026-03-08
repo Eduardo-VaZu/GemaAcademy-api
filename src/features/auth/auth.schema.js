@@ -34,7 +34,15 @@ export const authSchema = {
   }),
   
   updateProfileSchema: z.object({
-    email: z.string().email('Email inválido').optional().nullable(),
-    telefono_personal: z.string().min(7, 'El teléfono debe tener al menos 7 dígitos').max(20).optional().nullable(),
+    email: z.string().email('Email inválido').optional().or(z.literal('')),
+    telefono_personal: z.string().optional(),
+    nombres: z.string().optional(),
+    apellidos: z.string().optional(),
+    genero: z.string().optional(),
+    condiciones_medicas: z.string().optional(),
+    seguro_medico: z.string().optional(),
+    grupo_sanguineo: z.string().optional(),
+    especializacion: z.string().optional(),
+    tarifa_hora: z.union([z.string(), z.number()]).optional(),
   }),
 };

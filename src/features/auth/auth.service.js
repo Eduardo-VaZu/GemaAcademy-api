@@ -392,39 +392,72 @@ export const authService = {
   },
 
   /**
-   * Actualiza el perfil de un usuario autenticado (datos generales)
+   * Actualiza el perfil de un usuario autenticado (datos generales y específicos del rol)
    * @param {number} userId - ID del usuario.
-   * @param {Object} payload - Objeto con los datos a actualizar (email, telefono_personal)
+   * @param {Object} payload - Objeto con los datos a actualizar
    */
   updateProfile: async (userId, payload) => {
     const usuario = await prisma.usuarios.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, telefono_personal: true, nombres: true, apellidos: true, genero: true }
+      select: { id: true, rol_id: true, email: true, telefono_personal: true, nombres: true, apellidos: true, genero: true }
     });
 
     if (!usuario) {
       throw new ApiError('Usuario no encontrado', 404);
     }
 
-    const { email, telefono_personal } = payload;
-    const updates = {};
-    if (email !== undefined) updates.email = email === '' ? null : email;
-    if (telefono_personal !== undefined) updates.telefono_personal = telefono_personal;
+    const { 
+      email, telefono_personal, nombres, apellidos, genero, 
+      condiciones_medicas, seguro_medico, grupo_sanguineo,
+      especializacion, tarifa_hora
+    } = payload;
+    
+    // 1. Actualizar tabla usuarios (datos base)
+    const userUpdates = {};
+    if (email !== undefined) userUpdates.email = email === '' ? null : email;
+    if (telefono_personal !== undefined) userUpdates.telefono_personal = telefono_personal;
+    if (nombres !== undefined) userUpdates.nombres = nombres;
+    if (apellidos !== undefined) userUpdates.apellidos = apellidos;
+    if (genero !== undefined) userUpdates.genero = genero;
 
-    const updatedUser = await prisma.usuarios.update({
-      where: { id: userId },
-      data: updates,
-      select: {
-          id: true,
-          username: true,
-          email: true,
-          nombres: true,
-          apellidos: true,
-          telefono_personal: true,
-          genero: true
+    // Ejecutar actualización base si hay cambios
+    if (Object.keys(userUpdates).length > 0) {
+      await prisma.usuarios.update({
+        where: { id: userId },
+        data: userUpdates
+      });
+    }
+
+    // 2. Actualizar tabla específica según el rol
+    // Rol Alumno = 1, Profesor = 2, Coordinador = 3, Admin = 4
+    if (usuario.rol_id === 1) {
+      const alumnoUpdates = {};
+      if (condiciones_medicas !== undefined) alumnoUpdates.condiciones_medicas = condiciones_medicas;
+      if (seguro_medico !== undefined) alumnoUpdates.seguro_medico = seguro_medico;
+      if (grupo_sanguineo !== undefined) alumnoUpdates.grupo_sanguineo = grupo_sanguineo;
+
+      if (Object.keys(alumnoUpdates).length > 0) {
+        await prisma.alumnos.updateMany({
+          where: { usuario_id: userId },
+          data: alumnoUpdates
+        });
       }
-    });
+    } else if (usuario.rol_id === 3 || usuario.rol_id === 2) {
+      // Como profesores y coordinadores podrían estar en la tabla coordinadores o profesores
+      // Asumimos que usa la tabla 'coordinadores' según el prisma schema 
+      const coordUpdates = {};
+      if (especializacion !== undefined) coordUpdates.especializacion = especializacion;
+      if (tarifa_hora !== undefined) coordUpdates.tarifa_hora = parseFloat(tarifa_hora) || null;
 
-    return updatedUser;
+      if (Object.keys(coordUpdates).length > 0) {
+        await prisma.coordinadores.updateMany({
+          where: { usuario_id: userId },
+          data: coordUpdates
+        });
+      }
+    }
+
+    // Retornamos el perfil completo actualizado
+    return await authService.getProfile(userId);
   },
 };
