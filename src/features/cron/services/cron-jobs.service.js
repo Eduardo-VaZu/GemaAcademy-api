@@ -42,7 +42,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Cambiar a FINALIZADO o PEN-RECU según el ciclo (Madre + 30 días + tolerancia).
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * *',
+    '0 1 * * *',
     async () => {
       logger.info(`[CRON] Iniciando revisión nocturna de ciclos: ${new Date().toISOString()}`);
       try {
@@ -59,7 +59,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Generar la deuda del próximo mes X días antes del vencimiento.
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * *',
+    '30 0 * * *',
     async () => {
       logger.info(`[CRON] El Profeta buscando renovaciones futuras...`);
       try {
@@ -153,7 +153,7 @@ export const iniciarCronJobs = () => {
   // Objetivo: Matar inscripciones con pagos parciales justo antes de que el Profeta les genere nueva deuda.
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * *',
+    '15 0 * * *',
     async () => {
       logger.info(`[CRON] El Liquidador buscando morosos parciales...`);
       try {
@@ -166,11 +166,11 @@ export const iniciarCronJobs = () => {
   );
 
   // ------------------------------------------------------------------
-  // TAREA NUEVA: RECORDATORIO 22 DÍAS (Todos los días a las 10:00 AM)
+  // TAREA NUEVA: RECORDATORIO 22 DÍAS (Todos los días a las 10:00 AM) 0 10 * * *
   // Objetivo: Enviar WhatsApp a morosos parciales exactamente 22 días después de su inscripción
   // ------------------------------------------------------------------
   cron.schedule(
-    '0 10 * * *',
+    '* * * * *',
     async () => {
       logger.info(`[CRON] Buscando morosos parciales para recordatorio del día 22...`);
       try {
