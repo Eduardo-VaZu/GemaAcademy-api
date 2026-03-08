@@ -225,6 +225,15 @@ export const sedeService = {
         const canchasExistentes = sedeData.canchas.filter((c) => c.id);
         const canchasNuevas = sedeData.canchas.filter((c) => !c.id);
 
+        // BORRAMOS LAS CANCHAS QUE YA NO VIENEN EN EL PAYLOAD
+        const idsAMantener = canchasExistentes.map((c) => c.id);
+        await tx.canchas.deleteMany({
+          where: {
+            sede_id: id,
+            id: { notIn: idsAMantener },
+          },
+        });
+
         // Updates en paralelo
         if (canchasExistentes.length > 0) {
           await Promise.all(
