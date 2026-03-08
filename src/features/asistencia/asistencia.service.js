@@ -212,7 +212,7 @@ export const asistenciaService = {
                 registros_asistencia: {
                   some: {
                     fecha: fechaConsulta,
-                    hora_inicio_override: { not: null }
+                    reprogramacion_clase_id: { not: null }
                   }
                 }
               }
@@ -240,8 +240,12 @@ export const asistenciaService = {
                 id: true, // Este es el ID que usará el coordinador para marcar
                 estado: true, // Saldrá "PROGRAMADA" inicialmente
                 comentario: true,
-                hora_inicio_override: true,
-                hora_fin_override: true,
+                reprogramaciones_clases: {
+                  select: {
+                    hora_inicio_destino: true,
+                    hora_fin_destino: true
+                  }
+                },
               },
             },
           },
@@ -280,8 +284,12 @@ export const asistenciaService = {
                 fecha: true,
                 estado: true,
                 comentario: true,
-                hora_inicio_override: true,
-                hora_fin_override: true,
+                reprogramaciones_clases: {
+                  select: {
+                    hora_inicio_destino: true,
+                    hora_fin_destino: true
+                  }
+                },
               },
             },
           },

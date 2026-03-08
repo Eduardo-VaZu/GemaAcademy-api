@@ -132,30 +132,23 @@ const validarFechasYHorarios = async (params) => {
   }
 
   // Comprobar colisiones con otras reprogramaciones masivas ese mismo día
-  const overridesEnCancha = await prisma.registros_asistencia.findMany({
+  const overridesEnCancha = await prisma.reprogramaciones_clases.findMany({
     where: {
-      fecha: fechaDestinoDate,
-      hora_inicio_override: { not: null },
-      hora_fin_override: { not: null },
-      inscripciones: { horarios_clases: { cancha_id: horarioOrigen.cancha_id } }
+      fecha_destino: fechaDestinoDate,
+      horarios_clases: { cancha_id: horarioOrigen.cancha_id }
     },
-    select: { hora_inicio_override: true, hora_fin_override: true, inscripciones: { select: { horarios_clases: { select: { id: true } } } } }
+    select: { id: true, hora_inicio_destino: true, hora_fin_destino: true, horario_id: true }
   });
 
-  const seenSchedules = new Set();
   for (const override of overridesEnCancha) {
-    const classId = override.inscripciones.horarios_clases.id;
-    if (seenSchedules.has(classId) || classId === origenId) continue;
-    seenSchedules.add(classId);
+    if (override.horario_id === origenId) continue;
 
-    if (override.hora_inicio_override && override.hora_fin_override) {
-      const [hI, mI] = override.hora_inicio_override.split(':').map(Number);
-      const [hF, mF] = override.hora_fin_override.split(':').map(Number);
-      const st = hI * 60 + mI;
-      const en = hF * 60 + mF;
-      if (inicioMinutos < en && finMinutos > st) {
-        throw new ApiError(`La cancha ya fue reservada para otra clase reprogramada en ese rango horario (${override.hora_inicio_override} - ${override.hora_fin_override}).`, 400);
-      }
+    const [hI, mI] = override.hora_inicio_destino.split(':').map(Number);
+    const [hF, mF] = override.hora_fin_destino.split(':').map(Number);
+    const st = hI * 60 + mI;
+    const en = hF * 60 + mF;
+    if (inicioMinutos < en && finMinutos > st) {
+      throw new ApiError(`La cancha ya fue reservada para otra clase reprogramada en ese rango horario (${override.hora_inicio_destino} - ${override.hora_fin_destino}).`, 400);
     }
   }
 
@@ -178,6 +171,7 @@ const validarFechasYHorarios = async (params) => {
       }
     },
     include: {
+      reprogramaciones_clases: true,
       inscripciones: {
         include: { 
           alumnos: { include: { usuarios: { select: { nombres: true, apellidos: true } } } },
@@ -194,9 +188,9 @@ const validarFechasYHorarios = async (params) => {
       // 1. Extraer los tiempos de esta sesión interviniente
       let stInterferencia, enInterferencia;
       
-      if (int.hora_inicio_override && int.hora_fin_override) {
-         const [hI, mI] = int.hora_inicio_override.split(':').map(Number);
-         const [hF, mF] = int.hora_fin_override.split(':').map(Number);
+      if (int.reprogramaciones_clases) {
+         const [hI, mI] = int.reprogramaciones_clases.hora_inicio_destino.split(':').map(Number);
+         const [hF, mF] = int.reprogramaciones_clases.hora_fin_destino.split(':').map(Number);
          stInterferencia = hI * 60 + mI;
          enInterferencia = hF * 60 + mF;
       } else {
@@ -265,29 +259,30 @@ export const claseService = {
 
     // 3. Ejecución Transaccional Batch
     return await prisma.$transaction(async (tx) => {
-      let procesados = 0;
+      // A) Crear el registro de la reprogramación
+      const reprogramacion = await tx.reprogramaciones_clases.create({
+        data: {
+          horario_id: horario_origen_id,
+          fecha_origen: fechaOrigenDate,
+          fecha_destino: fechaDestinoDate,
+          hora_inicio_destino: horaInicioFinal,
+          hora_fin_destino: horaFinFinal,
+          motivo: motivo,
+          creado_por: usuario_admin_id,
+        }
+      });
 
-      const anulaciones = [];
+      let procesados = 0;
       const nuevasClases = [];
       const alertas = [];
 
       for (const inscripcion of inscripciones) {
-        // A) Anular la clase original para que el profe no los marque ausentes
-        anulaciones.push({
-          inscripcion_id: inscripcion.id,
-          fecha: fechaOrigenDate,
-          estado: 'REPROGRAMADO',
-          comentario: `Reprogramación masiva hacia ${fecha_destino}: ${motivo}`,
-          registrado_por: usuario_admin_id,
-        });
-
-        // B) Crear el espacio temporal esperado de asistencia en el mismo Horario para el nuevo día
+        // B) Preparar el espacio temporal esperado de asistencia en el nuevo día
         nuevasClases.push({
           inscripcion_id: inscripcion.id,
           fecha: fechaDestinoDate,
           estado: 'PENDIENTE',
-          hora_inicio_override: horaInicioFinal,
-          hora_fin_override: horaFinFinal,
+          reprogramacion_clase_id: reprogramacion.id,
           comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
         });
 
@@ -306,8 +301,7 @@ export const claseService = {
       // 4. Inserciones masivas
       const inscripcionIds = inscripciones.map((i) => i.id);
 
-      // En lugar de deleteMany, usamos updateMany para cambiar el estado de la clase original a REPROGRAMADO
-      // Esto evita el P2025 "referencia a datos no existentes" si algo falla en el ciclo natural.
+      // Actualizamos el estado de la clase original a REPROGRAMADO
       await tx.registros_asistencia.updateMany({
         where: {
           inscripcion_id: { in: inscripcionIds },
@@ -319,8 +313,7 @@ export const claseService = {
         }
       });
 
-      // Limpiamos los "fantasmas" previos: Si ya se había reprogramado algo para esta fecha_destino y 
-      // generó registros PENDIENTES o duplicados, los borramos para evitar la violación del Unique Constraint.
+      // Limpiamos los "fantasmas" previos
       await tx.registros_asistencia.deleteMany({
         where: {
           inscripcion_id: { in: inscripcionIds },
@@ -332,7 +325,7 @@ export const claseService = {
       // Insertamos el nuevo registro que aparecerá en el destino
       await tx.registros_asistencia.createMany({
         data: nuevasClases,
-        skipDuplicates: true // Protección extra contra constraint unique si hubiera registros no pendientes huérfanos
+        skipDuplicates: true
       });
 
       // Activamos notificaciones
@@ -342,7 +335,8 @@ export const claseService = {
 
       return {
         total_procesados: procesados,
-        mensaje: 'Reprogramación masiva ejectutada. Alumnos notificados vía PENDIENTE.',
+        reprogramacion_id: reprogramacion.id,
+        mensaje: 'Reprogramación masiva ejecutada exitosamente.',
       };
     });
   },

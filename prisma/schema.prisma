@@ -119,21 +119,22 @@ model direcciones {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model horarios_clases {
-  id                         Int                   @id @default(autoincrement())
+  id                         Int                       @id @default(autoincrement())
   cancha_id                  Int
   coordinador_id             Int?
   nivel_id                   Int
   dia_semana                 Int
-  hora_inicio                DateTime              @db.Time(6)
-  hora_fin                   DateTime              @db.Time(6)
-  capacidad_max              Int?                  @default(20)
-  activo                     Boolean?              @default(true)
+  hora_inicio                DateTime                  @db.Time(6)
+  hora_fin                   DateTime                  @db.Time(6)
+  capacidad_max              Int?                      @default(20)
+  activo                     Boolean?                  @default(true)
   minutos_reserva_especifico Int?
-  canchas                    canchas               @relation(fields: [cancha_id], references: [id], onDelete: Cascade)
-  niveles_entrenamiento      niveles_entrenamiento @relation(fields: [nivel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  coordinadores              coordinadores?        @relation(fields: [coordinador_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  canchas                    canchas                   @relation(fields: [cancha_id], references: [id], onDelete: Cascade)
+  niveles_entrenamiento      niveles_entrenamiento     @relation(fields: [nivel_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  coordinadores              coordinadores?            @relation(fields: [coordinador_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
   inscripciones              inscripciones[]
   recuperaciones             recuperaciones[]
+  reprogramaciones_clases    reprogramaciones_clases[]
 
   @@unique([cancha_id, dia_semana, hora_inicio], map: "unica_cancha_hora")
 }
@@ -187,11 +188,12 @@ model pagos {
 }
 
 model coordinadores {
-  usuario_id           Int                    @id
-  especializacion      String?                @db.VarChar(100)
-  horarios_clases      horarios_clases[]
-  usuarios             usuarios               @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  registros_asistencia registros_asistencia[]
+  usuario_id              Int                       @id
+  especializacion         String?                   @db.VarChar(100)
+  horarios_clases         horarios_clases[]
+  usuarios                usuarios                  @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  registros_asistencia    registros_asistencia[]
+  reprogramaciones_clases reprogramaciones_clases[]
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -215,19 +217,37 @@ model recuperaciones {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model registros_asistencia {
-  id             Int            @id @default(autoincrement())
-  inscripcion_id Int
-  fecha          DateTime       @db.Date
-  estado               String?        @default("PRESENTE") @db.VarChar(20)
-  comentario           String?
-  hora_inicio_override String?        @db.VarChar(5)
-  hora_fin_override    String?        @db.VarChar(5)
-  registrado_por       Int?
-  registrado_en        DateTime?      @default(now()) @db.Timestamp(6)
-  inscripciones  inscripciones  @relation(fields: [inscripcion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  coordinadores  coordinadores? @relation(fields: [registrado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  id                      Int                      @id @default(autoincrement())
+  inscripcion_id          Int
+  fecha                   DateTime                 @db.Date
+  estado                  String?                  @default("PRESENTE") @db.VarChar(20)
+  comentario              String?
+  reprogramacion_clase_id Int?
+  registrado_por          Int?
+  registrado_en           DateTime?                @default(now()) @db.Timestamp(6)
+  inscripciones           inscripciones            @relation(fields: [inscripcion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  coordinadores           coordinadores?           @relation(fields: [registrado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  reprogramaciones_clases reprogramaciones_clases? @relation(fields: [reprogramacion_clase_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@unique([inscripcion_id, fecha], map: "asistencia_unica_diaria")
+}
+
+model reprogramaciones_clases {
+  id                  Int       @id @default(autoincrement())
+  horario_id          Int
+  fecha_origen        DateTime  @db.Date
+  fecha_destino       DateTime  @db.Date
+  hora_inicio_destino String    @db.VarChar(5)
+  hora_fin_destino    String    @db.VarChar(5)
+  motivo              String?
+  creado_por          Int?
+  creado_en           DateTime? @default(now()) @db.Timestamp(6)
+
+  horarios_clases      horarios_clases        @relation(fields: [horario_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  coordinadores        coordinadores?         @relation(fields: [creado_por], references: [usuario_id], onDelete: SetNull, onUpdate: Cascade)
+  registros_asistencia registros_asistencia[]
+
+  @@unique([horario_id, fecha_origen, fecha_destino], map: "unica_reprogramacion_origen_destino")
 }
 
 model roles {
