@@ -5,7 +5,7 @@ export const validarMuroDeDeuda = async (tx, alumnoId) => {
   const deudasPendientes = await tx.cuentas_por_cobrar.count({
     where: {
       alumno_id: Number.parseInt(alumnoId),
-      estado: { in: ['PENDIENTE', 'PARCIAL'] },
+      estado: { in: ['PENDIENTE', 'PARCIAL','POR_VALIDAR'] },
     },
   });
 
