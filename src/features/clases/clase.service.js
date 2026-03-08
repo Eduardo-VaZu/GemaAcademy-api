@@ -114,16 +114,19 @@ const validarFechasYHorarios = async (params) => {
   });
 
   for (const hc of horariosCancha) {
-    // Si la clase a evaluar en la cancha es la MISMA clase de origen,
-    // significa que estamos moviendo la clase a sí misma en su propio día regular
-    // de otra semana. Como la clase original de ESA nueva semana igual se va a dictar (o sobreescribir),
-    // debemos ignorar el choque con ella misma.
-    if (hc.id === origenId) continue;
+    // Si estamos moviendo la clase dentro del MISMO día (solo cambiando la hora),
+    // ignoramos el choque con la clase original (porque esa clase original se va a anular).
+    // Pero si la movemos a OTRO día distinto que coincide con su día regular futuro,
+    // DEBE lanzar error porque sobreescribiríamos la clase normal que los alumnos ya tienen.
+    if (hc.id === origenId && diffDays === 0) continue;
 
     const startMins = hc.hora_inicio.getUTCHours() * 60 + hc.hora_inicio.getUTCMinutes();
     const endMins = hc.hora_fin.getUTCHours() * 60 + hc.hora_fin.getUTCMinutes();
 
     if (inicioMinutos < endMins && finMinutos > startMins) {
+      if (hc.id === origenId) {
+        throw new ApiError(`No puedes mover la clase a este horario porque coincide con la clase regular normal de este mismo grupo programada para ese día.`, 400);
+      }
       throw new ApiError(`La cancha seleccionada está ocupada en ese horario por la clase de nivel ${hc.niveles_entrenamiento.nombre} (${hc.hora_inicio.toISOString().substring(11, 16)} - ${hc.hora_fin.toISOString().substring(11, 16)}).`, 400);
     }
   }
