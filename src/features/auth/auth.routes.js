@@ -33,4 +33,18 @@ router.post(
   authController.resetPassword
 );
 
+router.post(
+  '/change-password',
+  authenticate,
+  validate(authSchema.changePasswordSchema),
+  authController.changePassword
+);
+
+router.put(
+  '/profile',
+  authenticate,
+  validate(authSchema.updateProfileSchema),
+  authController.updateProfile
+);
+
 export default router;

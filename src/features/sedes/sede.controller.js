@@ -72,4 +72,11 @@ export const sedeController = {
       data: null,
     });
   }),
+  getOcupacionDashboard: catchAsync(async (req, res) => {
+    const ocupacion = await sedeService.obtenerOcupacionDashboard();
+    return apiResponse.success(res, {
+      message: 'Ocupación de sedes obtenida con éxito',
+      data: ocupacion
+    });
+  }),
 };

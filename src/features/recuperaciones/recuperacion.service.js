@@ -541,6 +541,20 @@ const agendarRecuperacion = async ({ alumnoId, recuperacionId, horarioDestinoId,
   return recuperacionActualizada;
 };
 
+const obtenerTodas = async () => {
+  return await prisma.recuperaciones.findMany({
+    include: {
+      alumnos: {
+        include: { usuarios: { select: { nombres: true, apellidos: true } } }
+      },
+      horarios_clases: {
+        include: { canchas: true, niveles_entrenamiento: true }
+      }
+    },
+    orderBy: { fecha_falta: 'desc' }
+  });
+};
+
 // Exportamos el objeto con las funciones
 export const recuperacionService = {
   obtenerPendientes,
@@ -550,4 +564,5 @@ export const recuperacionService = {
   anularFaltaPendiente,
   cancelarRecuperacion,
   obtenerHistorial,
+  obtenerTodas,
 };

@@ -160,18 +160,22 @@ class InscripcionCronService {
           // 🔥 CAMBIO AQUÍ: Convertimos de nuevo a Date nativo para Prisma
           data: { estado: nuevoEstado, actualizado_en: dayjs().toDate() },
         }),
-        // Marcamos las deudas pendientes de este alumno como VENCIDA
+        // 🔥 CORRECCIÓN DE NEGOCIO: La deuda pasa a ANULADA porque nunca consumió el mes
         prisma.cuentas_por_cobrar.updateMany({
           where: { alumno_id: alumno_id, estado: 'PENDIENTE' },
-          // 🔥 CAMBIO AQUÍ: Convertimos de nuevo a Date nativo para Prisma
-          data: { estado: 'VENCIDA', actualizado_en: dayjs().toDate() },
+          data: { estado: 'ANULADA', actualizado_en: dayjs().toDate() },
+        }),
+        // 🔥 PENALIDAD: Pierde su estatus de alumno antiguo (Se le marca como "Nuevo" en su historial)
+        prisma.alumnos.update({
+          where: { usuario_id: alumno_id },
+          data: { historial: 'Nuevo' }
         }),
         // 🔔 Notificación específica para la alumna
         prisma.notificaciones.create({
           data: {
             alumno_id: alumno_id,
             titulo: '⚠️ Ciclo Finalizado',
-            mensaje: `Tu inscripción pasó a ${nuevoEstado} por falta de pago tras vencer los días de gracia.`,
+            mensaje: `Tu inscripción pasó a ${nuevoEstado} por falta de pago. Tu deuda pendiente fue anulada, pero perdiste tus beneficios de alumno fundador.`,
             tipo: 'DANGER',
             categoria: 'SISTEMA',
           },
@@ -216,7 +220,7 @@ class InscripcionCronService {
       );
     }
   }
-  // =================================================================
+ // =================================================================
   // 🗡️ EL LIQUIDADOR DE PAGOS PARCIALES (Motor Completo)
   // =================================================================
   async liquidarMorososParciales() {
@@ -285,12 +289,17 @@ class InscripcionCronService {
             // 🔥 CAMBIO AQUÍ: Convertimos de nuevo a Date nativo para Prisma
             data: { estado: nuevoEstado, actualizado_en: dayjs().toDate() },
           }),
+          // 🔥 PENALIDAD: Pierde su estatus de alumno antiguo por moroso (La deuda PARCIAL se queda intacta)
+          prisma.alumnos.update({
+            where: { usuario_id: alumno_id },
+            data: { historial: 'Nuevo' }
+          }),
           // 🔔 Notificación para la alumna
           prisma.notificaciones.create({
             data: {
               alumno_id: alumno_id,
               titulo: '🗡️ Inscripción Liquidada',
-              mensaje: `Tu acceso ha sido marcado como ${nuevoEstado} por saldo pendiente (Pago Parcial) al cierre de ciclo.`,
+              mensaje: `Tu acceso ha sido marcado como ${nuevoEstado} por saldo pendiente (Pago Parcial). Has perdido los beneficios de alumno fundador.`,
               tipo: 'DANGER',
               categoria: 'SISTEMA',
             },

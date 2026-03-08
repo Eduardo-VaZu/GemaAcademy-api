@@ -110,4 +110,22 @@ export const authController = {
 
     return apiResponse.success(res, { message: 'Contraseña actualizada con éxito' });
   }),
+
+  changePassword: catchAsync(async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    await authService.changePassword(req.user.id, currentPassword, newPassword);
+    
+    logger.info(`Usuario ID '${req.user.id}' actualizó su contraseña.`);
+
+    return apiResponse.success(res, { message: 'Contraseña actualizada correctamente' });
+  }),
+
+  updateProfile: catchAsync(async (req, res) => {
+    const updatedUser = await authService.updateProfile(req.user.id, req.body);
+    logger.info(`Usuario ID '${req.user.id}' actualizó sus datos de perfil.`);
+    return apiResponse.success(res, {
+        message: 'Perfil actualizado exitosamente',
+        data: updatedUser
+    });
+  }),
 };

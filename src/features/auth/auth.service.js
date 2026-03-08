@@ -175,6 +175,7 @@ export const authService = {
         usuarios: {
           select: {
             id: true,
+            username: true,
             email: true,
             nombres: true,
             apellidos: true,
@@ -358,5 +359,72 @@ export const authService = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Cambia la contraseña de un usuario autenticado prevalidando su contraseña actual.
+   * @param {number} userId - ID del usuario autenticado.
+   * @param {string} currentPassword - Contraseña actual sin encriptar.
+   * @param {string} newPassword - Nueva contraseña sin encriptar.
+   * @throws {ApiError} 401 si la contraseña actual es incorrecta.
+   */
+  changePassword: async (userId, currentPassword, newPassword) => {
+    const credenciales = await prisma.credenciales_usuario.findUnique({
+      where: { usuario_id: userId },
+      select: { hash_contrasena: true }
+    });
+
+    if (!credenciales) {
+      throw new ApiError('Credenciales no encontradas', 404);
+    }
+
+    const passwordValida = await bcrypt.compare(currentPassword, credenciales.hash_contrasena);
+    if (!passwordValida) {
+      throw new ApiError('La contraseña actual es incorrecta', 401);
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await prisma.credenciales_usuario.update({
+      where: { usuario_id: userId },
+      data: { hash_contrasena: hashedPassword }
+    });
+  },
+
+  /**
+   * Actualiza el perfil de un usuario autenticado (datos generales)
+   * @param {number} userId - ID del usuario.
+   * @param {Object} payload - Objeto con los datos a actualizar (email, telefono_personal)
+   */
+  updateProfile: async (userId, payload) => {
+    const usuario = await prisma.usuarios.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, telefono_personal: true, nombres: true, apellidos: true, genero: true }
+    });
+
+    if (!usuario) {
+      throw new ApiError('Usuario no encontrado', 404);
+    }
+
+    const { email, telefono_personal } = payload;
+    const updates = {};
+    if (email !== undefined) updates.email = email === '' ? null : email;
+    if (telefono_personal !== undefined) updates.telefono_personal = telefono_personal;
+
+    const updatedUser = await prisma.usuarios.update({
+      where: { id: userId },
+      data: updates,
+      select: {
+          id: true,
+          username: true,
+          email: true,
+          nombres: true,
+          apellidos: true,
+          telefono_personal: true,
+          genero: true
+      }
+    });
+
+    return updatedUser;
   },
 };

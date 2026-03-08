@@ -60,4 +60,11 @@ router.delete(
   sedeController.deleteSede
 );
 
+router.get(
+  '/dashboard/ocupacion', 
+  authenticate, 
+  authorize('Administrador'), 
+  sedeController.getOcupacionDashboard
+);
+
 export default router;
