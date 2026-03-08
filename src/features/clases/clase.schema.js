@@ -12,6 +12,14 @@ export const claseSchema = {
     fecha_destino: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha destino debe tener formato YYYY-MM-DD'),
+    hora_inicio_destino: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Hora de inicio debe tener formato HH:mm')
+      .optional(),
+    hora_fin_destino: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Hora de fin debe tener formato HH:mm')
+      .optional(),
     motivo: z
       .string()
       .min(3, 'El motivo debe tener al menos 3 caracteres')
