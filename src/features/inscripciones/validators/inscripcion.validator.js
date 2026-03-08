@@ -11,7 +11,7 @@ export const validarMuroDeDeuda = async (tx, alumnoId) => {
 
   if (deudasPendientes > 0) {
     throw new Error(
-      '⛔ BLOQUEO: Tienes pagos pendientes. Cancela tu deuda anterior para poder inscribirte nuevamente.'
+      '⛔ BLOQUEO: Tienes pagos pendientes o en revisión. Por favor, regulariza tu saldo o espera a que validemos tu último pago para inscribirte nuevamente.'
     );
   }
 };
