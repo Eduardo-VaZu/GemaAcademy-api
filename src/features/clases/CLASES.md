@@ -69,6 +69,13 @@ Ejemplo del flujo de seguridad para `/:horario_id/detalle`:
 
 ## 6. Lógica Core del Service
 
-El archivo `clase.service.js` delega interacciones delicadas a la BD.
-* **`reprogramarMasivamente:`** Transforma una reprogramación en una operación `BATCH` ACID. En vez de mover a cada alumno per-se (N+1), carga en memoria qué alumnos tienen conflictos cruzando tablas (OTRAS inscripciones + RECUPERACIONES), luego categoriza a los alumnos en 2 buckets: los que **sí** pueden reprogramarse (A estos se les crea una recuperación directo), y los que **no** (`PENDIENTE`). Finaliza actualizando los registros base usando `updateMany` optimizado y blindado mediante `$transaction`.
-* **`obtenerDetalleClase:`** Consulta pesada mitigada por Antigravity **Selects**. En vez de incluir todo el objeto `usuarios` y traérselo a memoria para 10-20 alumnos (con contraseñas y otros metadatos inútiles), restringe explícitamente la base de datos para recuperar apenas `id, nombres, apellidos, email`, lo cual es lo único que requiere el DTO de retorno.
+El archivo `clase.service.js` delega interacciones delicadas a la BD. Está refactorizado bajo los lineamientos de **Clean Code (Regla §4.3)** de Gema Academy.
+
+* **`reprogramarMasivamente:`** Transforma una reprogramación en una operación `BATCH` ACID. En vez de ser una función monolítica, está desglosada en las siguientes funciones puras y privadas para asegurar su mantenibilidad:
+  1. `validarFechasYHorarios`: Verifica que los IDs existan y que la fecha de ingreso concuerde con el día del horario (Ej: Que no te agenden un Lunes en el Horario 5 que es solo para Viernes).
+  2. `obtenerAlumnosAfectados`: Trae solo a los alumnos en estado `ACTIVO` del horario original.
+  3. `detectarConflictosYClasificar`: Dentro de la transacción, separa a los alumnos en dos *buckets*: `paraProgramar` (vía libre) y `paraPendiente` (choque de horario).
+  4. `procesarAsistenciasEnLote`: Marca automáticamente a todos los alumnos originales como `SUSPENDIDO` en esa fecha para justificar su inasistencia al profesor.
+  5. `generarRecuperacionesEnLote`: Inserta de golpe (`createMany`) las compensaciones para los alumnos afectados.
+
+* **`obtenerDetalleClase:`** Consulta pesada mitigada por Antigravity **Selects**. En vez de incluir todo el objeto `usuarios` y traérselo a memoria para 10-20 alumnos, usa una cascada de sentencias anidadas `select:` limitando el tráfico con la base de datos a `id, nombres, apellidos, email` y algunos campos base de `horarios_clases`, lo cual es estrictamente lo único que requiere el DTO de retorno.
