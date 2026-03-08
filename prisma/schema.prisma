@@ -218,10 +218,12 @@ model registros_asistencia {
   id             Int            @id @default(autoincrement())
   inscripcion_id Int
   fecha          DateTime       @db.Date
-  estado         String?        @default("PRESENTE") @db.VarChar(20)
-  comentario     String?
-  registrado_por Int?
-  registrado_en  DateTime?      @default(now()) @db.Timestamp(6)
+  estado               String?        @default("PRESENTE") @db.VarChar(20)
+  comentario           String?
+  hora_inicio_override String?        @db.VarChar(5)
+  hora_fin_override    String?        @db.VarChar(5)
+  registrado_por       Int?
+  registrado_en        DateTime?      @default(now()) @db.Timestamp(6)
   inscripciones  inscripciones  @relation(fields: [inscripcion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   coordinadores  coordinadores? @relation(fields: [registrado_por], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
 

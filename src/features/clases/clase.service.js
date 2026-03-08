@@ -135,10 +135,11 @@ const validarFechasYHorarios = async (params) => {
   const overridesEnCancha = await prisma.registros_asistencia.findMany({
     where: {
       fecha: fechaDestinoDate,
-      comentario: { contains: '[REPG_MASIVA|' },
+      hora_inicio_override: { not: null },
+      hora_fin_override: { not: null },
       inscripciones: { horarios_clases: { cancha_id: horarioOrigen.cancha_id } }
     },
-    select: { comentario: true, inscripciones: { select: { horarios_clases: { select: { id: true } } } } }
+    select: { hora_inicio_override: true, hora_fin_override: true, inscripciones: { select: { horarios_clases: { select: { id: true } } } } }
   });
 
   const seenSchedules = new Set();
@@ -147,14 +148,13 @@ const validarFechasYHorarios = async (params) => {
     if (seenSchedules.has(classId) || classId === origenId) continue;
     seenSchedules.add(classId);
 
-    const match = override.comentario.match(/\[REPG_MASIVA\|(\d{2}:\d{2})-(\d{2}:\d{2})\]/);
-    if (match) {
-      const [hI, mI] = match[1].split(':').map(Number);
-      const [hF, mF] = match[2].split(':').map(Number);
+    if (override.hora_inicio_override && override.hora_fin_override) {
+      const [hI, mI] = override.hora_inicio_override.split(':').map(Number);
+      const [hF, mF] = override.hora_fin_override.split(':').map(Number);
       const st = hI * 60 + mI;
       const en = hF * 60 + mF;
       if (inicioMinutos < en && finMinutos > st) {
-        throw new ApiError(`La cancha ya fue reservada para otra clase reprogramada en ese rango horario (${match[1]} - ${match[2]}).`, 400);
+        throw new ApiError(`La cancha ya fue reservada para otra clase reprogramada en ese rango horario (${override.hora_inicio_override} - ${override.hora_fin_override}).`, 400);
       }
     }
   }
@@ -194,10 +194,9 @@ const validarFechasYHorarios = async (params) => {
       // 1. Extraer los tiempos de esta sesión interviniente
       let stInterferencia, enInterferencia;
       
-      const overrideMatch = int.comentario?.match(/\[REPG_MASIVA\|(\d{2}:\d{2})-(\d{2}:\d{2})\]/);
-      if (overrideMatch) {
-         const [hI, mI] = overrideMatch[1].split(':').map(Number);
-         const [hF, mF] = overrideMatch[2].split(':').map(Number);
+      if (int.hora_inicio_override && int.hora_fin_override) {
+         const [hI, mI] = int.hora_inicio_override.split(':').map(Number);
+         const [hF, mF] = int.hora_fin_override.split(':').map(Number);
          stInterferencia = hI * 60 + mI;
          enInterferencia = hF * 60 + mF;
       } else {
@@ -287,7 +286,9 @@ export const claseService = {
           inscripcion_id: inscripcion.id,
           fecha: fechaDestinoDate,
           estado: 'PENDIENTE',
-          comentario: `[REPG_MASIVA|${horaInicioFinal}-${horaFinFinal}] Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
+          hora_inicio_override: horaInicioFinal,
+          hora_fin_override: horaFinFinal,
+          comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
         });
 
         // C) Notificar al alumno de que su clase cambió

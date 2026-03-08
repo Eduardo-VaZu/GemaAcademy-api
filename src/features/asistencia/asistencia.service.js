@@ -212,7 +212,7 @@ export const asistenciaService = {
                 registros_asistencia: {
                   some: {
                     fecha: fechaConsulta,
-                    comentario: { contains: '[REPG_MASIVA]' }
+                    hora_inicio_override: { not: null }
                   }
                 }
               }
@@ -240,6 +240,8 @@ export const asistenciaService = {
                 id: true, // Este es el ID que usará el coordinador para marcar
                 estado: true, // Saldrá "PROGRAMADA" inicialmente
                 comentario: true,
+                hora_inicio_override: true,
+                hora_fin_override: true,
               },
             },
           },
@@ -278,6 +280,8 @@ export const asistenciaService = {
                 fecha: true,
                 estado: true,
                 comentario: true,
+                hora_inicio_override: true,
+                hora_fin_override: true,
               },
             },
           },
