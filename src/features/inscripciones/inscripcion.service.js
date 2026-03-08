@@ -171,19 +171,18 @@ export const inscripcionService = {
           });
 
 
-          // 🔥 PASO 6.5: ACTIVACIÓN POR CONFIANZA (PAGO PARCIAL ADMITIDO)
-          // Si el cliente quiere que las clases se generen de una vez aunque deba, 
-          // cambiamos el estado de las inscripciones creadas de 'PENDIENTE_PAGO' a 'POR_VALIDAR' o 'ACTIVO'
+          // 🔥 PASO 6.5: ACTIVACIÓN TOTAL POR CONFIANZA EXPERIMENTAL
+          // Cambiamos 'POR_VALIDAR' por 'ACTIVO' para que aparezca en Asistencia hoy mismo.
           await tx.inscripciones.updateMany({
             where: {
               id: { in: inscripcionesCreadas.map(ins => ins.id) }
             },
             data: {
-              // Usamos 'POR_VALIDAR' para que el admin dé el visto bueno final al recibir el efectivo
-              estado: montoActualizado <= 0.01 ? 'ACTIVO' : 'POR_VALIDAR',
+              estado: 'ACTIVO', // <--- CAMBIA ESTO PARA QUE APAREZCA EN ASISTENCIA
               actualizado_en: new Date()
             }
-          })
+          });
+
         }
 
 
