@@ -175,6 +175,7 @@ export const authService = {
         usuarios: {
           select: {
             id: true,
+            username: true,
             email: true,
             nombres: true,
             apellidos: true,
