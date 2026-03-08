@@ -31,4 +31,10 @@ export const claseController = {
     const detalle = await claseService.obtenerDetalleClase(horario_id);
     return apiResponse.success(res, { data: detalle });
   }),
+
+  obtenerFechasDisponibles: catchAsync(async (req, res) => {
+    const { horario_id } = req.params;
+    const fechas = await claseService.obtenerFechasDisponibles(horario_id);
+    return apiResponse.success(res, { data: fechas });
+  }),
 };

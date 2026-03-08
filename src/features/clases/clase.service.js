@@ -278,4 +278,33 @@ export const claseService = {
       })),
     };
   },
+
+  /**
+   * Obtiene las fechas únicas disponibles (ya generadas en registros_asistencia) para un horario específico,
+   * excluyendo aquellas fechas que ya hayan sido reprogramadas masivamente.
+   */
+  obtenerFechasDisponibles: async (horario_id) => {
+    // Buscamos todos los registros asociados a las inscripciones de este horario
+    const registros = await prisma.registros_asistencia.findMany({
+      where: {
+        inscripciones: {
+          horario_id: Number(horario_id),
+          estado: 'ACTIVO'
+        },
+        estado: {
+          not: 'REPROGRAMADO' // No mostrar fechas ya reprogramadas
+        }
+      },
+      select: {
+        fecha: true
+      },
+      distinct: ['fecha'], // Obtener fechas únicas
+      orderBy: {
+        fecha: 'asc'
+      }
+    });
+
+    // Mapeamos a un formato string normalizado YYYY-MM-DD
+    return registros.map(r => r.fecha.toISOString().substring(0, 10));
+  },
 };

@@ -17,6 +17,14 @@ router.post(
   claseController.reprogramarMasivo
 );
 
+// Obtener fechas disponibles (registros_asistencia activos) de un horario específico
+router.get(
+  '/:horario_id/fechas-disponibles',
+  authorize('Administrador', 'Coordinador'),
+  validateParams(claseSchema.horarioIdParamSchema),
+  claseController.obtenerFechasDisponibles
+);
+
 // Obtener detalle de un horario (alumnos inscritos, info general)
 router.get(
   '/:horario_id/detalle',
