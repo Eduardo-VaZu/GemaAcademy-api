@@ -171,18 +171,6 @@ export const inscripcionService = {
           });
 
 
-          // 🔥 PASO 6.5: ACTIVACIÓN TOTAL POR CONFIANZA EXPERIMENTAL
-          // Cambiamos 'POR_VALIDAR' por 'ACTIVO' para que aparezca en Asistencia hoy mismo.
-          await tx.inscripciones.updateMany({
-            where: {
-              id: { in: inscripcionesCreadas.map(ins => ins.id) }
-            },
-            data: {
-              estado: 'ACTIVO', // <--- CAMBIA ESTO PARA QUE APAREZCA EN ASISTENCIA
-              actualizado_en: new Date()
-            }
-          });
-
         }
 
 

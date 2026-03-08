@@ -71,6 +71,6 @@ export const definirEvolucionDeEstados = async (tx, pago, esAprobado, esPagoComp
     
     // CAMBIO CRÍTICO: El alumno SOLO se activa si terminó de pagar todo.
     // Si solo abonó una parte, sus inscripciones siguen en espera.
-    activarAlumno: esPagoCompleto 
+    activarAlumno: esAprobado 
   };
 };
