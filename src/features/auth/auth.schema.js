@@ -43,6 +43,5 @@ export const authSchema = {
     seguro_medico: z.string().optional(),
     grupo_sanguineo: z.string().optional(),
     especializacion: z.string().optional(),
-    tarifa_hora: z.union([z.string(), z.number()]).optional(),
   }),
 };

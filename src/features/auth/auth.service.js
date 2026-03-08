@@ -409,7 +409,7 @@ export const authService = {
     const { 
       email, telefono_personal, nombres, apellidos, genero, 
       condiciones_medicas, seguro_medico, grupo_sanguineo,
-      especializacion, tarifa_hora
+      especializacion
     } = payload;
     
     // 1. Actualizar tabla usuarios (datos base)
@@ -444,10 +444,8 @@ export const authService = {
       }
     } else if (usuario.rol_id === 3 || usuario.rol_id === 2) {
       // Como profesores y coordinadores podrían estar en la tabla coordinadores o profesores
-      // Asumimos que usa la tabla 'coordinadores' según el prisma schema 
       const coordUpdates = {};
       if (especializacion !== undefined) coordUpdates.especializacion = especializacion;
-      if (tarifa_hora !== undefined) coordUpdates.tarifa_hora = parseFloat(tarifa_hora) || null;
 
       if (Object.keys(coordUpdates).length > 0) {
         await prisma.coordinadores.updateMany({
