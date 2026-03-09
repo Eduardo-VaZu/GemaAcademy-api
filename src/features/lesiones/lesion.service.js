@@ -120,6 +120,7 @@ const evaluarSolicitud = async ({
 
     // Definir el rango de fechas a afectar
     const inicioRango = new Date(fechaInicio);
+    inicioRango.setHours(0, 0, 0, 0);
     let fechaFinBusquedaGlobal = new Date(inicioRango);
 
     // A. Crear registros en CONGELAMIENTOS (Uno por cada inscripción activa)
@@ -133,6 +134,7 @@ const evaluarSolicitud = async ({
         finRangoLocal = new Date(inscripcion.fecha_inscripcion);
         finRangoLocal.setDate(finRangoLocal.getDate() + 30);
       }
+      finRangoLocal.setHours(0, 0, 0, 0);
 
       // Actualizamos la fecha global de búsqueda para asegurarnos de cubrir el rango más lejano
       if (finRangoLocal > fechaFinBusquedaGlobal) {

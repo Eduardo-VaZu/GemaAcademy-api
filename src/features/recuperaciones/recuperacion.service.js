@@ -57,6 +57,7 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta, asistenciaId) =
   }
 
   const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
+  inicioInscripcion.setHours(0, 0, 0, 0);
   const fechaFaltaDate = new Date(fechaFalta);
 
   const diffFalta = fechaFaltaDate - inicioInscripcion;
@@ -160,7 +161,6 @@ const cancelarRecuperacion = async (alumnoId, recuperacionId) => {
     0,
     0
   ));
-  console.log(fechaClase)
 
   // Calculamos la diferencia en milisegundos y la pasamos a horas
   const diferenciaMilisegundos = fechaClase.getTime() - ahora.getTime();
@@ -246,6 +246,7 @@ const obtenerPendientes = async (alumnoId) => {
   }
 
   const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion);
+  inicioInscripcion.setHours(0, 0, 0, 0);
 
   const finCicloRegular = new Date(inicioInscripcion);
   finCicloRegular.setUTCDate(inicioInscripcion.getUTCDate() + 29);
@@ -384,6 +385,7 @@ const validarElegibilidad = async (alumnoId, recuperacionId, fechaProgramada, ho
   }
 
   const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion);
+  inicioInscripcion.setHours(0, 0, 0, 0);
 
   const finCicloRegular = new Date(inicioInscripcion);
   finCicloRegular.setUTCDate(inicioInscripcion.getUTCDate() + 30);
