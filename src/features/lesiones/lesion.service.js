@@ -92,7 +92,7 @@ const evaluarSolicitud = async ({
 
     // 2. Si es RECHAZADA, solo actualizamos estado y notas
     if (estado === 'RECHAZADA') {
-      return await tx.solicitudes_lesion.update({
+      const solicitudUpdated = await tx.solicitudes_lesion.update({
         where: { id: solicitud.id },
         data: {
           estado: 'RECHAZADA',
@@ -100,6 +100,16 @@ const evaluarSolicitud = async ({
           notas_admin: notas,
         },
       });
+      await tx.notificaciones.create({
+        data: {
+          alumno_id: solicitudUpdated.alumno_id,
+          titulo: `Solicitud de Lesión ${solicitudUpdated.estado}`,
+          mensaje: `Tu solicitud por lesión fue ${solicitudUpdated.estado} por el administrador.`,
+          tipo: 'WARNING',
+          categoria: 'SISTEMA',
+        }
+      });
+      return solicitudUpdated;
     }
 
     // 3. Lógica APROBADA
@@ -245,6 +255,16 @@ const evaluarSolicitud = async ({
         revisado_por: parseInt(adminId),
         notas_admin: notas,
       },
+    });
+
+    await tx.notificaciones.create({
+      data: {
+        alumno_id: solicitudActualizada.alumno_id,
+        titulo: `Solicitud de Lesión ${solicitudActualizada.estado}`,
+        mensaje: `Tu solicitud por lesión fue ${solicitudActualizada.estado} por el administrador.`,
+        tipo: 'WARNING',
+        categoria: 'SISTEMA',
+      }
     });
 
     return {
