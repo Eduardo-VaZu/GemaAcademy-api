@@ -320,19 +320,29 @@ export const claseService = {
         },
       });
 
-      // Actualizamos el estado de la clase original trasladándola al nuevo día
+      // 4. Actualizamos el estado de la clase original marcándola como REPROGRAMADO
       await tx.registros_asistencia.updateMany({
         where: {
           inscripcion_id: { in: inscripcionIds },
           fecha: fechaOrigenDate,
         },
         data: {
+          estado: 'REPROGRAMADO',
+          reprogramacion_clase_id: reprogramacion.id,
+          comentario: `Reprogramada al día ${dateDestinoStr} por ${motivo}`,
+        },
+      });
+
+      // 5. Creamos los NUEVOS registros para la fecha de destino
+      await tx.registros_asistencia.createMany({
+        data: inscripciones.map((inscripcion) => ({
+          inscripcion_id: inscripcion.id,
           fecha: fechaDestinoDate,
-          fecha_original: fechaOrigenDate,
+          fecha_original: fechaOrigenDate, // Mantenemos referencia para reversión
           estado: 'PENDIENTE',
           reprogramacion_clase_id: reprogramacion.id,
-          comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
-        },
+          comentario: `Nueva fecha por reprogramación masiva desde (${dateOrigenStr})`,
+        })),
       });
 
       // Activamos notificaciones
@@ -346,7 +356,7 @@ export const claseService = {
         total_procesados: procesados,
         reprogramacion_id: reprogramacion.id,
         grupo_uuid: grupo_uuid,
-        mensaje: 'Reprogramación masiva ejecutada exitosamente.',
+        mensaje: 'Reprogramación masiva ejecutada exitosamente (con trazabilidad).',
       };
     });
   },
@@ -382,31 +392,28 @@ export const claseService = {
         );
       }
 
-      // 3. Revertimos la asistencia
-      // Restauramos la "fecha" a la "fecha_original", quitamos estado PENDIENTE a PRESENTE si era el default de antes.
-      for (const asistencia of asistencias) {
-        if (!asistencia.fecha_original) continue;
+      // 3. Reversión de la asistencia
+      // A) Borramos los registros "NUEVOS" creados en la fecha destino (los que tienen fecha_original)
+      await tx.registros_asistencia.deleteMany({
+        where: {
+          reprogramacion_clase_id: { in: reprogramacionesIds },
+          fecha_original: { not: null },
+        },
+      });
 
-        // Limpiamos cualquier "fantasma" que se haya colado en la original si fue regenerado el mes.
-        await tx.registros_asistencia.deleteMany({
-          where: {
-            inscripcion_id: asistencia.inscripcion_id,
-            fecha: asistencia.fecha_original,
-            NOT: { id: asistencia.id },
-          },
-        });
-
-        await tx.registros_asistencia.update({
-          where: { id: asistencia.id },
-          data: {
-            fecha: asistencia.fecha_original,
-            fecha_original: null,
-            reprogramacion_clase_id: null,
-            comentario: null, // o mensaje indicando reversión
-            estado: 'PRESENTE', // estado default inicial.
-          },
-        });
-      }
+      // B) Restauramos los registros originales que estaban marcados como REPROGRAMADO
+      await tx.registros_asistencia.updateMany({
+        where: {
+          reprogramacion_clase_id: { in: reprogramacionesIds },
+          estado: 'REPROGRAMADO',
+        },
+        data: {
+          estado: 'PENDIENTE',
+          reprogramacion_clase_id: null,
+          comentario: null,
+          fecha_original: null,
+        },
+      });
 
       // 4. Marcar reprogramación como REVERTIDO
       await tx.reprogramaciones_clases.updateMany({
@@ -422,7 +429,7 @@ export const claseService = {
    * Obtiene la lista de reprogramaciones masivas activas
    */
   obtenerMasivasActivas: async () => {
-    return await prisma.reprogramaciones_clases.findMany({
+    const data = await prisma.reprogramaciones_clases.findMany({
       where: { es_masiva: true, estado: 'ACTIVO' },
       orderBy: { creado_en: 'desc' },
       include: {
@@ -436,6 +443,15 @@ export const claseService = {
         _count: { select: { registros_asistencia: true } },
       },
     });
+
+    // Dividimos entre 2 porque ahora guardamos el original (REPROGRAMADO) y el nuevo (PENDIENTE)
+    return data.map((item) => ({
+      ...item,
+      _count: {
+        ...item._count,
+        registros_asistencia: Math.ceil(item._count.registros_asistencia / 2),
+      },
+    }));
   },
 
   /**
