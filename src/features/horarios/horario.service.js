@@ -304,10 +304,18 @@ export const horarioService = {
 
     if (!horario) throw new ApiError('El horario especificado no existe', 404);
 
-    return await prisma.horarios_clases.update({
-      where: { id },
-      data: { activo: false },
-      select: { id: true, activo: true },
-    });
+    try {
+      return await prisma.horarios_clases.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error.code === 'P2003') {
+        throw new ApiError(
+          'No se puede eliminar el horario porque tiene inscripciones asociadas.',
+          409
+        );
+      }
+      throw error;
+    }
   },
 };
