@@ -234,6 +234,19 @@ export const pagosService = {
         });
       }
 
+      // =================================================================
+      // 🔔 PASO 7: NOTIFICACIÓN AUTOMÁTICA AL ALUMNO
+      // =================================================================
+      await notificacionesService.crear({
+        alumnoId: pago.cuentas_por_cobrar.alumno_id,
+        titulo: esAprobado ? '✅ Pago Aprobado' : '❌ Pago Rechazado',
+        mensaje: esAprobado 
+          ? `Tu pago de S/ ${pagoActualizado.monto_pagado.toFixed(2)} ha sido validado. ${esPagoCompleto ? '¡Tu ciclo está activo!' : 'Se registró como abono parcial.'}`
+          : `Tu reporte de pago por S/ ${pagoActualizado.monto_pagado.toFixed(2)} fue rechazado. Revisa las observaciones en tu perfil.`,
+        tipo: esAprobado ? 'SUCCESS' : 'DANGER',
+        categoria: 'PAGOS',
+      });
+
       return {
         resultado: Utils.generarMensajeResultado(accion, esPagoCompleto, saldoRestante),
         pago: pagoActualizado,
