@@ -8,7 +8,7 @@ class AsistenciaCronService {
         const registrosActualizados = await prisma.registros_asistencia.updateMany({
             where: {
                 estado: 'PROGRAMADA',
-                fecha_clase: {
+                fecha: {
                     lte: new Date(),
                 },
                 inscripciones: {

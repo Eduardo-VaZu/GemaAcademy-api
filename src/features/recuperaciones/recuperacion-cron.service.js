@@ -57,6 +57,7 @@ class RecuperacionCronService {
 
   async ejecutarLimpiezaTicketsPorLesion() {
     const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0)
     const ticketsActualizados = await prisma.recuperaciones.updateMany({
       where: {
         es_por_lesion: true,
