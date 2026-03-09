@@ -536,8 +536,11 @@ export const claseService = {
         activo: true,
         inscripciones: {
           some: {
+            estado: 'ACTIVO',
             registros_asistencia: {
-              some: {},
+              some: {
+                estado: { not: 'REPROGRAMADO' },
+              },
             },
           },
         },
