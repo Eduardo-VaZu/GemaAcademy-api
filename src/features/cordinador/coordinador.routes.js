@@ -6,7 +6,7 @@ import { authorize } from '../../shared/middlewares/authorize.middleware.js';
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize('Administrador'));
+router.use(authorize('Administrador', 'Coordinador'));
 
 router.get('/', coordinadorController.listar);
 router.get('/:id', coordinadorController.obtenerDetalle);
