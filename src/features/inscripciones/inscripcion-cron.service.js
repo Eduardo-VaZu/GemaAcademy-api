@@ -365,7 +365,7 @@ class InscripcionCronService {
       if (hoyLimaInicioDia.valueOf() === diaAviso22.valueOf()) {
         const usuario = inscripcionMadre.alumnos.usuarios;
         if (usuario && usuario.telefono_personal) {
-          const mensaje = `Hola ${usuario.nombres}, te recordamos que tienes un saldo pendiente (pago parcial) en tu mensualidad de Gema Academy. Para evitar la suspensión de tus accesos, por favor regularízalo antes del cierre de tu ciclo.`;
+          const mensaje = `Hola ${usuario.nombres}, te recordamos que tienes un saldo pendiente (pago parcial) en tu mensualidad de Club Gema. Para evitar la suspensión de tus accesos, por favor regularízalo antes del cierre de tu ciclo.`;
 
           try {
             await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
@@ -430,7 +430,7 @@ class InscripcionCronService {
       if (hoyLimaInicioDia.valueOf() === diaAlerta.valueOf()) {
         const usuario = inscripcionMadre.alumnos.usuarios;
         if (usuario && usuario.telefono_personal) {
-          const mensaje = `¡Atención ${usuario.nombres}! Tu inscripción en Gema Academy está por vencer mañana. Para no perder tu cupo y tus beneficios de alumno antiguo, por favor regulariza tu pago pendiente hoy mismo.`;
+          const mensaje = `¡Atención ${usuario.nombres}! Tu inscripción en Club Gema está por vencer mañana. Para no perder tu cupo y tus beneficios de alumno antiguo, por favor regulariza tu pago pendiente hoy mismo.`;
 
           try {
             await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);

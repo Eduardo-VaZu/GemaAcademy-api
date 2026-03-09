@@ -35,7 +35,7 @@ class CumpleanosService {
         let emailEnviado = false;
 
         if (usuario.telefono_personal) {
-          const mensaje = `¡Hola ${usuario.nombres}! 🎉 De parte de toda la familia de GemaAcademy queremos desearte un muy ¡Feliz Cumpleaños! 🎂 Que disfrutes mucho tu día.`;
+          const mensaje = `¡Hola ${usuario.nombres}! 🎉 De parte de toda la familia de Club Gema queremos desearte un muy ¡Feliz Cumpleaños! 🎂 Que disfrutes mucho tu día.`;
           wpEnviado = await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
         }
 
