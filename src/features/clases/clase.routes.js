@@ -9,6 +9,13 @@ const router = Router();
 
 router.use(authenticate);
 
+// Listar horarios que tienen asistencias (para filtro de reprogramación masiva)
+router.get(
+  '/horarios-con-asistencia',
+  authorize('Administrador', 'Coordinador'),
+  claseController.obtenerHorariosConAsistencia
+);
+
 // Solo administradores pueden reprogramar masivamente
 router.post(
   '/reprogramar-masivo',

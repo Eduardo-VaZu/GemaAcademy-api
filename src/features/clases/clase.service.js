@@ -12,13 +12,8 @@ import { ApiError } from '../../shared/utils/error.util.js';
  * @returns {Promise<object>} Fechas Date parseadas y normalizadas a las 12:00:00 UTC
  */
 const validarFechasYHorarios = async (params) => {
-  const {
-    origenId,
-    fechaOrigenStr,
-    fechaDestinoStr,
-    horaInicioDestinoStr,
-    horaFinDestinoStr,
-  } = params;
+  const { origenId, fechaOrigenStr, fechaDestinoStr, horaInicioDestinoStr, horaFinDestinoStr } =
+    params;
 
   // 1. Traer origen
   const horarioOrigen = await prisma.horarios_clases.findUnique({
@@ -109,8 +104,8 @@ const validarFechasYHorarios = async (params) => {
       id: true,
       hora_inicio: true,
       hora_fin: true,
-      niveles_entrenamiento: { select: { nombre: true } }
-    }
+      niveles_entrenamiento: { select: { nombre: true } },
+    },
   });
 
   for (const hc of horariosCancha) {
@@ -125,9 +120,15 @@ const validarFechasYHorarios = async (params) => {
 
     if (inicioMinutos < endMins && finMinutos > startMins) {
       if (hc.id === origenId) {
-        throw new ApiError(`No puedes mover la clase a este horario porque coincide con la clase regular normal de este mismo grupo programada para ese día.`, 400);
+        throw new ApiError(
+          `No puedes mover la clase a este horario porque coincide con la clase regular normal de este mismo grupo programada para ese día.`,
+          400
+        );
       }
-      throw new ApiError(`La cancha seleccionada está ocupada en ese horario por la clase de nivel ${hc.niveles_entrenamiento.nombre} (${hc.hora_inicio.toISOString().substring(11, 16)} - ${hc.hora_fin.toISOString().substring(11, 16)}).`, 400);
+      throw new ApiError(
+        `La cancha seleccionada está ocupada en ese horario por la clase de nivel ${hc.niveles_entrenamiento.nombre} (${hc.hora_inicio.toISOString().substring(11, 16)} - ${hc.hora_fin.toISOString().substring(11, 16)}).`,
+        400
+      );
     }
   }
 
@@ -135,9 +136,9 @@ const validarFechasYHorarios = async (params) => {
   const overridesEnCancha = await prisma.reprogramaciones_clases.findMany({
     where: {
       fecha_destino: fechaDestinoDate,
-      horarios_clases: { cancha_id: horarioOrigen.cancha_id }
+      horarios_clases: { cancha_id: horarioOrigen.cancha_id },
     },
-    select: { id: true, hora_inicio_destino: true, hora_fin_destino: true, horario_id: true }
+    select: { id: true, hora_inicio_destino: true, hora_fin_destino: true, horario_id: true },
   });
 
   for (const override of overridesEnCancha) {
@@ -148,7 +149,10 @@ const validarFechasYHorarios = async (params) => {
     const st = hI * 60 + mI;
     const en = hF * 60 + mF;
     if (inicioMinutos < en && finMinutos > st) {
-      throw new ApiError(`La cancha ya fue reservada para otra clase reprogramada en ese rango horario (${override.hora_inicio_destino} - ${override.hora_fin_destino}).`, 400);
+      throw new ApiError(
+        `La cancha ya fue reservada para otra clase reprogramada en ese rango horario (${override.hora_inicio_destino} - ${override.hora_fin_destino}).`,
+        400
+      );
     }
   }
 
@@ -156,10 +160,10 @@ const validarFechasYHorarios = async (params) => {
   // Obtenemos los alumnos del horario
   const inscripcionesOrigen = await prisma.inscripciones.findMany({
     where: { horario_id: origenId, estado: 'ACTIVO' },
-    select: { id: true, alumno_id: true }
+    select: { id: true, alumno_id: true },
   });
 
-  const alumnoIds = inscripcionesOrigen.map(i => i.alumno_id);
+  const alumnoIds = inscripcionesOrigen.map((i) => i.alumno_id);
 
   // Verificamos si tienen asistencias para el DESTINO
   const posiblesInterferencias = await prisma.registros_asistencia.findMany({
@@ -167,41 +171,43 @@ const validarFechasYHorarios = async (params) => {
       fecha: fechaDestinoDate,
       inscripciones: {
         alumno_id: { in: alumnoIds },
-        estado: 'ACTIVO' // Clases activas ese día nuevo
-      }
+        estado: 'ACTIVO', // Clases activas ese día nuevo
+      },
     },
     include: {
       reprogramaciones_clases: true,
       inscripciones: {
-        include: { 
+        include: {
           alumnos: { include: { usuarios: { select: { nombres: true, apellidos: true } } } },
-          horarios_clases: { select: { hora_inicio: true, hora_fin: true } }
-        }
-      }
-    }
+          horarios_clases: { select: { hora_inicio: true, hora_fin: true } },
+        },
+      },
+    },
   });
 
   if (posiblesInterferencias.length > 0) {
     const nombresConflictivos = new Set();
-    
+
     for (const int of posiblesInterferencias) {
       // 1. Extraer los tiempos de esta sesión interviniente
       let stInterferencia, enInterferencia;
-      
+
       if (int.reprogramaciones_clases) {
-         const [hI, mI] = int.reprogramaciones_clases.hora_inicio_destino.split(':').map(Number);
-         const [hF, mF] = int.reprogramaciones_clases.hora_fin_destino.split(':').map(Number);
-         stInterferencia = hI * 60 + mI;
-         enInterferencia = hF * 60 + mF;
+        const [hI, mI] = int.reprogramaciones_clases.hora_inicio_destino.split(':').map(Number);
+        const [hF, mF] = int.reprogramaciones_clases.hora_fin_destino.split(':').map(Number);
+        stInterferencia = hI * 60 + mI;
+        enInterferencia = hF * 60 + mF;
       } else {
-         const hc = int.inscripciones.horarios_clases;
-         stInterferencia = hc.hora_inicio.getUTCHours() * 60 + hc.hora_inicio.getUTCMinutes();
-         enInterferencia = hc.hora_fin.getUTCHours() * 60 + hc.hora_fin.getUTCMinutes();
+        const hc = int.inscripciones.horarios_clases;
+        stInterferencia = hc.hora_inicio.getUTCHours() * 60 + hc.hora_inicio.getUTCMinutes();
+        enInterferencia = hc.hora_fin.getUTCHours() * 60 + hc.hora_fin.getUTCMinutes();
       }
 
       // 2. Comprobar si choca matemáticamente con la sesión propuesta
       if (inicioMinutos < enInterferencia && finMinutos > stInterferencia) {
-         nombresConflictivos.add(`${int.inscripciones.alumnos.usuarios.nombres} ${int.inscripciones.alumnos.usuarios.apellidos}`);
+        nombresConflictivos.add(
+          `${int.inscripciones.alumnos.usuarios.nombres} ${int.inscripciones.alumnos.usuarios.apellidos}`
+        );
       }
     }
 
@@ -217,15 +223,24 @@ const validarFechasYHorarios = async (params) => {
   const registrosOrigen = await prisma.registros_asistencia.count({
     where: {
       fecha: fechaOrigenDate,
-      inscripciones: { horario_id: origenId }
-    }
+      inscripciones: { horario_id: origenId },
+    },
   });
 
   if (registrosOrigen === 0) {
-    throw new ApiError(`No hay registros de asistencia (clases programadas) para la fecha origen (${fechaOrigenStr}) en este horario. Revisa si el mes ya fue generado.`, 400);
+    throw new ApiError(
+      `No hay registros de asistencia (clases programadas) para la fecha origen (${fechaOrigenStr}) en este horario. Revisa si el mes ya fue generado.`,
+      400
+    );
   }
 
-  return { fechaOrigenDate, fechaDestinoDate, horaInicioFinal, horaFinFinal, inscripciones: inscripcionesOrigen };
+  return {
+    fechaOrigenDate,
+    fechaDestinoDate,
+    horaInicioFinal,
+    horaFinFinal,
+    inscripciones: inscripcionesOrigen,
+  };
 };
 
 // ELIMINADO: const obtenerAlumnosAfectados = async (horarioOrigenId) => ...
@@ -246,13 +261,14 @@ export const claseService = {
     usuario_admin_id,
   }) => {
     // 1. Validaciones y Obtención de Afectados
-    const { fechaOrigenDate, fechaDestinoDate, horaInicioFinal, horaFinFinal, inscripciones } = await validarFechasYHorarios({
-      origenId: horario_origen_id,
-      fechaOrigenStr: fecha_origen,
-      fechaDestinoStr: fecha_destino,
-      horaInicioDestinoStr: hora_inicio_destino,
-      horaFinDestinoStr: hora_fin_destino,
-    });
+    const { fechaOrigenDate, fechaDestinoDate, horaInicioFinal, horaFinFinal, inscripciones } =
+      await validarFechasYHorarios({
+        origenId: horario_origen_id,
+        fechaOrigenStr: fecha_origen,
+        fechaDestinoStr: fecha_destino,
+        horaInicioDestinoStr: hora_inicio_destino,
+        horaFinDestinoStr: hora_fin_destino,
+      });
 
     const dateOrigenStr = fechaOrigenDate.toLocaleDateString();
     const dateDestinoStr = fechaDestinoDate.toLocaleDateString();
@@ -274,8 +290,8 @@ export const claseService = {
           creado_por: usuario_admin_id,
           es_masiva: true,
           estado: 'ACTIVO',
-          grupo_uuid: grupo_uuid
-        }
+          grupo_uuid: grupo_uuid,
+        },
       });
 
       const alertas = [];
@@ -300,8 +316,8 @@ export const claseService = {
         where: {
           inscripcion_id: { in: inscripcionIds },
           fecha: fechaDestinoDate,
-          estado: 'PENDIENTE'
-        }
+          estado: 'PENDIENTE',
+        },
       });
 
       // Actualizamos el estado de la clase original trasladándola al nuevo día
@@ -315,8 +331,8 @@ export const claseService = {
           fecha_original: fechaOrigenDate,
           estado: 'PENDIENTE',
           reprogramacion_clase_id: reprogramacion.id,
-          comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`
-        }
+          comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
+        },
       });
 
       // Activamos notificaciones
@@ -342,22 +358,28 @@ export const claseService = {
     return await prisma.$transaction(async (tx) => {
       // 1. Buscar la reprogramación masiva
       const reprogramaciones = await tx.reprogramaciones_clases.findMany({
-        where: { grupo_uuid: grupo_uuid, estado: 'ACTIVO' }
+        where: { grupo_uuid: grupo_uuid, estado: 'ACTIVO' },
       });
 
       if (!reprogramaciones || reprogramaciones.length === 0) {
-        throw new ApiError('No se encontró una reprogramación masiva activa con ese identificador.', 404);
+        throw new ApiError(
+          'No se encontró una reprogramación masiva activa con ese identificador.',
+          404
+        );
       }
 
-      const reprogramacionesIds = reprogramaciones.map(r => r.id);
+      const reprogramacionesIds = reprogramaciones.map((r) => r.id);
 
       // 2. Buscar todas las asistencias afectadas
       const asistencias = await tx.registros_asistencia.findMany({
-        where: { reprogramacion_clase_id: { in: reprogramacionesIds } }
+        where: { reprogramacion_clase_id: { in: reprogramacionesIds } },
       });
 
       if (asistencias.length === 0) {
-        throw new ApiError('No se encontraron registros de asistencia asociados a esta reprogramación.', 404);
+        throw new ApiError(
+          'No se encontraron registros de asistencia asociados a esta reprogramación.',
+          404
+        );
       }
 
       // 3. Revertimos la asistencia
@@ -370,8 +392,8 @@ export const claseService = {
           where: {
             inscripcion_id: asistencia.inscripcion_id,
             fecha: asistencia.fecha_original,
-            NOT: { id: asistencia.id }
-          }
+            NOT: { id: asistencia.id },
+          },
         });
 
         await tx.registros_asistencia.update({
@@ -381,15 +403,15 @@ export const claseService = {
             fecha_original: null,
             reprogramacion_clase_id: null,
             comentario: null, // o mensaje indicando reversión
-            estado: 'PRESENTE' // estado default inicial.
-          }
+            estado: 'PRESENTE', // estado default inicial.
+          },
         });
       }
 
       // 4. Marcar reprogramación como REVERTIDO
       await tx.reprogramaciones_clases.updateMany({
         where: { id: { in: reprogramacionesIds } },
-        data: { estado: 'REVERTIDO' }
+        data: { estado: 'REVERTIDO' },
       });
 
       return { mensaje: 'Reprogramación revertida exitosamente.' };
@@ -405,14 +427,14 @@ export const claseService = {
       orderBy: { creado_en: 'desc' },
       include: {
         horarios_clases: {
-           include: {
-             canchas: { select: { nombre: true, sedes: { select: { nombre: true } } } },
-             niveles_entrenamiento: { select: { nombre: true } }
-           }
+          include: {
+            canchas: { select: { nombre: true, sedes: { select: { nombre: true } } } },
+            niveles_entrenamiento: { select: { nombre: true } },
+          },
         },
         usuarios: { select: { nombres: true, apellidos: true } },
-        _count: { select: { registros_asistencia: true } }
-      }
+        _count: { select: { registros_asistencia: true } },
+      },
     });
   },
 
@@ -485,22 +507,73 @@ export const claseService = {
       where: {
         inscripciones: {
           horario_id: Number(horario_id),
-          estado: 'ACTIVO'
+          estado: 'ACTIVO',
         },
         estado: {
-          not: 'REPROGRAMADO' // No mostrar fechas ya reprogramadas
-        }
+          not: 'REPROGRAMADO', // No mostrar fechas ya reprogramadas
+        },
       },
       select: {
-        fecha: true
+        fecha: true,
       },
       distinct: ['fecha'], // Obtener fechas únicas
       orderBy: {
-        fecha: 'asc'
-      }
+        fecha: 'asc',
+      },
     });
 
     // Mapeamos a un formato string normalizado YYYY-MM-DD
-    return registros.map(r => r.fecha.toISOString().substring(0, 10));
+    return registros.map((r) => r.fecha.toISOString().substring(0, 10));
+  },
+
+  /**
+   * Obtiene la lista de horarios que tienen al menos un registro de asistencia generado,
+   * para filtrar el selector de la reprogramación masiva.
+   */
+  obtenerHorariosConAsistencia: async () => {
+    const horarios = await prisma.horarios_clases.findMany({
+      where: {
+        activo: true,
+        inscripciones: {
+          some: {
+            registros_asistencia: {
+              some: {},
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        dia_semana: true,
+        hora_inicio: true,
+        hora_fin: true,
+        canchas: {
+          select: {
+            nombre: true,
+            sedes: { select: { nombre: true } },
+          },
+        },
+        niveles_entrenamiento: { select: { nombre: true } },
+      },
+      orderBy: [{ dia_semana: 'asc' }, { hora_inicio: 'asc' }],
+    });
+
+    return horarios.map((h) => ({
+      id: h.id,
+      dia_semana: h.dia_semana,
+      hora_inicio:
+        h.hora_inicio.getUTCHours().toString().padStart(2, '0') +
+        ':' +
+        h.hora_inicio.getUTCMinutes().toString().padStart(2, '0'),
+      hora_fin:
+        h.hora_fin.getUTCHours().toString().padStart(2, '0') +
+        ':' +
+        h.hora_fin.getUTCMinutes().toString().padStart(2, '0'),
+      nivel: { nombre: h.niveles_entrenamiento.nombre },
+      cancha: {
+        nombre: h.canchas.nombre,
+        sede: { nombre: h.canchas.sedes.nombre },
+      },
+    }));
   },
 };
