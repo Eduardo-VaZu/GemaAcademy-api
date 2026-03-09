@@ -4,6 +4,7 @@ import { cloudinaryService } from '../cloudinaryImg/cloudinary.service.js';
 import * as Validators from './validators/pagos.validator.js';
 import * as Logic from './logic/pagos.logic.js';
 import * as Utils from './utils/pagos.util.js';
+import { notificacionesService } from '../notificaciones/notificaciones.service.js';
 
 export const pagosService = {
   // 1. REGISTRAR EL PAGO (Integrado con Cloudinary 🚀)
