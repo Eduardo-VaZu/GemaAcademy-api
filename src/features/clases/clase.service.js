@@ -257,6 +257,9 @@ export const claseService = {
     const dateOrigenStr = fechaOrigenDate.toLocaleDateString();
     const dateDestinoStr = fechaDestinoDate.toLocaleDateString();
 
+    const importUUID = await import('crypto');
+    const grupo_uuid = importUUID.randomUUID();
+
     // 3. Ejecución Transaccional Batch
     return await prisma.$transaction(async (tx) => {
       // A) Crear el registro de la reprogramación
@@ -269,24 +272,17 @@ export const claseService = {
           hora_fin_destino: horaFinFinal,
           motivo: motivo,
           creado_por: usuario_admin_id,
+          es_masiva: true,
+          estado: 'ACTIVO',
+          grupo_uuid: grupo_uuid
         }
       });
 
-      let procesados = 0;
-      const nuevasClases = [];
       const alertas = [];
+      let procesados = 0;
 
       for (const inscripcion of inscripciones) {
-        // B) Preparar el espacio temporal esperado de asistencia en el nuevo día
-        nuevasClases.push({
-          inscripcion_id: inscripcion.id,
-          fecha: fechaDestinoDate,
-          estado: 'PENDIENTE',
-          reprogramacion_clase_id: reprogramacion.id,
-          comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`,
-        });
-
-        // C) Notificar al alumno de que su clase cambió
+        // Notificar al alumno de que su clase cambió
         alertas.push({
           usuario_id: inscripcion.alumno_id,
           titulo: 'Cambio de fecha de clase',
@@ -294,26 +290,12 @@ export const claseService = {
           tipo: 'ALERTA',
           categoria: 'CLASES',
         });
-
         procesados++;
       }
 
-      // 4. Inserciones masivas
       const inscripcionIds = inscripciones.map((i) => i.id);
 
-      // Actualizamos el estado de la clase original a REPROGRAMADO
-      await tx.registros_asistencia.updateMany({
-        where: {
-          inscripcion_id: { in: inscripcionIds },
-          fecha: fechaOrigenDate,
-        },
-        data: {
-          estado: 'REPROGRAMADO',
-          comentario: `Reprogramación masiva hacia ${fecha_destino}: ${motivo}`
-        }
-      });
-
-      // Limpiamos los "fantasmas" previos
+      // Limpiamos los "fantasmas" previos en el destino (si el registro de destino existía, pero estaba vacío)
       await tx.registros_asistencia.deleteMany({
         where: {
           inscripcion_id: { in: inscripcionIds },
@@ -322,22 +304,115 @@ export const claseService = {
         }
       });
 
-      // Insertamos el nuevo registro que aparecerá en el destino
-      await tx.registros_asistencia.createMany({
-        data: nuevasClases,
-        skipDuplicates: true
+      // Actualizamos el estado de la clase original trasladándola al nuevo día
+      await tx.registros_asistencia.updateMany({
+        where: {
+          inscripcion_id: { in: inscripcionIds },
+          fecha: fechaOrigenDate,
+        },
+        data: {
+          fecha: fechaDestinoDate,
+          fecha_original: fechaOrigenDate,
+          estado: 'PENDIENTE',
+          reprogramacion_clase_id: reprogramacion.id,
+          comentario: `Reprogramación masiva desde (${dateOrigenStr}) por ${motivo}`
+        }
       });
 
       // Activamos notificaciones
-      await tx.notificaciones.createMany({
-        data: alertas,
-      });
+      if (alertas.length > 0) {
+        await tx.notificaciones.createMany({
+          data: alertas,
+        });
+      }
 
       return {
         total_procesados: procesados,
         reprogramacion_id: reprogramacion.id,
+        grupo_uuid: grupo_uuid,
         mensaje: 'Reprogramación masiva ejecutada exitosamente.',
       };
+    });
+  },
+
+  /**
+   * Revierte una reprogramación masiva previa utilizando el grupo_uuid
+   */
+  revertirReprogramacionMasiva: async (grupo_uuid) => {
+    return await prisma.$transaction(async (tx) => {
+      // 1. Buscar la reprogramación masiva
+      const reprogramaciones = await tx.reprogramaciones_clases.findMany({
+        where: { grupo_uuid: grupo_uuid, estado: 'ACTIVO' }
+      });
+
+      if (!reprogramaciones || reprogramaciones.length === 0) {
+        throw new ApiError('No se encontró una reprogramación masiva activa con ese identificador.', 404);
+      }
+
+      const reprogramacionesIds = reprogramaciones.map(r => r.id);
+
+      // 2. Buscar todas las asistencias afectadas
+      const asistencias = await tx.registros_asistencia.findMany({
+        where: { reprogramacion_clase_id: { in: reprogramacionesIds } }
+      });
+
+      if (asistencias.length === 0) {
+        throw new ApiError('No se encontraron registros de asistencia asociados a esta reprogramación.', 404);
+      }
+
+      // 3. Revertimos la asistencia
+      // Restauramos la "fecha" a la "fecha_original", quitamos estado PENDIENTE a PRESENTE si era el default de antes.
+      for (const asistencia of asistencias) {
+        if (!asistencia.fecha_original) continue;
+
+        // Limpiamos cualquier "fantasma" que se haya colado en la original si fue regenerado el mes.
+        await tx.registros_asistencia.deleteMany({
+          where: {
+            inscripcion_id: asistencia.inscripcion_id,
+            fecha: asistencia.fecha_original,
+            NOT: { id: asistencia.id }
+          }
+        });
+
+        await tx.registros_asistencia.update({
+          where: { id: asistencia.id },
+          data: {
+            fecha: asistencia.fecha_original,
+            fecha_original: null,
+            reprogramacion_clase_id: null,
+            comentario: null, // o mensaje indicando reversión
+            estado: 'PRESENTE' // estado default inicial.
+          }
+        });
+      }
+
+      // 4. Marcar reprogramación como REVERTIDO
+      await tx.reprogramaciones_clases.updateMany({
+        where: { id: { in: reprogramacionesIds } },
+        data: { estado: 'REVERTIDO' }
+      });
+
+      return { mensaje: 'Reprogramación revertida exitosamente.' };
+    });
+  },
+
+  /**
+   * Obtiene la lista de reprogramaciones masivas activas
+   */
+  obtenerMasivasActivas: async () => {
+    return await prisma.reprogramaciones_clases.findMany({
+      where: { es_masiva: true, estado: 'ACTIVO' },
+      orderBy: { creado_en: 'desc' },
+      include: {
+        horarios_clases: {
+           include: {
+             canchas: { select: { nombre: true, sedes: { select: { nombre: true } } } },
+             niveles_entrenamiento: { select: { nombre: true } }
+           }
+        },
+        usuarios: { select: { nombres: true, apellidos: true } },
+        _count: { select: { registros_asistencia: true } }
+      }
     });
   },
 

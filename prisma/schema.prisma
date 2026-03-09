@@ -222,6 +222,7 @@ model registros_asistencia {
   estado                  String?                  @default("PRESENTE") @db.VarChar(20)
   comentario              String?
   reprogramacion_clase_id Int?
+  fecha_original          DateTime?                @db.Date
   registrado_por          Int?
   registrado_en           DateTime?                @default(now()) @db.Timestamp(6)
   inscripciones           inscripciones            @relation(fields: [inscripcion_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -239,6 +240,9 @@ model reprogramaciones_clases {
   hora_inicio_destino String    @db.VarChar(5)
   hora_fin_destino    String    @db.VarChar(5)
   motivo              String?
+  es_masiva           Boolean   @default(false)
+  estado              String    @default("ACTIVO") // ACTIVO, REVERTIDO
+  grupo_uuid          String    @default(uuid()) @db.Uuid
   creado_por          Int?
   creado_en           DateTime? @default(now()) @db.Timestamp(6)
 

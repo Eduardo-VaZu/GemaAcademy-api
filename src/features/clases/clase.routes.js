@@ -17,6 +17,21 @@ router.post(
   claseController.reprogramarMasivo
 );
 
+// Revertir una reprogramación masiva
+router.post(
+  '/revertir-masivo',
+  authorize('Administrador'),
+  validate(claseSchema.revertirMasivoSchema),
+  claseController.revertirMasivo
+);
+
+// Obtener lista de reprogramaciones masivas
+router.get(
+  '/reprogramaciones-masivas-activas',
+  authorize('Administrador'),
+  claseController.obtenerMasivasActivas
+);
+
 // Obtener fechas disponibles (registros_asistencia activos) de un horario específico
 router.get(
   '/:horario_id/fechas-disponibles',
