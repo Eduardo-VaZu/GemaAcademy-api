@@ -128,6 +128,7 @@ export const inscripcionController = {
       });
     }
   },
+  
 
   // Finalización voluntaria solicitada por el alumno
   finalizarVoluntaria: async (req, res) => {
@@ -149,4 +150,27 @@ export const inscripcionController = {
       });
     }
   },
+
+ // 🔥 CORRECCIÓN: Método estandarizado para cancelar reservas pendientes
+  cancelarReserva: async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Llamamos al servicio que limpia inscripción + deuda + beneficios
+      const resultado = await inscripcionService.cancelarReservaPendiente(id);
+
+      res.status(200).json({
+        status: 'success',
+        message: resultado.mensaje,
+        data: resultado
+      });
+    } catch (error) {
+      // Manejo de errores consistente con el resto del controlador
+      res.status(400).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  },
+  
 };

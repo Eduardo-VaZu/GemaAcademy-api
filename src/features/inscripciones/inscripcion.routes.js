@@ -22,4 +22,9 @@ router.get('/:id', inscripcionController.obtenerDetalle);
 // DELETE: Cancelar inscripción
 router.delete('/:id', inscripcionController.eliminar);
 
+router.patch(
+  '/:id/cancelar-reserva',
+  inscripcionController.cancelarReserva
+);
+
 export default router;
