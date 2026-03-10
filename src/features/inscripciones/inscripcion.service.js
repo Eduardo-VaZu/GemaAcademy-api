@@ -436,62 +436,58 @@ export const inscripcionService = {
     });
   },
 
-  cancelarReservaPendiente: async (id) => {
+ cancelarReservaPendiente: async (id) => {
     return await prisma.$transaction(async (tx) => {
-      // 1. Buscamos la inscripción y verificamos que esté PENDIENTE_PAGO
-      const inscripcion = await tx.inscripciones.findUnique({
+      // 1. Identificar la inscripción "semilla"
+      const inscripcionSemilla = await tx.inscripciones.findUnique({
         where: { id: Number.parseInt(id) },
-        include: { alumnos: true }
       });
 
-      if (!inscripcion) throw new Error('La reserva no existe.');
-      if (inscripcion.estado !== 'PENDIENTE_PAGO') {
-        throw new Error('Solo se pueden eliminar reservas que aún no han sido pagadas.');
+      if (!inscripcionSemilla || inscripcionSemilla.estado !== 'PENDIENTE_PAGO') {
+        throw new Error('Solo se pueden cancelar reservas pendientes de pago.');
       }
 
-      // 2. Buscamos la deuda (Cuenta por Cobrar) vinculada a esa reserva
-      // La buscamos por el alumno_id, estado PENDIENTE y que se haya creado 
-      // aproximadamente al mismo tiempo que la inscripción
+      // 2. Localizar la deuda vinculada (usando el tiempo de creación como nexo)
       const deudaAsociada = await tx.cuentas_por_cobrar.findFirst({
         where: {
-          alumno_id: inscripcion.alumno_id,
+          alumno_id: inscripcionSemilla.alumno_id,
           estado: 'PENDIENTE',
           creado_en: {
-            gte: new Date(inscripcion.fecha_inscripcion.getTime() - 60000), // Rango de 1 minuto
-            lte: new Date(inscripcion.fecha_inscripcion.getTime() + 60000),
+            gte: new Date(inscripcionSemilla.fecha_inscripcion.getTime() - 30000),
+            lte: new Date(inscripcionSemilla.fecha_inscripcion.getTime() + 30000),
           },
         },
-        include: { descuentos_aplicados: true }
       });
 
-      // 3. Si existe una deuda, la limpiamos por completo
       if (deudaAsociada) {
-        // A. Devolvemos los beneficios/descuentos si es que se usaron
-        if (deudaAsociada.descuentos_aplicados.length > 0) {
-          for (const desc of deudaAsociada.descuentos_aplicados) {
-            await tx.beneficios_pendientes.updateMany({
-              where: {
-                alumno_id: inscripcion.alumno_id,
-                tipo_beneficio_id: desc.tipo_beneficio_id,
-                usado: true,
-              },
-              data: { usado: false },
-            });
+        // 3. EN CASCADA: Borramos todas las inscripciones que se crearon en ese mismo instante
+        // Esto elimina el "paquete" completo (los 2 o 3 horarios que eligió)
+        await tx.inscripciones.deleteMany({
+          where: {
+            alumno_id: inscripcionSemilla.alumno_id,
+            estado: 'PENDIENTE_PAGO',
+            fecha_inscripcion: {
+              gte: new Date(inscripcionSemilla.fecha_inscripcion.getTime() - 2000),
+              lte: new Date(inscripcionSemilla.fecha_inscripcion.getTime() + 2000),
+            }
           }
-          // Borramos registros de descuentos aplicados
-          await tx.descuentos_aplicados.deleteMany({ where: { cuenta_id: deudaAsociada.id } });
+        });
+
+        // 4. Devolvemos beneficios si existían
+        const descuentos = await tx.descuentos_aplicados.findMany({ where: { cuenta_id: deudaAsociada.id } });
+        for (const desc of descuentos) {
+          await tx.beneficios_pendientes.updateMany({
+            where: { alumno_id: inscripcionSemilla.alumno_id, tipo_beneficio_id: desc.tipo_beneficio_id, usado: true },
+            data: { usado: false },
+          });
         }
 
-        // B. Borramos la cuenta por cobrar
+        // 5. Borramos la deuda y sus relaciones
+        await tx.descuentos_aplicados.deleteMany({ where: { cuenta_id: deudaAsociada.id } });
         await tx.cuentas_por_cobrar.delete({ where: { id: deudaAsociada.id } });
       }
 
-      // 4. Finalmente, borramos la inscripción física
-      await tx.inscripciones.delete({ where: { id: inscripcion.id } });
-
-      console.log(`🗑️ [SISTEMA] Reserva cancelada y deuda eliminada para Alumno ID: ${inscripcion.alumno_id}`);
-
-      return { success: true, mensaje: 'Reserva cancelada y cupo liberado.' };
+      return { success: true, mensaje: 'Paquete de reserva cancelado íntegramente.' };
     });
   },
 
