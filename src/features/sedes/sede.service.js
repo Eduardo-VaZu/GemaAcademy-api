@@ -327,7 +327,7 @@ export const sedeService = {
             horarios_clases: {
               select: {
                 inscripciones: {
-                  where: { estado: { in: ['ACTIVO', 'PENDIENTE_PAGO'] } },
+                  where: { estado: { in: ['ACTIVO'] } },
                   select: { alumno_id: true }
                 }
               }
