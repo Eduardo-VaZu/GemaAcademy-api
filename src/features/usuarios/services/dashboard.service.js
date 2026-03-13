@@ -6,7 +6,7 @@ export const dashboardService = {
    * @returns {Promise<Object>} Agrupamiento de kpis del dashboard admin.
    */
   async getDashboardStats() {
-    const [counts, roles, sedesCount, ingresosSum, deudaSum, ultimosPagos, ultimosAlumnos] = await Promise.all([
+    const [counts, roles, sedesCount, ingresosSum, deudaSum, ultimosPagos, ultimosAlumnos, genderCounts, birthDates] = await Promise.all([
       prisma.usuarios.groupBy({
         by: ['rol_id'],
         where: { activo: true },
@@ -35,6 +35,23 @@ export const dashboardService = {
         take: 3,
         where: { roles: { nombre: { equals: 'Alumno', mode: 'insensitive' } }, activo: true },
         orderBy: { creado_en: 'desc' }
+      }),
+      prisma.usuarios.groupBy({
+        by: ['genero'],
+        where: {
+          roles: { nombre: { equals: 'Alumno', mode: 'insensitive' } },
+          activo: true,
+          genero: { not: null }
+        },
+        _count: { id: true }
+      }),
+      prisma.usuarios.findMany({
+        select: { fecha_nacimiento: true },
+        where: {
+          roles: { nombre: { equals: 'Alumno', mode: 'insensitive' } },
+          activo: true,
+          fecha_nacimiento: { not: null }
+        }
       })
     ]);
 
@@ -46,7 +63,7 @@ export const dashboardService = {
 
     // Procesar actividad reciente
     const actividades = [];
-    
+
     ultimosPagos.forEach(pago => {
       actividades.push({
         id: `pago_${pago.id}`,
@@ -72,7 +89,7 @@ export const dashboardService = {
       const today = new Date();
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      
+
       let dateString = dateObj.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' });
       if (dateObj.toDateString() === today.toDateString()) dateString = 'Hoy';
       else if (dateObj.toDateString() === yesterday.toDateString()) dateString = 'Ayer';
@@ -85,12 +102,39 @@ export const dashboardService = {
       };
     });
 
+    // Procesar distribución por género
+    const alumnosGenero = genderCounts.reduce((acc, curr) => {
+      const g = curr.genero ? curr.genero.toUpperCase() : 'NOCONF';
+      acc[g] = curr._count.id;
+      return acc;
+    }, {});
+
+    // Procesar distribución por edades
+    const hoy = new Date();
+    const ageStats = { '0-5': 0, '6-10': 0, '11-15': 0, '16+': 0 };
+
+    birthDates.forEach(u => {
+      const birth = new Date(u.fecha_nacimiento);
+      let age = hoy.getFullYear() - birth.getFullYear();
+      const m = hoy.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && hoy.getDate() < birth.getDate())) age--;
+
+      if (age <= 5) ageStats['0-5']++;
+      else if (age <= 10) ageStats['6-10']++;
+      else if (age <= 15) ageStats['11-15']++;
+      else ageStats['16+']++;
+    });
+
+    const alumnosEdades = Object.keys(ageStats).map(key => ({ range: key, count: ageStats[key] }));
+
     return {
       ...roleStats,
       sedes: sedesCount,
       ingresosTotales: Number(ingresosSum._sum.monto_pagado || 0).toFixed(2),
       deudaPendiente: Number(deudaSum._sum.monto_final || 0).toFixed(2),
-      actividadReciente
+      actividadReciente,
+      alumnosGenero,
+      alumnosEdades
     };
   },
 };
