@@ -408,7 +408,7 @@ export const claseService = {
           fecha_original: fechaOrigenDate,
           estado: 'PENDIENTE',
           reprogramacion_clase_id: reprogramacion.id,
-          comentario: `Reposición de clase (${dateOrigenStr}). Motivo: ${motivo}`
+          comentario: `Reposición de clase (${dateOrigenStr}) [NO_RECUPERABLE]. Motivo: ${motivo}`
         };
       });
 
@@ -614,7 +614,7 @@ export const claseService = {
           estado: 'ACTIVO',
         },
         estado: {
-          not: 'REPROGRAMADO', // No mostrar fechas ya reprogramadas
+          notIn: ['REPROGRAMADO', 'CANCELADO'], // No mostrar fechas ya reprogramadas
         },
         fecha: {
           gte: hoy, // Solo fechas que no han pasado (hoy o futuro)
