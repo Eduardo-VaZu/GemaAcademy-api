@@ -62,7 +62,7 @@ export const authService = {
       prisma.refresh_tokens.create({
         data: {
           usuario_id: usuario.id,
-          token: refreshToken,
+          token: tokenUtils.hashToken(refreshToken),
           expires_at: expiresAt,
         },
       }),
@@ -166,7 +166,7 @@ export const authService = {
    */
   refreshAccessToken: async (refreshToken) => {
     const tokenRecord = await prisma.refresh_tokens.findUnique({
-      where: { token: refreshToken },
+      where: { token: tokenUtils.hashToken(refreshToken) },
       select: {
         token: true,
         revoked: true,
@@ -216,13 +216,13 @@ export const authService = {
 
     await prisma.$transaction([
       prisma.refresh_tokens.update({
-        where: { token: refreshToken },
+        where: { token: tokenUtils.hashToken(refreshToken) },
         data: { revoked: true },
       }),
       prisma.refresh_tokens.create({
         data: {
           usuario_id: usuario.id,
-          token: newRefreshToken,
+          token: tokenUtils.hashToken(newRefreshToken),
           expires_at: expiresAt,
         },
       }),
@@ -245,7 +245,7 @@ export const authService = {
   logout: async (refreshToken) => {
     try {
       await prisma.refresh_tokens.update({
-        where: { token: refreshToken },
+        where: { token: tokenUtils.hashToken(refreshToken) },
         data: { revoked: true },
       });
     } catch (error) {
@@ -399,63 +399,61 @@ export const authService = {
   updateProfile: async (userId, payload) => {
     const usuario = await prisma.usuarios.findUnique({
       where: { id: userId },
-      select: { id: true, rol_id: true, email: true, telefono_personal: true, nombres: true, apellidos: true, genero: true }
+      select: { id: true, rol_id: true },
     });
-
+ 
     if (!usuario) {
       throw new ApiError('Usuario no encontrado', 404);
     }
-
-    const { 
-      email, telefono_personal, nombres, apellidos, genero, 
-      condiciones_medicas, seguro_medico, grupo_sanguineo,
-      especializacion
-    } = payload;
-    
-    // 1. Actualizar tabla usuarios (datos base)
+ 
+    await Promise.all([
+      authService._updateBaseUser(userId, payload),
+      authService._updateRoleSpecificData(userId, usuario.rol_id, payload),
+    ]);
+ 
+    return await authService.getProfile(userId);
+  },
+ 
+  /** @private */
+  _updateBaseUser: async (userId, payload) => {
+    const { email, telefono_personal, nombres, apellidos, genero } = payload;
     const userUpdates = {};
+ 
     if (email !== undefined) userUpdates.email = email === '' ? null : email;
     if (telefono_personal !== undefined) userUpdates.telefono_personal = telefono_personal;
     if (nombres !== undefined) userUpdates.nombres = nombres;
     if (apellidos !== undefined) userUpdates.apellidos = apellidos;
     if (genero !== undefined) userUpdates.genero = genero;
-
-    // Ejecutar actualización base si hay cambios
+ 
     if (Object.keys(userUpdates).length > 0) {
       await prisma.usuarios.update({
         where: { id: userId },
-        data: userUpdates
+        data: userUpdates,
       });
     }
-
-    // 2. Actualizar tabla específica según el rol
-    // Rol Alumno = 1, Profesor = 2, Coordinador = 3, Admin = 4
-    if (usuario.rol_id === 1) {
+  },
+ 
+  /** @private */
+  _updateRoleSpecificData: async (userId, rolId, payload) => {
+    // Alumno = 1, Profesor = 2, Coordinador = 3
+    if (rolId === 1) {
+      const { condiciones_medicas, seguro_medico, grupo_sanguineo } = payload;
       const alumnoUpdates = {};
       if (condiciones_medicas !== undefined) alumnoUpdates.condiciones_medicas = condiciones_medicas;
       if (seguro_medico !== undefined) alumnoUpdates.seguro_medico = seguro_medico;
       if (grupo_sanguineo !== undefined) alumnoUpdates.grupo_sanguineo = grupo_sanguineo;
-
+ 
       if (Object.keys(alumnoUpdates).length > 0) {
-        await prisma.alumnos.updateMany({
-          where: { usuario_id: userId },
-          data: alumnoUpdates
-        });
+        await prisma.alumnos.updateMany({ where: { usuario_id: userId }, data: alumnoUpdates });
       }
-    } else if (usuario.rol_id === 3 || usuario.rol_id === 2) {
-      // Como profesores y coordinadores podrían estar en la tabla coordinadores o profesores
-      const coordUpdates = {};
-      if (especializacion !== undefined) coordUpdates.especializacion = especializacion;
-
-      if (Object.keys(coordUpdates).length > 0) {
+    } else if (rolId === 2 || rolId === 3) {
+      const { especializacion } = payload;
+      if (especializacion !== undefined) {
         await prisma.coordinadores.updateMany({
           where: { usuario_id: userId },
-          data: coordUpdates
+          data: { especializacion },
         });
       }
     }
-
-    // Retornamos el perfil completo actualizado
-    return await authService.getProfile(userId);
   },
 };

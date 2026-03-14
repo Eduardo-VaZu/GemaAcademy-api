@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
 
 export const tokenUtils = {
   /**
@@ -16,7 +16,7 @@ export const tokenUtils = {
    * @returns {Date} Fecha de expiración calculada.
    */
   getRefreshTokenExpiration: (days) => {
-    const daysNum = parseInt(days, 10) || 7;
+    const daysNum = Number.parseInt(days, 10) || 7;
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + daysNum);
     return expirationDate;
@@ -29,8 +29,19 @@ export const tokenUtils = {
    */
   isTokenExpired: (expiresAt) => {
     const expiry = new Date(expiresAt);
-    if (isNaN(expiry.getTime())) return true;
+    if (Number.isNaN(expiry.getTime())) {
+      return true;
+    }
 
     return new Date() > expiry;
+  },
+ 
+  /**
+   * Genera un hash SHA-256 de un token para su almacenamiento seguro.
+   * @param {string} token - Token en texto plano.
+   * @returns {string} Hash hexadecimal del token.
+   */
+  hashToken: (token) => {
+    return crypto.createHash('sha256').update(token).digest('hex');
   },
 };

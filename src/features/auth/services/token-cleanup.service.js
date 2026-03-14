@@ -3,7 +3,7 @@ import { logger } from '../../../shared/utils/logger.util.js';
 
 export const tokenCleanupService = {
   /**
-   * Limpia los tokens permanentemente expirados o revocados hace más de 7 días.
+   * Limpia los tokens (hashes) permanentemente expirados o revocados hace más de 7 días.
    */
   cleanupExpiredTokens: async () => {
     try {
