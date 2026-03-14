@@ -71,8 +71,8 @@ export const pagosService = {
     });
   },
 
-  // 2. VALIDAR EL PAGO (Tu lógica + Corrección de Monto + Sincronización de Fechas 🛡️)
-  validarPago: async (data) => {
+// 2. VALIDAR EL PAGO (Tu lógica + Corrección de Monto + Sincronización de Fechas 🛡️)
+ validarPago: async (data) => {
     const { pago_id, accion, usuario_admin_id, notas, monto_real_confirmado } = data;
     const esAprobado = accion === 'APROBAR';
 
@@ -179,11 +179,37 @@ export const pagosService = {
               fechaInicioNuevoCiclo = hoy;
             }
 
+            // =================================================================
+            // 🔥 INICIO DE CÓDIGO NUEVO AÑADIDO: OVERRIDE DE RECUPERACIONES 🔥
+            // =================================================================
+            const ultimaRecuperacion = await tx.recuperaciones.findFirst({
+              where: {
+                alumno_id: pago.cuentas_por_cobrar.alumno_id,
+                fecha_programada: { not: null } 
+              },
+              orderBy: { fecha_programada: 'desc' }
+            });
+
+            if (ultimaRecuperacion && ultimaRecuperacion.fecha_programada) {
+              const fechaPostRecuperacion = new Date(ultimaRecuperacion.fecha_programada);
+              fechaPostRecuperacion.setDate(fechaPostRecuperacion.getDate() + 1); // El día siguiente a su recuperación
+
+              // Si el día después de su última recuperación es MAYOR a la fecha calculada, gana la recuperación
+              if (fechaPostRecuperacion > fechaInicioNuevoCiclo) {
+                fechaInicioNuevoCiclo = fechaPostRecuperacion;
+                console.log(`🚀 [OVERRIDE] Fecha ajustada por recuperación. Nuevo inicio: ${fechaInicioNuevoCiclo.toLocaleDateString()}`);
+              }
+            }
+            // =================================================================
+            // 🔥 FIN DE CÓDIGO NUEVO AÑADIDO 🔥
+            // =================================================================
+
             for (const inscripcion of inscripcionesActivas) {
               await tx.inscripciones.update({
                 where: { id: inscripcion.id },
                 data: {
                   fecha_inscripcion: fechaInicioNuevoCiclo,
+                  fecha_inscripcion_original: fechaInicioNuevoCiclo,
                   estado: 'ACTIVO',
                   actualizado_en: hoy,
                 },
@@ -254,7 +280,7 @@ export const pagosService = {
         saldo_pendiente: saldoRestante,
       };
     });
-  },
+  }, 
   obtenerTodos: async () => {
     return await prisma.pagos.findMany({
       include: {
