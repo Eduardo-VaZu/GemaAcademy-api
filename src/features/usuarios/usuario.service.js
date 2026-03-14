@@ -5,7 +5,7 @@ import { prisma } from '../../config/database.config.js';
 
 import { dashboardService } from './services/dashboard.service.js';
 import { reporteService } from './services/reporte.service.js';
-import { emailService } from '../../shared/services/brevo.email.service.js'; 
+import { emailService } from '../../shared/services/brevo.email.service.js';
 
 export const usuarioService = {
   createUser: async (userData) => {
@@ -114,7 +114,7 @@ export const usuarioService = {
       });
 
       nuevoUsuario.username = finalUsername;
-      
+
       const passwordToHash = await registroLogic.crearCredenciales(
         tx,
         nuevoUsuario.id,
@@ -134,8 +134,8 @@ export const usuarioService = {
           tx,
           nuevoUsuario.id,
           otrosdatos.nombres,
-          contacto_emergencia,
-          parentesco
+          datosRolEspecifico.contacto_emergencia,
+          datosRolEspecifico.parentesco
         );
       }
 
@@ -395,7 +395,13 @@ export const usuarioService = {
             condiciones_medicas: true,
             seguro_medico: true,
             grupo_sanguineo: true,
-          },
+            alumnos_contactos: {
+              select: {
+                relacion: true,
+                telefono: true,
+              }
+            }
+          }
         },
         coordinadores: {
           select: {
