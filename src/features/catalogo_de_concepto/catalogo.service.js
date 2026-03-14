@@ -9,6 +9,16 @@ export const catalogoService = {
     });
   },
 
+  findVigentes: async () => {
+    return await prisma.catalogo_conceptos.findMany({
+      where: { 
+        activo: true,
+        es_vigente: true 
+      },
+      orderBy: { precio_base: 'asc' },
+    });
+  },
+
   findOne: async (id) => {
     const concepto = await prisma.catalogo_conceptos.findUnique({
       where: { id },

@@ -11,6 +11,14 @@ export const catalogoController = {
     });
   }),
 
+  getVigentes: catchAsync(async (req, res) => {
+    const data = await catalogoService.findVigentes();
+    return apiResponse.success(res, {
+      message: 'Planes vigentes obtenidos',
+      data,
+    });
+  }),
+
   getById: catchAsync(async (req, res) => {
     const data = await catalogoService.findOne(req.params.id); // req.params.id is parsed by Zod now
     return apiResponse.success(res, {

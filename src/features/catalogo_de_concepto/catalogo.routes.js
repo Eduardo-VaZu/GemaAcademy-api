@@ -7,6 +7,9 @@ import { catalogoSchema } from './catalogo.schema.js';
 
 const router = Router();
 
+// Ruta pública para consultar planes vigentes para el landing/precios
+router.get('/vigentes', catalogoController.getVigentes);
+
 // Todas las rutas del catálogo requieren autenticación mínima
 router.use(authenticate);
 
