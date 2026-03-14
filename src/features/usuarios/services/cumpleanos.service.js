@@ -2,6 +2,7 @@ import { prisma } from '../../../config/database.config.js';
 import { twilioProvider } from '../../../shared/services/twilio.whatsapp.service.js';
 import { emailService } from '../../../shared/services/brevo.email.service.js';
 import { logger } from '../../../shared/utils/logger.util.js';
+import { TWILIO_TEMPLATE_CUMPLEANOS_SID } from '../../../config/secret.config.js';
 
 class CumpleanosService {
   async ejecutarSaludosCumpleanos() {
@@ -34,11 +35,28 @@ class CumpleanosService {
         let wpEnviado = false;
         let emailEnviado = false;
 
+        // =============================================
+        // 📲 WHATSAPP: Plantilla HX... o texto directo
+        // =============================================
         if (usuario.telefono_personal) {
-          const mensaje = `¡Hola ${usuario.nombres}! 🎉 De parte de toda la familia de Club Gema queremos desearte un muy ¡Feliz Cumpleaños! 🎂 Que disfrutes mucho tu día.`;
-          wpEnviado = await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
+          if (TWILIO_TEMPLATE_CUMPLEANOS_SID) {
+            // 🚀 PRODUCCIÓN: Usa la plantilla oficial aprobada por Meta
+            const variables = { "1": usuario.nombres };
+            wpEnviado = await twilioProvider.sendTemplateMessage(
+              usuario.telefono_personal,
+              TWILIO_TEMPLATE_CUMPLEANOS_SID,
+              variables
+            );
+          } else {
+            // 🧪 SIN PLANTILLA: Envía el mensaje escrito directamente en el backend
+            const mensaje = `¡Hola ${usuario.nombres}! 🎉 De parte de toda la familia de Club Gema queremos desearte un muy ¡Feliz Cumpleaños! 🎂 Que disfrutes mucho tu día.`;
+            wpEnviado = await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
+          }
         }
 
+        // =============================================
+        // 📧 EMAIL: Siempre se intenta enviar (gratis)
+        // =============================================
         if (usuario.email) {
           emailEnviado = await emailService.sendBirthdayEmail(usuario.email, usuario.nombres);
         }
@@ -62,3 +80,4 @@ class CumpleanosService {
 }
 
 export const cumpleanosService = new CumpleanosService();
+

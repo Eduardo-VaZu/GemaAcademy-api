@@ -173,7 +173,7 @@ export const iniciarCronJobs = () => {
     async () => {
       logger.info(`[CRON] Buscando morosos parciales para recordatorio del día 22...`);
       try {
-        await inscripcionCronService.alertaMorososParcialesWhatsApp();
+        await inscripcionCronService.alertaMorososParciales();
       } catch (error) {
         logger.error('[CRON ERROR] Falló el Recordatorio 22 Días:', error);
       }
