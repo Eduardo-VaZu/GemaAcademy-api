@@ -263,13 +263,14 @@ export const claseService = {
    * Reprograma una clase completa para un grupo de alumnos.
    * Modela una "Asistencia Anticipada" tal cual lo especificó la academia.
    */
-  reprogramarMasivamente: async ({
+ reprogramarMasivamente: async ({
     horario_origen_id,
     fecha_origen,
     motivo,
     usuario_admin_id,
   }) => {
-    // 1. Obtener información básica del horario y afectados
+    // 1. OBTENCIÓN DE DATOS INICIALES
+    // Traemos el horario y la lista de alumnos que están inscritos y activos.
     const horarioOrigen = await prisma.horarios_clases.findUnique({
       where: { id: horario_origen_id },
       select: {
@@ -287,18 +288,61 @@ export const claseService = {
     const inscripciones = horarioOrigen.inscripciones;
     if (inscripciones.length === 0) throw new ApiError('No hay alumnos activos en este horario', 400);
 
+    // Normalizamos la fecha recibida para que no haya errores de zona horaria (Lima -5h)
     const fechaOrigenDate = new Date(fecha_origen);
     fechaOrigenDate.setUTCHours(12, 0, 0, 0);
 
     const dateOrigenStr = formatFechaEs(fechaOrigenDate);
     const importUUID = await import('crypto');
-    const grupo_uuid = importUUID.randomUUID();
+    const grupo_uuid = importUUID.randomUUID(); // Identificador único para este lote de cambios
 
+    // ======================================================================
+    // INICIO DE LA TRANSACCIÓN (Se hace todo o no se hace nada)
+    // ======================================================================
     return await prisma.$transaction(async (tx) => {
       const inscripcionIds = inscripciones.map(i => i.id);
       const alumnoIds = [...new Set(inscripciones.map(i => i.alumno_id))];
 
-      // A) Obtener fecha de referencia para la cabecera (buscando la última clase de cualquiera de los afectados)
+      // 🛡️ PASO PREVIO: VALIDACIÓN DE FERIADOoficial
+      // Traemos los feriados activos y comparamos solo DÍA y MES (Feriado Perpetuo)
+      const todosLosFeriados = await tx.feriados.findMany({ where: { activo: true } });
+      
+      const esFeriado = todosLosFeriados.some(f => {
+        return f.fecha.getUTCDate() === fechaOrigenDate.getUTCDate() && 
+               f.fecha.getUTCMonth() === fechaOrigenDate.getUTCMonth();
+      });
+
+      // ----------------------------------------------------------------------
+      // CASO 1: LA CLASE CAE EN FERIADO
+      // ----------------------------------------------------------------------
+      if (esFeriado) {
+        // [MOMENTO DE CANCELACIÓN]: Aquí la clase original "muere"
+        // Simplemente marcamos el registro de hoy como CANCELADO.
+        await tx.registros_asistencia.updateMany({
+          where: {
+            inscripcion_id: { in: inscripcionIds },
+            fecha: fechaOrigenDate,
+          },
+          data: {
+            estado: 'CANCELADO',
+            comentario: `Clase cancelada por feriado oficial: ${motivo}`,
+          },
+        });
+
+        // IMPORTANTE: Hacemos un 'return' temprano. 
+        // Al salir aquí, NO se ejecuta el Caso 2 (ni reposiciones, ni SQL de facturación).
+        return {
+          total_procesados: inscripciones.length,
+          mensaje: `Feriado detectado (${dateOrigenStr}). Se cancelaron las clases del día.`,
+          es_feriado: true
+        };
+      }
+
+      // ----------------------------------------------------------------------
+      // CASO 2: REPROGRAMACIÓN NORMAL (Manual / Otros Motivos)
+      // ----------------------------------------------------------------------
+      
+      // A) Buscamos la última clase programada de los alumnos para saber dónde termina su ciclo
       const claseReferencia = await tx.registros_asistencia.findFirst({
         where: { inscripcion_id: { in: inscripcionIds } },
         orderBy: { fecha: 'desc' }
@@ -307,10 +351,10 @@ export const claseService = {
       if (!claseReferencia) throw new ApiError('No se pudo determinar el final del cronograma', 400);
 
       const masterFechaDestino = new Date(claseReferencia.fecha);
-      masterFechaDestino.setUTCDate(masterFechaDestino.getUTCDate() + 7);
+      masterFechaDestino.setUTCDate(masterFechaDestino.getUTCDate() + 7); // Reposición = 1 semana después del final
       masterFechaDestino.setUTCHours(12, 0, 0, 0);
 
-      // B) Crear cabecera única
+      // B) Registramos la cabecera en la tabla de reprogramaciones para el historial
       const reprogramacion = await tx.reprogramaciones_clases.create({
         data: {
           horario_id: horario_origen_id,
@@ -332,7 +376,8 @@ export const claseService = {
         },
       });
 
-      // C) Marcar asistencias de origen como REPROGRAMADAS (Lote 1)
+      // C) [MOMENTO DE CANCELACIÓN/TRANSFORMACIÓN]: 
+      // La clase original de hoy se marca como REPROGRAMADA.
       await tx.registros_asistencia.updateMany({
         where: {
           inscripcion_id: { in: inscripcionIds },
@@ -345,14 +390,14 @@ export const claseService = {
         },
       });
 
-      // D) Obtener la última fecha de CADA alumno para su reposición individual
+      // D) Buscamos la fecha final individual de cada alumno (por si tienen calendarios distintos)
       const ultimasClases = await tx.registros_asistencia.findMany({
         where: { inscripcion_id: { in: inscripcionIds } },
         orderBy: [{ inscripcion_id: 'asc' }, { fecha: 'desc' }],
         distinct: ['inscripcion_id']
       });
 
-      // E) Crear las nuevas asistencias (Lote 2)
+      // E) COMPENSACIÓN: Creamos los nuevos registros de asistencia al final del ciclo
       const nuevasAsistencias = ultimasClases.map(u => {
         const fDestino = new Date(u.fecha);
         fDestino.setUTCDate(fDestino.getUTCDate() + 7);
@@ -363,14 +408,14 @@ export const claseService = {
           fecha_original: fechaOrigenDate,
           estado: 'PENDIENTE',
           reprogramacion_clase_id: reprogramacion.id,
-          comentario: `Reposición de clase (${dateOrigenStr}) [NO_RECUPERABLE]. Motivo: ${motivo}`
+          comentario: `Reposición de clase (${dateOrigenStr}). Motivo: ${motivo}`
         };
       });
 
       await tx.registros_asistencia.createMany({ data: nuevasAsistencias });
 
-      // F) 🔥 EL MEJOR FIX: Mover fecha_inscripcion masivamente via SQL Directo
-      // Esto soluciona definitivamente el error "Transaction already closed"
+      // F) EXTENSIÓN DE FACTURACIÓN: 
+      // Sumamos 7 días a la fecha_inscripcion para que el próximo cobro se mueva una semana.
       await tx.$executeRaw`
         UPDATE inscripciones 
         SET fecha_inscripcion = fecha_inscripcion + INTERVAL '7 days'
@@ -378,11 +423,11 @@ export const claseService = {
         AND estado = 'ACTIVO'
       `;
 
-      // G) Crear notificaciones (Lote 3)
+      // G) NOTIFICACIÓN: Avisamos a los alumnos por la App
       const alertas = alumnoIds.map(aId => ({
         alumno_id: aId,
         titulo: '🚨 Clase Reprogramada',
-        mensaje: `Tu sesión del ${dateOrigenStr} ha sido movida al final de tu ciclo. Se extendió tu ciclo de facturación 7 días.`,
+        mensaje: `Tu sesión del ${dateOrigenStr} se movió al final de tu ciclo. Tu fecha de pago se extendió 7 días.`,
         tipo: 'ALERTA',
         categoria: 'CLASES',
       }));
@@ -393,10 +438,10 @@ export const claseService = {
         total_procesados: inscripciones.length,
         reprogramacion_id: reprogramacion.id,
         grupo_uuid: grupo_uuid,
-        mensaje: 'Reprogramación automática masiva ejecutada exitosamente.',
+        mensaje: 'Reprogramación y extensión de facturación exitosa.',
       };
     }, {
-      timeout: 45000 // Aumentamos a 45s por si el executeRaw tarda en una tabla gigante
+      timeout: 45000 // Timeout alto por si la base de datos está lenta
     });
   },
 
