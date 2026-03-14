@@ -35,6 +35,7 @@ import publicacionRoutes from './features/publicaciones/publicacion.routes.js';
 import notificacionesRoutes from './features/notificaciones/notificaciones.routes.js';
 import metodosPago from './features/metodosPago/metodo_pago.routes.js';
 import coordinadorRoutes from './features/cordinador/coordinador.routes.js';
+import feriadoRoutes from './features/feriados/feriado.routes.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -110,6 +111,7 @@ app.use('/api/publicaciones', publicacionRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/metodos-pago', metodosPago);
 app.use('/api/coordinadores', coordinadorRoutes);
+app.use('/api/feriados', feriadoRoutes);
 
 app.use(errorHandler);
 

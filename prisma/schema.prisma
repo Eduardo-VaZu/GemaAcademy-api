@@ -417,3 +417,10 @@ model notificaciones {
   usuarios usuarios? @relation(fields: [usuario_id], references: [id], onDelete: Cascade)
   alumnos  alumnos?  @relation(fields: [alumno_id], references: [usuario_id], onDelete: SetNull)
 }
+
+model feriados {
+  id          Int      @id @default(autoincrement())
+  fecha       DateTime @unique @db.Date
+  descripcion String   @db.VarChar(100)
+  activo      Boolean  @default(true)
+}
