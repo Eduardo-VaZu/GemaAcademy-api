@@ -514,8 +514,12 @@ export const asistenciaService = {
         const idAlumnoInscripcion = asistenciaRegistrada.inscripciones.alumno_id;
         const fechaClase = asistenciaRegistrada.fecha;
 
+        // 🔥 REGLA DE NEGOCIO: Si la clase es [NO_RECUPERABLE], saltamos la generación del ticket de falta.
+        // Lo verificamos desde el objeto 'asistencia' que cargamos de la BD antes del update.
+        const esNoRecuperable = asistencia.comentario?.includes('[NO_RECUPERABLE]');
+
         // Crea un registro en la tabla recuperaciones con estado PENDIENTE en caso la asistencia sea registrada como FALTA.
-        if (asistenciaRegistrada.estado === 'FALTA') {
+        if (asistenciaRegistrada.estado === 'FALTA' && !esNoRecuperable) {
           await recuperacionService.registrarFaltaPendiente(
             tx,
             idAlumnoInscripcion,
@@ -525,6 +529,14 @@ export const asistenciaService = {
         } else if (asistenciaRegistrada.estado === 'PRESENTE') {
           // En caso el alumno llegue tarde, se elimina la recuperación generada.
           await recuperacionService.anularFaltaPendiente(tx, idAlumnoInscripcion, asistencia.id);
+        }
+
+        // Si era no recuperable, nos aseguramos de que el tag persista si el coordinador escribió algo
+        if (esNoRecuperable && !asistenciaRegistrada.comentario?.includes('[NO_RECUPERABLE]')) {
+          await tx.registros_asistencia.update({
+            where: { id: asistenciaRegistrada.id },
+            data: { comentario: `[NO_RECUPERABLE] ${asistenciaRegistrada.comentario || ''}` }
+          });
         }
       }
     });

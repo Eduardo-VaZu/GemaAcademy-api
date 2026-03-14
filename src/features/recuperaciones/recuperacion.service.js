@@ -48,7 +48,7 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta, asistenciaId) =
       estado: { in: ['ACTIVO', 'PEN-RECU'] },
     },
     orderBy: {
-      fecha_inscripcion: 'asc',
+      fecha_inscripcion_original: 'asc',
     },
   });
 
@@ -56,7 +56,7 @@ const registrarFaltaPendiente = async (tx, alumnoId, fechaFalta, asistenciaId) =
     throw new ApiError('No se encontró una inscripción activa para este alumno.', 404);
   }
 
-  const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
+  const inicioInscripcion = new Date(inscripcion.fecha_inscripcion_original);
   inicioInscripcion.setHours(0, 0, 0, 0);
   const fechaFaltaDate = new Date(fechaFalta);
 
@@ -233,7 +233,7 @@ const obtenerPendientes = async (alumnoId) => {
       horarios_clases: true
     },
     orderBy: {
-      fecha_inscripcion: 'asc',
+      fecha_inscripcion_original: 'asc',
     },
   });
 
@@ -245,7 +245,7 @@ const obtenerPendientes = async (alumnoId) => {
     };
   }
 
-  const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion);
+  const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion_original);
   inicioInscripcion.setHours(0, 0, 0, 0);
 
   const finCicloRegular = new Date(inicioInscripcion);
@@ -370,7 +370,7 @@ const validarElegibilidad = async (alumnoId, recuperacionId, fechaProgramada, ho
       horarios_clases: true,
     },
     orderBy: {
-      fecha_inscripcion: 'asc',
+      fecha_inscripcion_original: 'asc',
     },
   });
 
@@ -384,7 +384,7 @@ const validarElegibilidad = async (alumnoId, recuperacionId, fechaProgramada, ho
     throw new ApiError('La fecha programada no puede ser anterior a hoy.', 400);
   }
 
-  const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion);
+  const inicioInscripcion = new Date(inscripciones[0].fecha_inscripcion_original);
   inicioInscripcion.setHours(0, 0, 0, 0);
 
   const finCicloRegular = new Date(inicioInscripcion);
