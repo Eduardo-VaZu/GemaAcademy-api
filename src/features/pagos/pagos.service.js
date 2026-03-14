@@ -390,6 +390,45 @@ export const pagosService = {
     });
   },
 
+  obtenerTodosParaAdmin: async () => {
+    const pagos = await prisma.pagos.findMany({
+      include: {
+        cuentas_por_cobrar: {
+          include: { 
+            alumnos: { 
+              include: { 
+                usuarios: {
+                  select: { 
+                    nombres: true, 
+                    apellidos: true, 
+                    numero_documento: true, 
+                    email: true, 
+                    telefono_personal: true 
+                  }
+                },
+                _count: {
+                  select: {
+                    recuperaciones: {
+                      where: { estado: { in: ['PENDIENTE', 'PROGRAMADA'] } }
+                    }
+                  }
+                }
+              } 
+            } 
+          },
+        },
+        metodos_pago: true,
+      },
+      orderBy: { fecha_pago: 'desc' },
+    });
+
+    // Mapeamos para enviar un flag simple 'bloqueado_por_asistencia'
+    return pagos.map(p => ({
+      ...p,
+      bloqueado_por_asistencia: (p.cuentas_por_cobrar?.alumnos?._count?.recuperaciones || 0) > 0
+    }));
+  },
+
   // 5. ELIMINAR REGISTRO DE PAGO (Uso delicado)
   eliminarPago: async (id) => {
     return await prisma.pagos.delete({

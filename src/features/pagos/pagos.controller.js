@@ -122,6 +122,23 @@ export const pagosController = {
       });
     }
   },
+  listarPagosAdmin: async (req, res) => {
+    try {
+      // Llamada al nuevo método del service
+      const pagos = await pagosService.obtenerTodosParaAdmin();
+      
+      res.status(200).json({ 
+        status: 'success', 
+        data: pagos 
+      });
+    } catch (error) {
+      console.error('❌ [ERROR LISTAR PAGOS ADMIN]:', error.message);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Error al recuperar el listado administrativo.' 
+      });
+    }
+  },
 
   // 5. ELIMINAR PAGO
   eliminarPago: async (req, res) => {

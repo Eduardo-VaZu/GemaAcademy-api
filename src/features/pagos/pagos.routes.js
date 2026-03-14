@@ -34,6 +34,8 @@ router.post('/reportar', upload.single('voucher'), pagosController.reportarPago)
 router.post('/validar', pagosController.validarPagoAdmin);
 // GET: Listar todos los pagos (Para la tabla de Admin)
 router.get('/', pagosController.listarPagos);
+// Ahora: Endpoint específico para la gestión administrativa
+router.get('/gestion-admin', pagosController.listarPagosAdmin);
 
 // GET: Ver detalle de un pago específico
 router.get('/:id', pagosController.obtenerPago);
