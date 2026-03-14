@@ -8,11 +8,16 @@ import { actualizarPerfilSchema } from './alumno.schema.js';
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize('Alumno'));
 
 
 router.get('/mi-perfil', alumnoController.obtenerMiPerfil);
 // PATCH /api/alumno/mi-perfil
 router.patch('/mi-perfil', validate(actualizarPerfilSchema), alumnoController.actualizarMiPerfil);
+
+router.get(
+    '/gestion/resumen-cortes', 
+    authorize('Administrador', 'Coordinador'), 
+    alumnoController.listarAlumnosResumen
+);
 
 export default router;

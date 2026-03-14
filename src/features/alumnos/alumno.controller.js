@@ -17,4 +17,12 @@ export const alumnoController = {
     data: perfil,
   });
 }),
+
+listarAlumnosResumen: catchAsync(async (req, res) => {
+    const data = await alumnoService.listarAlumnosResumen();
+    return apiResponse.success(res, {
+      message: 'Lista de alumnos para gestión de cortes cargada',
+      data: data,
+    });
+  }),
 };
