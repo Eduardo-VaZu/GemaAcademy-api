@@ -52,7 +52,7 @@ export const authService = {
       throw new ApiError('Credenciales inválidas', 401);
     }
 
-    const { accessToken, refreshToken, expiresAt } = authLogic.generarSesionTokens(usuario);
+    const { refreshToken, expiresAt } = authLogic.generarSesionTokens(usuario);
 
     await Promise.all([
       prisma.credenciales_usuario.update({
@@ -70,8 +70,6 @@ export const authService = {
 
     const esLoginNuevo = true;
     return {
-      accessToken,
-      refreshToken,
       user: authLogic.construirInformacionPerfilUsuario(usuario, esLoginNuevo),
     };
   },
@@ -209,7 +207,6 @@ export const authService = {
     authLogic.validarEstadoUsuario(usuario);
 
     const {
-      accessToken,
       refreshToken: newRefreshToken,
       expiresAt,
     } = authLogic.generarSesionTokens(usuario);
@@ -230,8 +227,6 @@ export const authService = {
 
     const esLoginNuevo = false;
     return {
-      accessToken,
-      refreshToken: newRefreshToken,
       user: authLogic.construirInformacionPerfilUsuario(usuario, esLoginNuevo),
     };
   },

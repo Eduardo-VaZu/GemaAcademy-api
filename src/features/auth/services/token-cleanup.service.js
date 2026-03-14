@@ -29,24 +29,4 @@ export const tokenCleanupService = {
       logger.error('Error al limpiar tokens expirados:', error);
     }
   },
-
-  /**
-   * Inicia el proceso planificado de limpieza. Se ejecuta una vez de inmediato y luego cada 24 horas asíncronamente.
-   */
-  scheduleTokenCleanup: () => {
-    logger.info('Cron interno de limpieza de tokens activado...');
-
-    tokenCleanupService.cleanupExpiredTokens();
-
-    const intervaloDiaMs = 24 * 60 * 60 * 1000; // 24 horas
-
-    const runSchedule = () => {
-      setTimeout(async () => {
-        await tokenCleanupService.cleanupExpiredTokens();
-        runSchedule();
-      }, intervaloDiaMs);
-    };
-
-    runSchedule();
-  },
 };

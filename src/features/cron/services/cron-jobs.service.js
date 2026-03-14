@@ -8,6 +8,7 @@ import { recuperacionCronService } from '../../recuperaciones/recuperacion-cron.
 import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js';
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 import { asistenciaCronService } from '../../asistencia/asistencia-cron.service.js';
+import { tokenCleanupService } from '../../auth/services/token-cleanup.service.js';
 
 // 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA PARA LOS LOGS 🔥
 import dayjs from 'dayjs';
@@ -15,7 +16,6 @@ import utc from 'dayjs/plugin/utc.js';
 import timezone from 'dayjs/plugin/timezone.js';
 dayjs.extend(utc);
 dayjs.extend(timezone);
-const TZ_LIMA = 'America/Lima';
 
 export const iniciarCronJobs = () => {
   console.log('Cron Jobs iniciados: El sistema está vigilando...');
@@ -221,6 +221,23 @@ export const iniciarCronJobs = () => {
         await recuperacionCronService.ejecutarLimpiezaTicketsPorLesion();
       } catch (error) {
         logger.error('[CRON ERROR] Falló la verificación de tickets por lesión: ', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+ 
+  // ------------------------------------------------------------------
+  // TAREA: EL PURGADOR DE TOKENS (Todos los días a las 02:00 AM)
+  // Objetivo: Limpiar tokens expirados o revocados hace más de 7 días.
+  // ------------------------------------------------------------------
+  cron.schedule(
+    '0 2 * * *',
+    async () => {
+      logger.info(`[CRON] El Purgador iniciando limpieza de tokens de seguridad...`);
+      try {
+        await tokenCleanupService.cleanupExpiredTokens();
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló El Purgador de Tokens:', error);
       }
     },
     { timezone: 'America/Lima' }
