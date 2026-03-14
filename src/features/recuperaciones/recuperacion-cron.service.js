@@ -21,12 +21,12 @@ class RecuperacionCronService {
           alumno_id: ticket.alumno_id,
           estado: { in: ['ACTIVO', 'PEN-RECU'] },
         },
-        orderBy: { fecha_inscripcion: 'asc' },
+        orderBy: { fecha_inscripcion_original: 'asc' },
       });
 
       if (!inscripcion) continue;
 
-      const inicioInscripcion = new Date(inscripcion.fecha_inscripcion);
+      const inicioInscripcion = new Date(inscripcion.fecha_inscripcion_original);
       const fechaFaltaDate = new Date(ticket.fecha_falta);
 
       const diffFalta = fechaFaltaDate - inicioInscripcion;

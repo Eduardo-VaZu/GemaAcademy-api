@@ -141,7 +141,7 @@ const evaluarSolicitud = async ({
         if (!fechaFin) throw new ApiError('Fecha fin requerida para RANGO.', 400);
         finRangoLocal = new Date(fechaFin);
       } else {
-        finRangoLocal = new Date(inscripcion.fecha_inscripcion);
+        finRangoLocal = new Date(inscripcion.fecha_inscripcion_original);
         finRangoLocal.setDate(finRangoLocal.getDate() + 30);
       }
       finRangoLocal.setHours(0, 0, 0, 0);

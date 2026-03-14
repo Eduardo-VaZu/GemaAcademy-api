@@ -184,6 +184,7 @@ export const pagosService = {
                 where: { id: inscripcion.id },
                 data: {
                   fecha_inscripcion: fechaInicioNuevoCiclo,
+                  fecha_inscripcion_original: fechaInicioNuevoCiclo,
                   estado: 'ACTIVO',
                   actualizado_en: hoy,
                 },
@@ -241,7 +242,7 @@ export const pagosService = {
       await notificacionesService.crear({
         alumnoId: pago.cuentas_por_cobrar.alumno_id,
         titulo: esAprobado ? '✅ Pago Aprobado' : '❌ Pago Rechazado',
-        mensaje: esAprobado 
+        mensaje: esAprobado
           ? `Tu pago de S/ ${pagoActualizado.monto_pagado.toFixed(2)} ha sido validado. ${esPagoCompleto ? '¡Tu ciclo está activo!' : 'Se registró como abono parcial.'}`
           : `Tu reporte de pago por S/ ${pagoActualizado.monto_pagado.toFixed(2)} fue rechazado. Revisa las observaciones en tu perfil.`,
         tipo: esAprobado ? 'SUCCESS' : 'DANGER',
@@ -272,13 +273,13 @@ export const pagosService = {
   // ⚡ NUEVO: VENTA EXPRESS (Taquilla para Clases Sueltas)
   // =====================================================================
   registrarVentaExpress: async (data, adminId) => {
-    const { 
-      alumno_id, 
-      monto, 
-      metodo_pago_id, 
-      nombre_visitante, 
-      telefono, 
-      horario_texto 
+    const {
+      alumno_id,
+      monto,
+      metodo_pago_id,
+      nombre_visitante,
+      telefono,
+      horario_texto
     } = data;
 
     return await prisma.$transaction(async (tx) => {

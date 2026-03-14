@@ -141,17 +141,18 @@ model horarios_clases {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model inscripciones {
-  id                   Int                    @id @default(autoincrement())
-  alumno_id            Int
-  horario_id           Int
-  fecha_inscripcion    DateTime               @default(now()) @db.Timestamp(6)
-  estado               String?                @default("PENDIENTE_PAGO") @db.VarChar(20)
-  actualizado_en       DateTime?              @default(now()) @db.Timestamp(6)
-  congelamientos       congelamientos[]
-  creado_en            DateTime?              @default(now()) @db.Timestamp(6)
-  alumnos              alumnos                @relation(fields: [alumno_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
-  horarios_clases      horarios_clases        @relation(fields: [horario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  registros_asistencia registros_asistencia[]
+  id                            Int                    @id @default(autoincrement())
+  alumno_id                     Int
+  horario_id                    Int
+  fecha_inscripcion             DateTime               @default(now()) @db.Timestamp(6)
+  fecha_inscripcion_original    DateTime?              @default(now()) @db.Timestamp(6)
+  estado                        String?                @default("PENDIENTE_PAGO") @db.VarChar(20)
+  actualizado_en                DateTime?              @default(now()) @db.Timestamp(6)
+  congelamientos                congelamientos[]
+  creado_en                     DateTime?              @default(now()) @db.Timestamp(6)
+  alumnos                       alumnos                @relation(fields: [alumno_id], references: [usuario_id], onDelete: NoAction, onUpdate: NoAction)
+  horarios_clases               horarios_clases        @relation(fields: [horario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  registros_asistencia          registros_asistencia[]
 
   @@unique([alumno_id, horario_id], map: "unica_inscripcion_alumno")
 }

@@ -84,7 +84,7 @@ export const reporteService = {
           where: { estado: { in: ['ACTIVO', 'PENDIENTE_PAGO'] } },
           select: {
             estado: true,
-            fecha_inscripcion: true,
+            fecha_inscripcion_original: true,
             alumnos: {
               select: { usuarios: { select: { nombres: true, apellidos: true } } },
             },
@@ -110,11 +110,11 @@ export const reporteService = {
         let edad = hoy.getFullYear() - cumpleanos.getFullYear();
         const m = hoy.getMonth() - cumpleanos.getMonth();
         if (m < 0 || (m === 0 && hoy.getDate() < cumpleanos.getDate())) {
-            edad--;
+          edad--;
         }
         return edad;
       };
-      
+
       const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
       return {
@@ -143,7 +143,7 @@ export const reporteService = {
           Nivel: i.horarios_clases?.niveles_entrenamiento?.nombre || 'N/A',
           Dia: diasSemana[i.horarios_clases?.dia_semana] || 'N/A',
           Horario: `${new Date(i.horarios_clases?.hora_inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(i.horarios_clases?.hora_fin).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-          Fecha_Registro: i.fecha_inscripcion ? new Date(i.fecha_inscripcion).toLocaleDateString() : 'N/A',
+          Fecha_Registro: i.fecha_inscripcion_original ? new Date(i.fecha_inscripcion_original).toLocaleDateString() : 'N/A',
         })),
         pagos: pagos.map((p) => ({
           Fecha: p.fecha_pago ? new Date(p.fecha_pago).toLocaleDateString() : 'N/A',

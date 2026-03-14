@@ -12,7 +12,7 @@ class AsistenciaCronService {
                     lte: new Date(),
                 },
                 inscripciones: {
-                    fecha_inscripcion: {
+                    fecha_inscripcion_original: {
                         lte: dia0,
                     }
                 }

@@ -197,7 +197,7 @@ class InscripcionCronService {
     const inscFinalizadas = await prisma.inscripciones.updateMany({
       where: {
         estado: 'PEN-RECU',
-        fecha_inscripcion: {
+        fecha_inscripcion_original: {
           lte: dia0,
         },
         alumnos: {
