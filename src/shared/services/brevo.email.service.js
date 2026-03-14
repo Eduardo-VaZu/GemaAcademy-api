@@ -225,4 +225,51 @@ export const emailService = {
       htmlContent,
     });
   },
+
+  /**
+   * Envía correo recordando deuda pendiente parcial (migrado desde WhatsApp para reducir costos).
+   * @param {string} email - Correo del destinatario.
+   * @param {string} nombres - Nombres del usuario.
+   * @returns {Promise<boolean>}
+   */
+  async sendPartialPaymentReminder(email, nombres) {
+    const htmlContent = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        
+        <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 30px 20px; text-align: center;">
+          <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 1px; text-transform: uppercase;">Club Gema</h1>
+          <div style="height: 3px; width: 40px; background-color: #f97316; margin: 10px auto; border-radius: 2px;"></div>
+        </div>
+
+        <div style="padding: 30px;">
+          <h2 style="color: #1e293b; margin-top: 0; font-size: 20px;">Hola, ${nombres}</h2>
+          <p style="color: #475569; line-height: 1.6; font-size: 15px;">
+            Te recordamos amablemente que tienes un <strong>saldo pendiente (pago parcial)</strong> en tu mensualidad de Club Gema.
+          </p>
+          <p style="color: #475569; line-height: 1.6; font-size: 15px;">
+            Para evitar la suspensión de tus accesos o pérdida de beneficios de alumno antiguo, por favor regularízalo antes del cierre de tu ciclo de facturación.
+          </p>
+          
+          <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 25px 0;">
+            <p style="color: #92400e; margin: 0; font-size: 14px;">
+              Si ya regularizaste tu pago en las últimas horas, por favor haz caso omiso a este mensaje.
+            </p>
+          </div>
+        </div>
+
+        <div style="background-color: #f1f5f9; padding: 15px; text-align: center;">
+          <p style="color: #64748b; font-size: 12px; margin: 0;">
+             2026 Club Gema. Puedes contactarte por nuestros canales oficiales.
+          </p>
+        </div>
+      </div>
+    `;
+
+    return this.send({
+      to: email,
+      toName: nombres,
+      subject: 'Aviso Importante: Saldo Pendiente - Club Gema',
+      htmlContent,
+    });
+  },
 };

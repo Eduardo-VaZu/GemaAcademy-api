@@ -25,3 +25,6 @@ export const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 export const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 export const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 export const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
+
+export const TWILIO_TEMPLATE_VENCIMIENTO_SID = process.env.TWILIO_TEMPLATE_VENCIMIENTO_SID;
+export const TWILIO_TEMPLATE_CUMPLEANOS_SID = process.env.TWILIO_TEMPLATE_CUMPLEANOS_SID;

@@ -326,9 +326,9 @@ class InscripcionCronService {
   }
 
   // =================================================================
-  // 📲 RECORDATORIO WHATSAPP: 22 Días (Pagos Parciales)
+  // 📧 RECORDATORIO EMAIL: 22 Días (Pagos Parciales) - Migrado para ahorro de costos
   // =================================================================
-  async alertaMorososParcialesWhatsApp() {
+  async alertaMorososParcialesEmail() {
     // Obtenemos el inicio del día (00:00:00) EXACTAMENTE en la hora de Lima
     const hoyLimaInicioDia = dayjs().tz(TZ_LIMA).startOf('day');
 
@@ -340,6 +340,8 @@ class InscripcionCronService {
 
     if (morososParciales.length === 0) return;
 
+    // Importar el servicio de email (Se usa require aquí si no estaba en las imports globales)
+    const { emailService } = await import('../../shared/services/brevo.email.service.js');
     let totalEnviados = 0;
 
     for (const { alumno_id } of morososParciales) {
@@ -361,18 +363,16 @@ class InscripcionCronService {
         .add(22, 'day')
         .startOf('day');
 
-      // Si hoy es exactamente el día 22, enviamos el WhatsApp
+      // Si hoy es exactamente el día 22, enviamos el Email (Gratis comparado con WhatsApp)
       if (hoyLimaInicioDia.valueOf() === diaAviso22.valueOf()) {
         const usuario = inscripcionMadre.alumnos.usuarios;
-        if (usuario && usuario.telefono_personal) {
-          const mensaje = `Hola ${usuario.nombres}, te recordamos que tienes un saldo pendiente (pago parcial) en tu mensualidad de Club Gema. Para evitar la suspensión de tus accesos, por favor regularízalo antes del cierre de tu ciclo.`;
-
+        if (usuario && usuario.email) {
           try {
-            await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
+            await emailService.sendPartialPaymentReminder(usuario.email, usuario.nombres);
             totalEnviados++;
           } catch (err) {
             logger.error(
-              `[WHATSAPP ERROR] No se pudo enviar el recordatorio del día 22 a ${usuario.telefono_personal}`,
+              `[EMAIL ERROR] No se pudo enviar el recordatorio del día 22 al correo ${usuario.email}`,
               err
             );
           }
@@ -382,20 +382,22 @@ class InscripcionCronService {
 
     if (totalEnviados > 0) {
       logger.info(
-        `[RECORDATORIO 22 DIAS] Se enviaron ${totalEnviados} mensajes de WhatsApp a morosos parciales.`
+        `[RECORDATORIO 22 DIAS] Se enviaron ${totalEnviados} correos electrónicos a morosos parciales.`
       );
     }
   }
 
   // =================================================================
-  // 📲 ALERTA VENCIMIENTO INMINENTE: 29 Días + Tolerancia - 1 (WhatsApp)
+  // 📲 ALERTA VENCIMIENTO INMINENTE: 29 Días + Tolerancia - 1 (WhatsApp Plantilla)
   // =================================================================
   async alertaVencimientoInminenteWhatsApp() {
     const hoyLimaInicioDia = dayjs().tz(TZ_LIMA).startOf('day');
+    const { TWILIO_TEMPLATE_VENCIMIENTO_SID } = await import('../../config/secret.config.js');
 
     const paramTolerancia = await prisma.parametros_sistema.findUnique({
       where: { clave: 'DIAS_TOLERANCIA_VENCIMIENTO' },
     });
+    const diasTolerancia = paramTolerancia ? Number.parseInt(paramTolerancia.valor) : 5;
 
     const rebeldes = await prisma.cuentas_por_cobrar.findMany({
       where: { estado: 'PENDIENTE' },
@@ -405,7 +407,7 @@ class InscripcionCronService {
 
     if (rebeldes.length === 0) return;
 
-    let totalEnviados = 0;
+    const candidatosAlerta = [];
 
     for (const { alumno_id } of rebeldes) {
       const inscripcionMadre = await prisma.inscripciones.findFirst({
@@ -422,7 +424,7 @@ class InscripcionCronService {
 
       const fechaLimiteMuerte = dayjs(inscripcionMadre.fecha_inscripcion)
         .tz(TZ_LIMA)
-        .add(30 + paramTolerancia, 'day')
+        .add(30 + diasTolerancia, 'day')
         .startOf('day');
 
       const diaAlerta = fechaLimiteMuerte.subtract(1, 'day');
@@ -430,24 +432,54 @@ class InscripcionCronService {
       if (hoyLimaInicioDia.valueOf() === diaAlerta.valueOf()) {
         const usuario = inscripcionMadre.alumnos.usuarios;
         if (usuario && usuario.telefono_personal) {
-          const mensaje = `¡Atención ${usuario.nombres}! Tu inscripción en Club Gema está por vencer mañana. Para no perder tu cupo y tus beneficios de alumno antiguo, por favor regulariza tu pago pendiente hoy mismo.`;
-
-          try {
-            await twilioProvider.sendWhatsAppMessage(usuario.telefono_personal, mensaje);
-            totalEnviados++;
-          } catch (err) {
-            logger.error(
-              `[WHATSAPP ERROR] No se pudo enviar la alerta de vencimiento inminente a ${usuario.telefono_personal}`,
-              err
-            );
-          }
+          candidatosAlerta.push({
+            telefono: usuario.telefono_personal,
+            nombres: usuario.nombres
+          });
         }
       }
     }
 
-    if (totalEnviados > 0) {
+    if (candidatosAlerta.length === 0) return;
+
+    logger.info(`[ALERTA VENCIMIENTO] Procesando ${candidatosAlerta.length} alertas inminentes en lotes...`);
+
+    const LIMITE_CONCURRENCIA = 10;
+    const resultados = [];
+
+    for (let i = 0; i < candidatosAlerta.length; i += LIMITE_CONCURRENCIA) {
+      const lote = candidatosAlerta.slice(i, i + LIMITE_CONCURRENCIA);
+
+      const promesasLote = lote.map(async (candidato) => {
+        let wpEnviado = false;
+
+        if (TWILIO_TEMPLATE_VENCIMIENTO_SID) {
+          // 🚀 PRODUCCIÓN: Usa la plantilla oficial aprobada por Meta (barata y segura)
+          const variables = { "1": candidato.nombres };
+          wpEnviado = await twilioProvider.sendTemplateMessage(
+            candidato.telefono, 
+            TWILIO_TEMPLATE_VENCIMIENTO_SID, 
+            variables
+          );
+        } else {
+          // 🧪 SANDBOX/PRUEBAS: Usa la plantilla genérica pre-aprobada de Twilio
+          logger.info(`[TWILIO SANDBOX] Usando plantilla de prueba para ${candidato.telefono}`);
+          const mensajeSandbox = `Your Club Gema appointment is coming up on tomorrow`;
+          wpEnviado = await twilioProvider.sendWhatsAppMessage(candidato.telefono, mensajeSandbox);
+        }
+
+        return { exito: wpEnviado };
+      });
+
+      const chunkResults = await Promise.allSettled(promesasLote);
+      resultados.push(...chunkResults);
+    }
+
+    const exitosos = resultados.filter((r) => r.status === 'fulfilled' && r.value.exito).length;
+    
+    if (exitosos > 0) {
       logger.info(
-        `[ALERTA VENCIMIENTO] Se enviaron ${totalEnviados} mensajes de advertencia de expiración.`
+        `[ALERTA VENCIMIENTO] Se enviaron exitosamente ${exitosos}/${candidatosAlerta.length} alertas por WhatsApp.`
       );
     }
   }
