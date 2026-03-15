@@ -6,7 +6,11 @@ import morgan from 'morgan';
 import { logger } from './shared/utils/logger.util.js';
 
 import { CORS_CREDENTIALS, CORS_ORIGIN } from './config/secret.config.js';
+import { validateCookieConfig } from './config/cookie.config.js';
 import { errorHandler } from './shared/middlewares/error.middleware.js';
+
+// Valida al arrancar que NODE_ENV esté correcto para cookies cross-origin
+validateCookieConfig();
 
 import healthRoutes from './features/health/health.routes.js';
 import horarioRoutes from './features/horarios/horario.routes.js';
