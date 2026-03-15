@@ -314,6 +314,8 @@ export const asistenciaService = {
                 fecha: true,
                 estado: true,
                 comentario: true,
+                fecha_original: true,
+                reprogramacion_clase_id: true,
                 reprogramaciones_clases: {
                   select: {
                     hora_inicio_destino: true,
@@ -358,6 +360,7 @@ export const asistenciaService = {
         return {
           id: `insc-recu-${rec.id}`,
           estado: 'RECUPERACION',
+          tipo_sesion: 'RECUPERACION',
           alumnos: rec.alumnos,
           registros_asistencia: [
             {
@@ -365,6 +368,7 @@ export const asistenciaService = {
               fecha: rec.fecha_programada,
               estado: estadoFormat,
               comentario: 'Alumno en clase de recuperación',
+              tipo_sesion: 'RECUPERACION'
             },
           ],
         };
@@ -373,7 +377,30 @@ export const asistenciaService = {
       // 🌟 Combinamos las inscripciones de forma segura en un NUEVO objeto
       horariosProcesados.push({
         ...horario,
-        inscripciones: [...horario.inscripciones, ...recuperadoresFormat],
+        inscripciones: [
+          ...horario.inscripciones.map(ins => {
+            const reg = ins.registros_asistencia[0];
+            const tipo = reg?.estado === 'REPROGRAMADO' 
+              ? 'REPROGRAMADO' 
+              : reg?.fecha_original 
+                ? 'REPOSICION' 
+                : 'REGULAR';
+                
+            return {
+              ...ins,
+              tipo_sesion: tipo,
+              registros_asistencia: ins.registros_asistencia.map(r => ({
+                ...r,
+                tipo_sesion: r.estado === 'REPROGRAMADO' 
+                  ? 'REPROGRAMADO' 
+                  : r.fecha_original 
+                    ? 'REPOSICION' 
+                    : 'REGULAR'
+              }))
+            };
+          }),
+          ...recuperadoresFormat
+        ],
       });
     }
 
