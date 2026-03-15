@@ -18,7 +18,7 @@ export const getCookieOptions = () => {
   return {
     httpOnly: true,
     secure: isProd,
-    sameSite: isProd ? 'none' : 'lax',
+    sameSite: 'lax', // Forzado a 'lax' para evitar discrepancias en Chrome (Strict vs None)
     path: '/',
   };
 };
