@@ -11,8 +11,8 @@ export const NODE_ENV = process.env.NODE_ENV || 'development';
 // ============================================
 // JWT CONFIGURATION
 // ============================================
-export const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key-change-in-production';
-export const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+const rawJwtExpires = process.env.JWT_EXPIRES_IN || '15m';
+export const JWT_EXPIRES_IN = /^\d+$/.test(rawJwtExpires) ? `${rawJwtExpires}m` : rawJwtExpires;
 export const REFRESH_TOKEN_EXPIRATION_DAYS =
   Number.parseInt(process.env.REFRESH_TOKEN_EXPIRATION_DAYS) || 7;
 

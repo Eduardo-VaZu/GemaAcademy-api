@@ -1,4 +1,4 @@
-import { setAuthCookies } from '../../config/cookie.config.js';
+import { setAuthCookies, clearAuthCookies } from '../../config/cookie.config.js';
 import { authService } from './auth.service.js';
 import { catchAsync } from '../../shared/utils/catchAsync.util.js';
 import { apiResponse } from '../../shared/utils/response.util.js';
@@ -16,13 +16,7 @@ const getRefreshTokenFromCookies = (req) => {
   return refreshToken;
 };
 
-/**
- * Limpia las cookies de autenticación.
- */
-const clearAuthCookies = (res) => {
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/' });
-};
+// La función clearAuthCookies ha sido movida a config/cookie.config.js para centralizar la lógica.
 
 export const authController = {
   login: catchAsync(async (req, res) => {

@@ -14,10 +14,11 @@ export const ACCESS_TOKEN_MAX_AGE = getJwtExpiresInMs();
 export const REFRESH_TOKEN_MAX_AGE = REFRESH_TOKEN_EXPIRATION_DAYS * ONE_DAY;
 
 export const getCookieOptions = () => {
+  const isProd = NODE_ENV === 'production';
   return {
     httpOnly: true,
-    secure: NODE_ENV === 'production',
-    sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     path: '/',
   };
 };
@@ -35,4 +36,10 @@ export const getRefreshTokenCookieOptions = () => ({
 export const setAuthCookies = (res, { accessToken, refreshToken }) => {
   res.cookie('accessToken', accessToken, getAccessTokenCookieOptions());
   res.cookie('refreshToken', refreshToken, getRefreshTokenCookieOptions());
+};
+
+export const clearAuthCookies = (res) => {
+  const options = getCookieOptions();
+  res.clearCookie('accessToken', { ...options });
+  res.clearCookie('refreshToken', { ...options });
 };
