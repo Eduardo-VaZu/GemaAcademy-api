@@ -48,6 +48,7 @@ const corsOriginList = Array.isArray(CORS_ORIGIN) ? CORS_ORIGIN : [CORS_ORIGIN].
 const normalizeOrigin = (origin) => origin.replace(/\/$/, '');
 
 // Healthcheck route BEFORE CORS so it doesn't get blocked by strict origin policies
+app.get('/', (req, res) => res.status(200).send('Gema Academy API is alive!'));
 app.use('/health', healthRoutes);
 
 app.use(
