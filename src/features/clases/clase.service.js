@@ -1,6 +1,6 @@
 import { prisma } from '../../config/database.config.js';
-import { ApiError } from '../../utils/ApiError.js';
-import { formatFechaEs } from '../../utils/date-utils.js';
+import { ApiError } from '../../shared/utils/error.util.js';
+import { formatFechaEs } from '../../shared/utils/date.util.js';
 
 // ============================================================================
 // FUNCIONES PRIVADAS DE APOYO
