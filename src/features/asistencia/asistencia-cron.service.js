@@ -111,14 +111,16 @@ class AsistenciaCronService {
       }
 
       // 2. Alumnos desincronizados: inscritos en el horario, ACTIVOS
-      //    y sin ningún registro vinculado a esta repro
-      //    Solo los que se inscribieron DESPUÉS de que se creó la reprogramación
+      //    y que tienen una clase regular en la fecha_origen sin marcar como reprogramada
       const alumnosDesincronizados = await prisma.inscripciones.findMany({
         where: {
           horario_id: repro.horario_id,
           estado: 'ACTIVO',
           registros_asistencia: {
-            none: { reprogramacion_clase_id: repro.id },
+            some: {
+              fecha: repro.fecha_origen,
+              reprogramacion_clase_id: null,
+            },
           },
         },
         include: {
@@ -139,22 +141,20 @@ class AsistenciaCronService {
 
       for (const ins of alumnosDesincronizados) {
         try {
-          await prisma.$transaction(async (tx) => {
-            // 🔍 Buscamos el registro origen (clase cancelada)
-            // Forzamos zona horaria de Lima para el rango de búsqueda
-            const fechaLima = dayjs.utc(repro.fecha_origen).tz('America/Lima', true);
-            const inicioDia = fechaLima.startOf('day').toDate();
-            const finDia = fechaLima.endOf('day').toDate();
+          logger.info(`[SINCRONIZADOR] 🔄 Procesando AlumnoID ${ins.alumno_id} para ReproID ${repro.id} del día ${dayjs(repro.fecha_origen).format('DD/MM')}`);
 
+          await prisma.$transaction(async (tx) => {
+            // 🔍 Buscamos el registro origen (clase regular que debe ser movida)
             const registroOrigen = await tx.registros_asistencia.findFirst({
               where: {
                 inscripcion_id: ins.id,
-                fecha: { gte: inicioDia, lte: finDia },
+                fecha: repro.fecha_origen,
+                reprogramacion_clase_id: null, // Solo si aún no está marcado
               },
             });
 
             if (!registroOrigen) {
-              // Si no tiene la clase en su calendario, no podemos reprogramarla
+              // logger.warn(`[SINCRONIZADOR] No se encontró clase regular para Alumno ${ins.alumno_id} en la fecha ${repro.fecha_origen.toISOString().split('T')[0]}`);
               return;
             }
 
