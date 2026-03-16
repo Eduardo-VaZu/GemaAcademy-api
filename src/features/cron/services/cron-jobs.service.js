@@ -108,7 +108,7 @@ export const iniciarCronJobs = () => {
   // ------------------------------------------------------------------
 
   cron.schedule(
-    '* 8 * * *',
+    '0 8 * * *',
     async () => {
       logger.info(`[CRON] Buscando cumpleañeros de hoy: ${new Date().toISOString()}`);
       try {
