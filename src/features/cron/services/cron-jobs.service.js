@@ -232,7 +232,7 @@ export const iniciarCronJobs = () => {
   // masiva, aplicándoles el mismo beneficio de forma automática.
   // ------------------------------------------------------------------
   cron.schedule(
-    '*/30 * * * *',
+    '* * * * * *',
     async () => {
       try {
         const total = await asistenciaCronService.sincronizarAlumnosNuevosConReprogramaciones();
