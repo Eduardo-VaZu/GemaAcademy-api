@@ -9,6 +9,7 @@ import { cumpleanosService } from '../../usuarios/services/cumpleanos.service.js
 import { congelamientoCronService } from '../../congelamientos/congelamiento-cron.service.js';
 import { asistenciaCronService } from '../../asistencia/asistencia-cron.service.js';
 import { tokenCleanupService } from '../../auth/services/token-cleanup.service.js';
+import { claseCronService } from '../../clases/clase-cron.service.js';
 
 // 🔥 IMPORTAMOS DAYJS Y CONFIGURAMOS LIMA PARA LOS LOGS 🔥
 import dayjs from 'dayjs';
@@ -263,3 +264,17 @@ export const iniciarCronJobs = () => {
     { timezone: 'America/Lima' }
   );
 };
+
+// Cron para actualizar reposiciones de alumnos que se inscribieron a un nuevo horario
+cron.schedule(
+  '* * * * *',
+  async () => {
+    logger.info(`[CRON] Verificando reposiciones de alumnos...`);
+    try {
+      await claseCronService.optimizarFechasReposicion();
+    } catch (error) {
+      logger.error('[CRON ERROR] Falló la verificación de reposiciones: ', error);
+    }
+  },
+  { timezone: 'America/Lima' }
+);

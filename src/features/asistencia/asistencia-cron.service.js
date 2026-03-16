@@ -103,7 +103,7 @@ class AsistenciaCronService {
 
         const horaClaseStr = repro.horarios_clases.hora_inicio.toISOString().substring(11, 16);
         const horaClase = dayjs(`${ahora.format('YYYY-MM-DD')}T${horaClaseStr}`);
-        
+
         if (ahora.isSameOrAfter(horaClase.subtract(MINUTOS_CORTE, 'minute'))) {
           logger.info(`[SINCRONIZADOR] Repro ID ${repro.id} omitida por cercanía a la clase (${horaClaseStr})`);
           continue;
@@ -214,7 +214,7 @@ class AsistenciaCronService {
                 fecha_original: repro.fecha_origen,
                 estado: 'PENDIENTE',
                 reprogramacion_clase_id: repro.id,
-                comentario: `Reposición Sincronizada [DYNAMIC]. Motivo: ${repro.motivo}`,
+                comentario: `Reposición Sincronizada [NO_RECUPERABLE]. Motivo: ${repro.motivo}`,
               },
             });
 

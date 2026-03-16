@@ -51,13 +51,13 @@ export const claseService = {
     const calcularSiguienteDia = (desdeFecha, diasValidos) => {
       const next = new Date(desdeFecha);
       next.setUTCHours(12, 0, 0, 0);
-      
+
       for (let i = 1; i <= 31; i++) { // Max 1 mes de busqueda
         next.setUTCDate(next.getUTCDate() + 1);
         const diaSemana = next.getUTCDay() === 0 ? 7 : next.getUTCDay();
         if (diasValidos.includes(diaSemana)) return next;
       }
-      return next; 
+      return next;
     };
 
     // ======================================================================
@@ -65,11 +65,11 @@ export const claseService = {
     // ======================================================================
     return await prisma.$transaction(async (tx) => {
       const inscripcionIds = inscripcionesGrupo.map(i => i.id);
-      
+
       // 🛡️ PASO 1: VERIFICAR FERIADO
       const todosLosFeriados = await tx.feriados.findMany({ where: { activo: true } });
-      const esFeriado = todosLosFeriados.some(f => 
-        f.fecha.getUTCDate() === fechaOrigenDate.getUTCDate() && 
+      const esFeriado = todosLosFeriados.some(f =>
+        f.fecha.getUTCDate() === fechaOrigenDate.getUTCDate() &&
         f.fecha.getUTCMonth() === fechaOrigenDate.getUTCMonth()
       );
 
@@ -106,7 +106,7 @@ export const claseService = {
       // 🛡️ PASO 3: MARCAR REGISTROS ORIGINALES COMO REPROGRAMADOS
       await tx.registros_asistencia.updateMany({
         where: { inscripcion_id: { in: inscripcionIds }, fecha: fechaOrigenDate },
-        data: { estado: 'REPROGRAMADO', reprogramacion_clase_id: reprogramacion.id, comentario: `Movid al final del ciclo por ${motivo}` },
+        data: { estado: 'REPROGRAMADO', reprogramacion_clase_id: reprogramacion.id, comentario: `Movido al final del ciclo por ${motivo}` },
       });
 
       // 🛡️ PASO 4: PROCESAR CADA ALUMNO INDIVIDUALMENTE
@@ -140,7 +140,7 @@ export const claseService = {
             fecha_original: fechaOrigenDate,
             estado: 'PENDIENTE',
             reprogramacion_clase_id: reprogramacion.id,
-            comentario: `Reposición de clase (${dateOrigenStr}) [DYNAMIC]. Motivo: ${motivo}`
+            comentario: `Reposición de clase (${dateOrigenStr}) [NO_RECUPERABLE]. Motivo: ${motivo}`
           }
         });
 
@@ -222,7 +222,7 @@ export const claseService = {
 
         // Si no la encontramos por estado (quizás ya se movió), buscamos la inmediata anterior
         const refFecha = claseOriginal ? claseOriginal.fecha : an.fecha_original;
-        
+
         if (refFecha) {
           const diffMs = an.fecha.getTime() - refFecha.getTime();
           const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
