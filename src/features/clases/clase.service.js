@@ -6,7 +6,7 @@ import { formatFechaEs } from '../../shared/utils/date.util.js';
 // FUNCIONES PRIVADAS DE APOYO
 // ============================================================================
 
-// La lógica de validación de colisiones ha sido simplificada y movida dentro de 
+// La lógica de validación de colisiones ha sido simplificada y movida dentro de
 // reprogramarMasivamente para permitir el flujo dinámico por cada alumno.
 
 export const claseService = {
@@ -14,12 +14,7 @@ export const claseService = {
    * Reprograma una clase completa para un grupo de alumnos.
    * Modela una "Asistencia Anticipada" tal cual lo especificó la academia.
    */
-  reprogramarMasivamente: async ({
-    horario_origen_id,
-    fecha_origen,
-    motivo,
-    usuario_admin_id,
-  }) => {
+  reprogramarMasivamente: async ({ horario_origen_id, fecha_origen, motivo, usuario_admin_id }) => {
     // 1. OBTENCIÓN DE DATOS INICIALES DEL HORARIO ORIGEN
     const horarioOrigen = await prisma.horarios_clases.findUnique({
       where: { id: horario_origen_id },
@@ -36,7 +31,8 @@ export const claseService = {
 
     if (!horarioOrigen) throw new ApiError('Horario no encontrado', 404);
     const inscripcionesGrupo = horarioOrigen.inscripciones;
-    if (inscripcionesGrupo.length === 0) throw new ApiError('No hay alumnos activos en este horario', 400);
+    if (inscripcionesGrupo.length === 0)
+      throw new ApiError('No hay alumnos activos en este horario', 400);
 
     const fechaOrigenDate = new Date(fecha_origen);
     fechaOrigenDate.setUTCHours(12, 0, 0, 0);
@@ -52,7 +48,8 @@ export const claseService = {
       const next = new Date(desdeFecha);
       next.setUTCHours(12, 0, 0, 0);
 
-      for (let i = 1; i <= 31; i++) { // Max 1 mes de busqueda
+      for (let i = 1; i <= 31; i++) {
+        // Max 1 mes de busqueda
         next.setUTCDate(next.getUTCDate() + 1);
         const diaSemana = next.getUTCDay() === 0 ? 7 : next.getUTCDay();
         if (diasValidos.includes(diaSemana)) return next;
@@ -63,118 +60,143 @@ export const claseService = {
     // ======================================================================
     // INICIO DE LA TRANSACCIÓN
     // ======================================================================
-    return await prisma.$transaction(async (tx) => {
-      const inscripcionIds = inscripcionesGrupo.map(i => i.id);
+    return await prisma.$transaction(
+      async (tx) => {
+        const inscripcionIds = inscripcionesGrupo.map((i) => i.id);
 
-      // 🛡️ PASO 1: VERIFICAR FERIADO
-      const todosLosFeriados = await tx.feriados.findMany({ where: { activo: true } });
-      const esFeriado = todosLosFeriados.some(f =>
-        f.fecha.getUTCDate() === fechaOrigenDate.getUTCDate() &&
-        f.fecha.getUTCMonth() === fechaOrigenDate.getUTCMonth()
-      );
+        // 🛡️ PASO 1: VERIFICAR FERIADO
+        const todosLosFeriados = await tx.feriados.findMany({ where: { activo: true } });
+        const esFeriado = todosLosFeriados.some(
+          (f) =>
+            f.fecha.getUTCDate() === fechaOrigenDate.getUTCDate() &&
+            f.fecha.getUTCMonth() === fechaOrigenDate.getUTCMonth()
+        );
 
-      if (esFeriado) {
+        if (esFeriado) {
+          await tx.registros_asistencia.updateMany({
+            where: { inscripcion_id: { in: inscripcionIds }, fecha: fechaOrigenDate },
+            data: {
+              estado: 'CANCELADO',
+              comentario: `Clase cancelada por feriado oficial: ${motivo}`,
+            },
+          });
+          return {
+            total_procesados: inscripcionesGrupo.length,
+            mensaje: `Feriado detectado (${dateOrigenStr}). Se cancelaron las clases.`,
+            es_feriado: true,
+          };
+        }
+
+        // 🛡️ PASO 2: CREAR CABECERA DE REPROGRAMACION
+        const reprogramacion = await tx.reprogramaciones_clases.create({
+          data: {
+            horario_id: horario_origen_id,
+            fecha_origen: fechaOrigenDate,
+            fecha_destino: fechaOrigenDate, // Temporal, ya que ahora es individual
+            hora_inicio_destino:
+              horarioOrigen.hora_inicio.getUTCHours().toString().padStart(2, '0') +
+              ':' +
+              horarioOrigen.hora_inicio.getUTCMinutes().toString().padStart(2, '0'),
+            hora_fin_destino:
+              horarioOrigen.hora_fin.getUTCHours().toString().padStart(2, '0') +
+              ':' +
+              horarioOrigen.hora_fin.getUTCMinutes().toString().padStart(2, '0'),
+            motivo: motivo,
+            creado_por: usuario_admin_id,
+            es_masiva: true,
+            estado: 'ACTIVO',
+            grupo_uuid: grupo_uuid,
+          },
+        });
+
+        // 🛡️ PASO 3: MARCAR REGISTROS ORIGINALES COMO REPROGRAMADOS
         await tx.registros_asistencia.updateMany({
           where: { inscripcion_id: { in: inscripcionIds }, fecha: fechaOrigenDate },
-          data: { estado: 'CANCELADO', comentario: `Clase cancelada por feriado oficial: ${motivo}` },
-        });
-        return { total_procesados: inscripcionesGrupo.length, mensaje: `Feriado detectado (${dateOrigenStr}). Se cancelaron las clases.`, es_feriado: true };
-      }
-
-      // 🛡️ PASO 2: CREAR CABECERA DE REPROGRAMACION
-      const reprogramacion = await tx.reprogramaciones_clases.create({
-        data: {
-          horario_id: horario_origen_id,
-          fecha_origen: fechaOrigenDate,
-          fecha_destino: fechaOrigenDate, // Temporal, ya que ahora es individual
-          hora_inicio_destino:
-            horarioOrigen.hora_inicio.getUTCHours().toString().padStart(2, '0') +
-            ':' +
-            horarioOrigen.hora_inicio.getUTCMinutes().toString().padStart(2, '0'),
-          hora_fin_destino:
-            horarioOrigen.hora_fin.getUTCHours().toString().padStart(2, '0') +
-            ':' +
-            horarioOrigen.hora_fin.getUTCMinutes().toString().padStart(2, '0'),
-          motivo: motivo,
-          creado_por: usuario_admin_id,
-          es_masiva: true,
-          estado: 'ACTIVO',
-          grupo_uuid: grupo_uuid,
-        },
-      });
-
-      // 🛡️ PASO 3: MARCAR REGISTROS ORIGINALES COMO REPROGRAMADOS
-      await tx.registros_asistencia.updateMany({
-        where: { inscripcion_id: { in: inscripcionIds }, fecha: fechaOrigenDate },
-        data: { estado: 'REPROGRAMADO', reprogramacion_clase_id: reprogramacion.id, comentario: `Movido al final del ciclo por ${motivo}` },
-      });
-
-      // 🛡️ PASO 4: PROCESAR CADA ALUMNO INDIVIDUALMENTE
-      for (const ins of inscripcionesGrupo) {
-        // A) Obtener todos los días de entrenamiento del alumno (todas sus inscripciones)
-        const susInscripciones = await tx.inscripciones.findMany({
-          where: { alumno_id: ins.alumno_id, estado: 'ACTIVO' },
-          select: { horario_id: true, horarios_clases: { select: { dia_semana: true } } }
-        });
-        const diasDelAlumno = [...new Set(susInscripciones.map(s => s.horarios_clases.dia_semana))];
-
-        // B) Buscar su última clase programada actual
-        const ultimaClase = await tx.registros_asistencia.findFirst({
-          where: { inscripcion_id: ins.id },
-          orderBy: { fecha: 'desc' },
-          select: { fecha: true }
-        });
-
-        if (!ultimaClase) continue;
-
-        // C) Calcular nueva fecha de reposición (Su próximo día regular DESPUÉS del fin de ciclo)
-        const fechaFinOriginal = new Date(ultimaClase.fecha);
-        const fechaReposicion = calcularSiguienteDia(fechaFinOriginal, diasDelAlumno);
-        const dateReposicionStr = formatFechaEs(fechaReposicion);
-
-        // D) Crear el registro de reposición
-        await tx.registros_asistencia.create({
           data: {
-            inscripcion_id: ins.id,
-            fecha: fechaReposicion,
-            fecha_original: fechaOrigenDate,
-            estado: 'PENDIENTE',
+            estado: 'REPROGRAMADO',
             reprogramacion_clase_id: reprogramacion.id,
-            comentario: `Reposición de clase (${dateOrigenStr}) [NO_RECUPERABLE]. Motivo: ${motivo}`
-          }
+            comentario: `Movido al final del ciclo por ${motivo}`,
+          },
         });
 
-        // E) Calcular el desfase en días y extender facturación
-        const diffMs = fechaReposicion.getTime() - fechaFinOriginal.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        // 🛡️ PASO 4: PROCESAR CADA ALUMNO INDIVIDUALMENTE
+        for (const ins of inscripcionesGrupo) {
+          // A) Obtener todos los días de entrenamiento del alumno (todas sus inscripciones)
+          const susInscripciones = await tx.inscripciones.findMany({
+            where: { alumno_id: ins.alumno_id, estado: 'ACTIVO' },
+            select: { horario_id: true, horarios_clases: { select: { dia_semana: true } } },
+          });
+          const diasDelAlumno = [
+            ...new Set(susInscripciones.map((s) => s.horarios_clases.dia_semana)),
+          ];
 
-        await tx.$executeRawUnsafe(`
-          UPDATE inscripciones 
-          SET fecha_inscripcion = fecha_inscripcion + INTERVAL '${diffDays} days'
-          WHERE id = ${ins.id}
-        `);
+          // B) Buscar su última clase programada actual
+          const ultimaClase = await tx.registros_asistencia.findFirst({
+            where: { inscripcion_id: ins.id },
+            orderBy: { fecha: 'desc' },
+            select: { fecha: true },
+          });
 
-        // F) Notificar al alumno
-        await tx.notificaciones.create({
-          data: {
-            alumno_id: ins.alumno_id,
-            titulo: '🚨 Clase Reprogramada',
-            mensaje: `Tu sesión del ${dateOrigenStr} se movió al ${dateReposicionStr}. Tu fecha de pago se extendió ${diffDays} días.`,
-            tipo: 'ALERTA',
-            categoria: 'CLASES',
-          }
-        });
+          if (!ultimaClase) continue;
+
+          // C) Calcular nueva fecha de reposición (Su próximo día regular DESPUÉS del fin de ciclo)
+          const fechaFinOriginal = new Date(ultimaClase.fecha);
+          const fechaReposicion = calcularSiguienteDia(fechaFinOriginal, diasDelAlumno);
+          const dateReposicionStr = formatFechaEs(fechaReposicion);
+
+          // D) Crear el registro de reposición
+          await tx.registros_asistencia.create({
+            data: {
+              inscripcion_id: ins.id,
+              fecha: fechaReposicion,
+              fecha_original: fechaOrigenDate,
+              estado: 'PENDIENTE',
+              reprogramacion_clase_id: reprogramacion.id,
+              comentario: `Reposición de clase (${dateOrigenStr}) [NO_RECUPERABLE]. Motivo: ${motivo}`,
+            },
+          });
+
+          // E) Calcular el desfase en días y extender facturación
+          const diffMs = fechaReposicion.getTime() - fechaFinOriginal.getTime();
+          const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+          // E) Extender facturación usando lógica nativa de Prisma
+          const inscripcionActual = await tx.inscripciones.findUnique({
+            where: { id: ins.id },
+            select: { fecha_inscripcion: true },
+          });
+
+          const nuevaFechaInscripcion = new Date(inscripcionActual.fecha_inscripcion);
+          nuevaFechaInscripcion.setDate(nuevaFechaInscripcion.getDate() + diffDays);
+
+          await tx.inscripciones.update({
+            where: { id: ins.id },
+            data: { fecha_inscripcion: nuevaFechaInscripcion },
+          });
+
+          // F) Notificar al alumno
+          await tx.notificaciones.create({
+            data: {
+              alumno_id: ins.alumno_id,
+              titulo: '🚨 Clase Reprogramada',
+              mensaje: `Tu sesión del ${dateOrigenStr} se movió al ${dateReposicionStr}. Tu fecha de pago se extendió ${diffDays} días.`,
+              tipo: 'ALERTA',
+              categoria: 'CLASES',
+            },
+          });
+        }
+
+        return {
+          total_procesados: inscripcionesGrupo.length,
+          reprogramacion_id: reprogramacion.id,
+          grupo_uuid: grupo_uuid,
+          mensaje: 'Reprogramación dinámica exitosa basada en el horario de cada alumno.',
+        };
+      },
+      {
+        timeout: 60000,
       }
-
-      return {
-        total_procesados: inscripcionesGrupo.length,
-        reprogramacion_id: reprogramacion.id,
-        grupo_uuid: grupo_uuid,
-        mensaje: 'Reprogramación dinámica exitosa basada en el horario de cada alumno.',
-      };
-    }, {
-      timeout: 60000
-    });
+    );
   },
 
   /**
@@ -210,14 +232,21 @@ export const claseService = {
 
       // 3. Reversión de la asistencia y facturación
       const asistenciasNuevas = await tx.registros_asistencia.findMany({
-        where: { reprogramacion_clase_id: { in: reprogramacionesIds }, fecha_original: { not: null } },
+        where: {
+          reprogramacion_clase_id: { in: reprogramacionesIds },
+          fecha_original: { not: null },
+        },
       });
 
       for (const an of asistenciasNuevas) {
         // Encontramos la clase que quedó como REPROGRAMADA para calcular el desfase original
         const claseOriginal = await tx.registros_asistencia.findFirst({
-          where: { inscripcion_id: an.inscripcion_id, reprogramacion_clase_id: { in: reprogramacionesIds }, estado: 'REPROGRAMADO' },
-          orderBy: { fecha: 'desc' }
+          where: {
+            inscripcion_id: an.inscripcion_id,
+            reprogramacion_clase_id: { in: reprogramacionesIds },
+            estado: 'REPROGRAMADO',
+          },
+          orderBy: { fecha: 'desc' },
         });
 
         // Si no la encontramos por estado (quizás ya se movió), buscamos la inmediata anterior
@@ -225,19 +254,30 @@ export const claseService = {
 
         if (refFecha) {
           const diffMs = an.fecha.getTime() - refFecha.getTime();
-          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+          const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-          await tx.$executeRawUnsafe(`
-            UPDATE inscripciones 
-            SET fecha_inscripcion = fecha_inscripcion - INTERVAL '${diffDays} days'
-            WHERE id = ${an.inscripcion_id}
-          `);
+          // Reversión de facturación usando lógica nativa de Prisma
+          const inscripcionActual = await tx.inscripciones.findUnique({
+            where: { id: an.inscripcion_id },
+            select: { fecha_inscripcion: true },
+          });
+
+          const nuevaFechaInscripcion = new Date(inscripcionActual.fecha_inscripcion);
+          nuevaFechaInscripcion.setDate(nuevaFechaInscripcion.getDate() - diffDays);
+
+          await tx.inscripciones.update({
+            where: { id: an.inscripcion_id },
+            data: { fecha_inscripcion: nuevaFechaInscripcion },
+          });
         }
       }
 
       // A) Borramos los registros "NUEVOS" creados en la fecha destino
       await tx.registros_asistencia.deleteMany({
-        where: { reprogramacion_clase_id: { in: reprogramacionesIds }, fecha_original: { not: null } },
+        where: {
+          reprogramacion_clase_id: { in: reprogramacionesIds },
+          fecha_original: { not: null },
+        },
       });
 
       // B) Restauramos los registros originales
@@ -285,7 +325,7 @@ export const claseService = {
       ...item,
       _count: {
         ...item._count,
-        registros_asistencia: Math.ceil(item._count.registros_asistencia / 2),
+        registros_asistencia: Math.round(item._count.registros_asistencia / 2),
       },
     }));
   },
