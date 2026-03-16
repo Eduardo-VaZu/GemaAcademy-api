@@ -71,6 +71,8 @@ class AsistenciaCronService {
     const ahora = dayjs().tz('America/Lima');
     const hoy = ahora.startOf('day').toDate();
 
+    logger.info(`[SINCRONIZADOR] 🔄 Iniciando sincronización... Hoy Lima: ${ahora.format('YYYY-MM-DD HH:mm:ss')}`);
+
     let totalSincronizados = 0;
 
     // 1. Buscamos reprogramaciones masivas activas (hoy o futuras)
@@ -83,6 +85,13 @@ class AsistenciaCronService {
       include: { horarios_clases: true },
     });
 
+    if (reprosActivas.length === 0) {
+      // logger.debug(`[SINCRONIZADOR] No hay reprogramaciones masivas activas para hoy o futuro.`);
+      return 0;
+    }
+
+    logger.info(`[SINCRONIZADOR] 📡 Detectadas ${reprosActivas.length} reprogramaciones masivas activas.`);
+
     for (const repro of reprosActivas) {
       // 🛡️ GUARD: Si la repro es hoy, dejamos de parchar 30 min antes de la clase
       if (dayjs(repro.fecha_origen).isSame(ahora, 'day')) {
@@ -92,10 +101,13 @@ class AsistenciaCronService {
           continue;
         }
 
-        const horaClase = dayjs(
-          `${ahora.format('YYYY-MM-DD')}T${repro.horarios_clases.hora_inicio.toISOString().substring(11, 16)}`
-        );
-        if (ahora.isSameOrAfter(horaClase.subtract(MINUTOS_CORTE, 'minute'))) continue;
+        const horaClaseStr = repro.horarios_clases.hora_inicio.toISOString().substring(11, 16);
+        const horaClase = dayjs(`${ahora.format('YYYY-MM-DD')}T${horaClaseStr}`);
+        
+        if (ahora.isSameOrAfter(horaClase.subtract(MINUTOS_CORTE, 'minute'))) {
+          logger.info(`[SINCRONIZADOR] Repro ID ${repro.id} omitida por cercanía a la clase (${horaClaseStr})`);
+          continue;
+        }
       }
 
       // 2. Alumnos desincronizados: inscritos en el horario, ACTIVOS
@@ -121,29 +133,38 @@ class AsistenciaCronService {
         },
       });
 
+      if (alumnosDesincronizados.length > 0) {
+        logger.info(`[SINCRONIZADOR] 👥 Repro ID ${repro.id}: Encontrados ${alumnosDesincronizados.length} alumnos para sincronizar.`);
+      }
+
       for (const ins of alumnosDesincronizados) {
         try {
           await prisma.$transaction(async (tx) => {
-            // ♻️ IDEMPOTENCIA: Si ya existe una reposición para esta repro, no duplicamos
-            const yaExisteReposicion = await tx.registros_asistencia.findFirst({
-              where: {
-                inscripcion_id: ins.id,
-                reprogramacion_clase_id: repro.id,
-              },
-            });
-            if (yaExisteReposicion) return;
+            // 🔍 Buscamos el registro origen (clase cancelada)
+            // Forzamos zona horaria de Lima para el rango de búsqueda
+            const fechaLima = dayjs.utc(repro.fecha_origen).tz('America/Lima', true);
+            const inicioDia = fechaLima.startOf('day').toDate();
+            const finDia = fechaLima.endOf('day').toDate();
 
-            // 🔍 Verificar el registro de la clase origen
             const registroOrigen = await tx.registros_asistencia.findFirst({
               where: {
                 inscripcion_id: ins.id,
-                fecha: repro.fecha_origen,
+                fecha: { gte: inicioDia, lte: finDia },
               },
             });
 
-            // Si el alumno ya tiene la clase marcada como PRESENTE o FALTA, no se toca
+            if (!registroOrigen) {
+              // Si no tiene la clase en su calendario, no podemos reprogramarla
+              return;
+            }
+
+            // ♻️ IDEMPOTENCIA: Si ya tiene la marca puesta, saltamos
+            if (registroOrigen.reprogramacion_clase_id === repro.id) {
+              return;
+            }
+
+            // Si el alumno ya tiene la clase marcada con estado definitivo, no se toca
             if (
-              registroOrigen &&
               ['PRESENTE', 'FALTA', 'JUSTIFICADO_LESION'].includes(registroOrigen.estado)
             ) {
               return;
@@ -154,11 +175,13 @@ class AsistenciaCronService {
               ...new Set(ins.alumnos.inscripciones.map((i) => i.horarios_clases.dia_semana)),
             ];
 
-            // B) Última clase programada en el ciclo (solo estados "reales")
+            // B) Última clase programada en el ciclo
             const ultimaClase = await tx.registros_asistencia.findFirst({
               where: {
                 inscripcion_id: ins.id,
                 estado: { in: ['PENDIENTE', 'PROGRAMADA', 'PRESENTE', 'FALTA'] },
+                // Evitamos agarrar como última clase una que sea reposición de esta misma repro
+                reprogramacion_clase_id: { not: repro.id }
               },
               orderBy: { fecha: 'desc' },
             });
@@ -168,23 +191,22 @@ class AsistenciaCronService {
             // C) Calcular siguiente día hábil de reposición
             const fechaReposicion = calcularSiguienteDia(ultimaClase.fecha, diasDelAlumno);
 
-            // D) Calcular desfase en días para extender la facturación
+            // D) Calcular desfase en días
             const diffMs = fechaReposicion.getTime() - new Date(ultimaClase.fecha).getTime();
             const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-            // E1) Marcar clase origen como REPROGRAMADA (solo si no tiene estado definitivo)
-            if (registroOrigen) {
-              await tx.registros_asistencia.update({
-                where: { id: registroOrigen.id },
-                data: {
-                  estado: 'REPROGRAMADO',
-                  reprogramacion_clase_id: repro.id,
-                  comentario: `Sincro automática: ${repro.motivo}`,
-                },
-              });
-            }
+            // E1) Marcar clase origen como REPROGRAMADA
+            await tx.registros_asistencia.update({
+              where: { id: registroOrigen.id },
+              data: {
+                estado: 'REPROGRAMADO',
+                reprogramacion_clase_id: repro.id,
+                comentario: `Sincro automática: ${repro.motivo}`,
+                actualizado_en: new Date()
+              },
+            });
 
-            // E2) Crear el registro de reposición al final del ciclo
+            // E2) Crear el registro de reposición
             await tx.registros_asistencia.create({
               data: {
                 inscripcion_id: ins.id,
@@ -196,13 +218,8 @@ class AsistenciaCronService {
               },
             });
 
-            // E3) Extender facturación usando Prisma (sin SQL raw)
-            const inscripcionActual = await tx.inscripciones.findUnique({
-              where: { id: ins.id },
-              select: { fecha_inscripcion: true },
-            });
-
-            const nuevaFechaInscripcion = new Date(inscripcionActual.fecha_inscripcion);
+            // E3) Extender facturación
+            const nuevaFechaInscripcion = new Date(ins.fecha_inscripcion);
             nuevaFechaInscripcion.setDate(nuevaFechaInscripcion.getDate() + diffDays);
 
             await tx.inscripciones.update({
@@ -210,6 +227,7 @@ class AsistenciaCronService {
               data: { fecha_inscripcion: nuevaFechaInscripcion },
             });
 
+            logger.info(`[SINCRONIZADOR] ✅ Alumno synced: InscID ${ins.id}, ReproID ${repro.id}, Nueva fecha corte: ${nuevaFechaInscripcion.toISOString().split('T')[0]}`);
             totalSincronizados++;
           });
         } catch (error) {
