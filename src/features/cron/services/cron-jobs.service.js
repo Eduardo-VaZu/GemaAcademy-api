@@ -228,12 +228,12 @@ export const iniciarCronJobs = () => {
   );
 
   // ------------------------------------------------------------------
-  // TAREA: EL SINCRONIZADOR DINÁMICO (Cada 30 minutos)
+  // TAREA: EL SINCRONIZADOR DINÁMICO (2:10 am)
   // Objetivo: Alinear alumnos que se inscriben DESPUÉS de una reprogramación
   // masiva, aplicándoles el mismo beneficio de forma automática.
   // ------------------------------------------------------------------
   cron.schedule(
-    '* * * * * *',
+    '10 2 * * * *',
     async () => {
       try {
         const total = await asistenciaCronService.sincronizarAlumnosNuevosConReprogramaciones();
@@ -267,7 +267,7 @@ export const iniciarCronJobs = () => {
 
 // Cron para actualizar reposiciones de alumnos que se inscribieron a un nuevo horario
 cron.schedule(
-  '* * * * *',
+  '15 2 * * *',
   async () => {
     logger.info(`[CRON] Verificando reposiciones de alumnos...`);
     try {
