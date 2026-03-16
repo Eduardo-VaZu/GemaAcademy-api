@@ -85,7 +85,11 @@ class AsistenciaCronService {
 
     for (const repro of reprosActivas) {
       // 🛡️ GUARD: Si la repro es hoy, dejamos de parchar 30 min antes de la clase
-      if (dayjs(repro.fecha_origen).isSame(ahora, 'day')) {
+      // Comparamos puras fechas (YYYY-MM-DD) para evitar desfases de zona horaria (UTC vs Lima)
+      const fechaOrigenStr = dayjs(repro.fecha_origen).utc().format('YYYY-MM-DD');
+      const ahoraStr = ahora.format('YYYY-MM-DD');
+
+      if (fechaOrigenStr === ahoraStr) {
         // Guard defensivo: si no hay hora definida, saltamos esta repro
         if (!repro.horarios_clases?.hora_inicio) {
           logger.warn(`[SINCRONIZADOR] Repro ID ${repro.id} sin hora_inicio definida, se omite.`);
