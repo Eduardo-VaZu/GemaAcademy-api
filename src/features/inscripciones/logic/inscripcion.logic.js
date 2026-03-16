@@ -26,6 +26,9 @@ export const detectarRegimenAlumno = async (tx, alumnoId) => {
 /**
  * Determina si es un Upgrade y calcula la fecha de corte del ciclo actual.
  */
+/**
+ * Determina si es un Upgrade y calcula la fecha de corte del ciclo actual.
+ */
 export const calcularCicloUpgrade = async (tx, alumnoId) => {
   const hoy = new Date();
   
@@ -38,19 +41,22 @@ export const calcularCicloUpgrade = async (tx, alumnoId) => {
   if (inscripcionMadre) {
     const fechaInicioCiclo = new Date(inscripcionMadre.fecha_inscripcion);
     
+    // 2. Calculamos el fin de su mes normal (Inicio + 30 días)
+    const fechaFinCiclo = new Date(fechaInicioCiclo);
+    fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30);
+
     // =================================================================
     // 🔥 NUEVO BLOQUEO CASO 9: EL AGUJERO NEGRO DEL PAGADOR ANTICIPADO
+    // Calculamos los días restantes hasta el fin del ciclo. 
+    // Damos una tolerancia de 45 días (30 del mes + 15 de posibles reprogramaciones).
     // =================================================================
-    if (fechaInicioCiclo > hoy) {
+    const diasParaFinCiclo = Math.ceil((fechaFinCiclo.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diasParaFinCiclo > 45) {
       throw new Error(
         `⛔ CIERRE DE CICLO: Ya adelantaste el pago de tu próximo mes. Espera al inicio de tu nuevo ciclo para agregar más horarios.`
       );
     }
-    // =================================================================
-
-    // 2. Si pasa la validación, calculamos el fin de su mes normal
-    const fechaFinCiclo = new Date(fechaInicioCiclo);
-    fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30);
 
     return fechaFinCiclo > hoy ? fechaFinCiclo : null;
   }
