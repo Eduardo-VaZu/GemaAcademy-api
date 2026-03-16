@@ -30,7 +30,11 @@ export const inscripcionService = {
 
         // 🕵️‍♂️ PASO 1: DETECTIVE DE RÉGIMEN Y CICLO
         const esAlumnoLegacy = await Logic.detectarRegimenAlumno(tx, alumno_id);
-        const fechaCorte = await Logic.calcularCicloUpgrade(tx, alumno_id);
+        const cicloInfo = await Logic.calcularCicloUpgrade(tx, alumno_id);
+        
+        // 🔥 MAGIA DE SINCRONIZACIÓN: Extraemos ambas fechas del nuevo objeto
+        const fechaCorte = cicloInfo ? cicloInfo.fechaCorte : null;
+        const fechaMadre = cicloInfo ? cicloInfo.fechaMadre : null;
         const esInscripcionAdicional = !!fechaCorte;
 
         // 👮‍♂️ PASO 2: VALIDACIÓN DE CAPACIDAD TOTAL (Combo Máximo Dinámico)
@@ -94,14 +98,17 @@ export const inscripcionService = {
         const inscripcionesCreadas = [];
         let totalCobrar = 0;
         let detalleCobro = [];
+        
+        // 🔥 AQUI DECLARAMOS LA VARIABLE PARA QUE NO FALLE
+        const hoyInscripcion = new Date();
 
         for (const idHorario of horario_ids) {
           const horario = await Validators.validarAforoHorario(tx, idHorario, fechaLimiteZombie);
           let montoEsteHorario = 0;
 
           if (esInscripcionAdicional && fechaCorte) {
-            // Caso Upgrade: Clases restantes hasta el 11 de marzo (ejemplo) * Precio Unitario
-            const clasesRestantes = Utils.contarClasesEnIntervalo(horario.dia_semana, new Date(), fechaCorte);
+            // Caso Upgrade: Clases restantes hasta el corte * Precio Unitario
+            const clasesRestantes = Utils.contarClasesEnIntervalo(horario.dia_semana, hoyInscripcion, fechaCorte);
             montoEsteHorario = clasesRestantes * precioUnitarioOficial;
             detalleCobro.push(`Upgrade ${horario.dia_semana} (${clasesRestantes} cl)`);
           } else {
@@ -117,12 +124,13 @@ export const inscripcionService = {
               alumno_id: parseInt(alumno_id),
               horario_id: idHorario,
               estado: 'PENDIENTE_PAGO',
+              // 🔥 MAGIA DE SINCRONIZACIÓN Y CREACIÓN
+              fecha_inscripcion: (esInscripcionAdicional && fechaMadre) ? fechaMadre : hoyInscripcion,
             },
             include: { horarios_clases: true }
           });
           inscripcionesCreadas.push(nuevaInscripcion);
         }
-
         // 💸 PASO 6: GENERAR DEUDA Y APLICAR BENEFICIOS
         if (totalCobrar > 0) {
           const nuevaCuenta = await tx.cuentas_por_cobrar.create({
