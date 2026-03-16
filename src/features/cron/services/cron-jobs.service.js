@@ -225,7 +225,27 @@ export const iniciarCronJobs = () => {
     },
     { timezone: 'America/Lima' }
   );
- 
+
+  // ------------------------------------------------------------------
+  // TAREA: EL SINCRONIZADOR DINÁMICO (Cada 30 minutos)
+  // Objetivo: Alinear alumnos que se inscriben DESPUÉS de una reprogramación
+  // masiva, aplicándoles el mismo beneficio de forma automática.
+  // ------------------------------------------------------------------
+  cron.schedule(
+    '*/30 * * * *',
+    async () => {
+      try {
+        const total = await asistenciaCronService.sincronizarAlumnosNuevosConReprogramaciones();
+        if (total > 0) {
+          logger.info(`[SINCRONIZADOR] Se alinearon ${total} alumnos nuevos con reprogramaciones previas.`);
+        }
+      } catch (error) {
+        logger.error('[CRON ERROR] Falló El Sincronizador Dinámico:', error);
+      }
+    },
+    { timezone: 'America/Lima' }
+  );
+
   // ------------------------------------------------------------------
   // TAREA: EL PURGADOR DE TOKENS (Todos los días a las 02:00 AM)
   // Objetivo: Limpiar tokens expirados o revocados hace más de 7 días.
