@@ -105,7 +105,6 @@ class AsistenciaCronService {
         where: {
           horario_id: repro.horario_id,
           estado: 'ACTIVO',
-          fecha_inscripcion: { gt: repro.creado_en },
           registros_asistencia: {
             none: { reprogramacion_clase_id: repro.id },
           },
