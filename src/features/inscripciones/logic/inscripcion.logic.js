@@ -30,9 +30,10 @@ export const detectarRegimenAlumno = async (tx, alumnoId) => {
  * Determina si es un Upgrade y calcula la fecha de corte del ciclo actual.
  */
 export const calcularCicloUpgrade = async (tx, alumnoId) => {
-  const hoy = new Date();
+  const hoyRaw = new Date();
+  // 🔥 Limpiamos la hora de "hoy" para que sea exactamente la medianoche UTC
+  const hoy = new Date(Date.UTC(hoyRaw.getUTCFullYear(), hoyRaw.getUTCMonth(), hoyRaw.getUTCDate()));
   
-  // 1. Buscamos la Fecha Madre
   const inscripcionMadre = await tx.inscripciones.findFirst({
     where: { alumno_id: parseInt(alumnoId), estado: 'ACTIVO' },
     orderBy: { fecha_inscripcion: 'asc' }, 
@@ -40,17 +41,14 @@ export const calcularCicloUpgrade = async (tx, alumnoId) => {
 
   if (inscripcionMadre) {
     const fechaInicioCiclo = new Date(inscripcionMadre.fecha_inscripcion);
-    
-    // 2. Calculamos el fin de su mes normal (Inicio + 30 días)
     const fechaFinCiclo = new Date(fechaInicioCiclo);
     fechaFinCiclo.setDate(fechaFinCiclo.getDate() + 30);
 
-    // =================================================================
-    // 🔥 NUEVO BLOQUEO CASO 9: EL AGUJERO NEGRO DEL PAGADOR ANTICIPADO
-    // Calculamos los días restantes hasta el fin del ciclo. 
-    // Damos una tolerancia de 45 días (30 del mes + 15 de posibles reprogramaciones).
-    // =================================================================
-    const diasParaFinCiclo = Math.ceil((fechaFinCiclo.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+    // 🔥 Limpiamos la hora del fin de ciclo
+    const finLimpio = new Date(Date.UTC(fechaFinCiclo.getUTCFullYear(), fechaFinCiclo.getUTCMonth(), fechaFinCiclo.getUTCDate()));
+
+    // 🔥 Ahora la resta es perfecta y en días enteros
+    const diasParaFinCiclo = Math.round((finLimpio.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diasParaFinCiclo > 45) {
       throw new Error(
@@ -58,7 +56,12 @@ export const calcularCicloUpgrade = async (tx, alumnoId) => {
       );
     }
 
-    return fechaFinCiclo > hoy ? fechaFinCiclo : null;
+    if (fechaFinCiclo > hoyRaw) { // Usamos hoyRaw aquí para que devuelva el objeto
+      return {
+        fechaCorte: fechaFinCiclo,
+        fechaMadre: fechaInicioCiclo
+      };
+    }
   }
   return null;
 };
